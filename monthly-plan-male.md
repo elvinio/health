@@ -114,6 +114,8 @@
 
 **Zone 2 target for age 42**: Heart rate 107–125 bpm (180 − 42 = 138 max; Zone 2 = ~65–90% aerobic threshold). For rucking, aim for the lower end — pack weight will push HR up. You should be able to hold a conversation but feel consistently warm.
 
+**Why staying in Zone 2 matters — not Zone 3 or higher**: Once HR climbs above ~125 bpm into Zone 3 (the "grey zone"), you shift from predominantly fat oxidation to carbohydrate burning, and the training stimulus changes entirely. Zone 3 is neither easy enough to recover from nor hard enough to build true cardiovascular capacity — it produces fatigue without the mitochondrial adaptations you want. For someone doing 4 hard strength sessions per week, a Zone 3+ ruck is an unplanned fifth hard session that accumulates systemic fatigue and impairs recovery for Monday's training. Zone 2 keeps the aerobic system developing (PGC-1α signalling, mitochondrial biogenesis, improved fat oxidation) while leaving the body fresh for strength work. If your HR spikes — uphill section, heavier pack, Singapore heat — slow your pace or pause briefly to let it drop back down.
+
 ---
 
 ## 5. The 4 Training Days — Detailed
@@ -870,11 +872,25 @@ If any of the above: skip remaining press sets that session, double the face pul
 | Metric | Target |
 |--------|--------|
 | Heart rate | 107–125 bpm |
-| Pace feel | Can speak sentences; breathing elevated but not gasping |
+| Pace feel | Can speak full sentences; breathing elevated but not gasping |
 | Duration | 35–45 min |
 | Pack weight | 8–10kg |
-| Terrain | Flat to moderate — avoid steep hills with pack as it spikes HR out of Zone 2 |
+| Terrain | Flat to moderate — avoid steep hills; inclines spike HR above Zone 2 |
 | Footwear | Trail shoes or sturdy walking shoes — not running flats |
+
+**Why you must not let HR spike above 125 bpm during rucking:**
+
+Zone 2 (107–125 bpm) is where the body trains the aerobic energy system most efficiently — it stimulates mitochondrial biogenesis (growth of new mitochondria in muscle cells) and develops the fat oxidation pathway. These are the long-term adaptations that improve cardiovascular health, metabolic efficiency, and longevity.
+
+The moment HR crosses into Zone 3 (roughly 126–138 bpm), several things happen:
+- **Fuel source shifts** — the body moves away from fat oxidation toward carbohydrate burning. You are no longer training the same system.
+- **Recovery cost rises sharply** — Zone 3 is metabolically expensive. Unlike Zone 2, which you can recover from overnight, Zone 3 work accumulates fatigue over days. With 4 strength sessions already in the week, this erodes your capacity to train hard on Monday.
+- **No additional aerobic benefit** — Zone 3 is sometimes called the "grey zone" because it is too easy to build VO2max (you need Zone 4–5 for that) and too hard to build aerobic base. It is the least productive intensity for your goals.
+
+**Practical control during Singapore rucking:**
+- If you hit a hill, slow your pace or take the hill at half-speed
+- If HR spikes above 125, stop walking briefly (30–60 sec) until it drops back to 115, then resume
+- In the morning heat (even at 7am), HR runs 5–10 bpm higher than in air-conditioning — factor this in and be willing to go slower than feels necessary
 
 ### Supplement Quick-Reference
 
