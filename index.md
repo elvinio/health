@@ -156,8 +156,9 @@ If you are new to this knowledgebase, the recommended reading order is:
 6. [Recovery](./recovery.md) — often underweighted; limits all other gains
 7. [Mobility & Prehab](./mobility-prehab.md) — keeps you training injury-free for decades
 8. [Hormones & Stress](./hormones-stress.md) — integrates everything; read last for full context
-9. [Monthly Plan — Male](./monthly-plan-male.md) — personalised 4-week plan for a 42yo Singaporean male (strength focus)
-10. [Monthly Plan — Female](./monthly-plan-female.md) — personalised 4-week plan for a 40yo Singaporean female (fat loss + strength)
+9. [Grooming & Personal Care](./grooming-personal-care.md) — skin, hair, oral hygiene, and dressing for Singapore's climate and the 40–50 body
+10. [Monthly Plan — Male](./monthly-plan-male.md) — personalised 4-week plan for a 42yo Singaporean male (strength focus)
+11. [Monthly Plan — Female](./monthly-plan-female.md) — personalised 4-week plan for a 40yo Singaporean female (fat loss + strength)
 
 ---
 
@@ -197,6 +198,11 @@ Sleep architecture and its role in muscle repair, hormone secretion, and cogniti
 **Cortisol, testosterone, and perimenopause**
 
 In-depth coverage of the hormonal landscape in the 40–50 cohort. For men: the cortisol-testosterone axis, lifestyle-based testosterone optimisation (sleep, zinc, vitamin D, body fat %, training intensity management), when to consider testing, and what "low T" actually means clinically vs. suboptimally. For women: perimenopause timeline, symptom management through lifestyle (the evidence is strong for exercise and sleep), nutritional support, and when to consider discussing HRT with a physician. Stress resilience frameworks.
+
+### [Grooming & Personal Care](./grooming-personal-care.md)
+**Skin, hair, dental, hands, feet, and dressing for the 40–50 body in Singapore**
+
+Covers the physiological changes affecting skin and hair in this decade — collagen decline, slower cell turnover, androgenetic alopecia [M], perimenopause-driven dryness [F] — and translates them into evidence-informed daily routines. Singapore-specific throughout: UV index 11–12, year-round 80%+ humidity, AC transitions, multi-ethnic skin types (Chinese, Malay, Indian), and locally available products and healthcare pathways (Guardian, Watsons, polyclinic dental, NSC).
 
 ### [Monthly Plan — Male](./monthly-plan-male.md)
 **4-week day-by-day plan: 42yo Singaporean male (strength focus)**

@@ -19,6 +19,7 @@ FILES = [
     ("Mobility & Prehab", "mobility-prehab.md"),
     ("Recovery", "recovery.md"),
     ("Hormones & Stress", "hormones-stress.md"),
+    ("Grooming & Personal Care", "grooming-personal-care.md"),
     ("Monthly Plan \u2014 Male", "monthly-plan-male.md"),
     ("Monthly Plan \u2014 Female", "monthly-plan-female.md"),
 ]
