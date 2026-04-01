@@ -107,8 +107,8 @@
 | Monday | Strength Day A | Hinge + Push (superset format) | 7:30–8:00am |
 | Tuesday | Strength Day B | Squat + TGU (superset format) | 7:30–8:00am |
 | Wednesday | Rest | Active recovery — 20–30 min walk, foam roll | — |
-| Thursday | Strength Day C | Single-Leg + Power (superset format) | 7:30–8:00am |
-| Friday | Strength Day D | Full Body + Power (superset format) | 7:30–8:00am |
+| Thursday | Strength Day C | Vertical Pull + Push + Single-Leg + Power | 7:30–8:00am |
+| Friday | Strength Day D | Full Body + Jump Power | 7:30–8:00am |
 | Saturday | Rucking (Zone 2) | 8–10kg pack, 35–45 min, neighbourhood/park connector | 7:00–8:00am |
 | Sunday | Family Swimming | Zone 1–2 active recovery | 4:00pm |
 
@@ -120,37 +120,44 @@
 
 ## 5. The 4 Training Days — Detailed
 
-Each session is **30 minutes**: 2 min warm-up, ~22 min main work (superset pairs), 4–5 min prehab finisher. Supersets pair antagonist or non-competing movements — you rest one muscle group while working another, making 30 minutes as productive as a conventional 45-minute session. Rest: 45 sec between supersets (W1/W3/W4), 60 sec (W2 strength week).
+Each session is **30 minutes**: 2 min warm-up, ~22 min main work (block pairs), 3–5 min prehab/core finisher. Blocks pair antagonist or non-competing movements — you rest one muscle group while working another, making 30 minutes as productive as a conventional 45-minute session. Rest: 45 sec between sets (W1/W3/W4), 90 sec (W2 strength week). KB swings on Monday and Thursday only; Friday uses broad/box jumps as the power stimulus.
 
 ---
 
 ### Day A — Hinge + Push (Monday, 7:30–8:00am)
 
-**Purpose**: Develop posterior chain power and strength via hip hinge; build horizontal push strength using floor press (shoulder-safe — floor limits ROM at the bottom, reducing impingement risk); balance the push with horizontal pull. Superset format pairs non-competing movements to maximise density in 30 minutes.
+**Purpose**: Build horizontal push and pull strength as the primary strength pair (Floor Press + Row); develop posterior chain via RDL; KB swings moved to a metcon finisher so the primary strength blocks run on a fully fresh posterior chain. Face pull doubles as active rest between heavy hinge sets, keeping HR in range without losing prehab benefit.
 
-**Movement patterns**: Hinge, Horizontal Push, Horizontal Pull
+**Movement patterns**: Horizontal Push, Horizontal Pull, Hinge, Power Finisher
 
 **Warm-up (2 min)**:
 - Band pull-apart: 2×15 (shoulder prehab activation — do before any pressing)
 - Shoulder CARs (Controlled Articular Rotations): 5 slow circles each arm
 
-**Superset A** (4 rounds, 45s rest between rounds):
+**Block A — Push/Pull Strength Pair** (4 rounds, 45s rest — 90s rest in W2):
 
 | Exercise | Cue / Key Technique Note |
 |----------|--------------------------|
-| A1: KB Swing | Hike it back (not squat down), explosive hip extension, glutes squeeze at top, soft landing back into hinge. This is a hip hinge, not a squat. |
-| A2: DB Floor Press | Lie on floor, DB in hands, elbows at 45° from torso (not flared). Floor stops the descent — this is the safety mechanism for your shoulder. Full lockout at top. |
+| A1: DB Floor Press | Lie on floor, DB in hands, elbows at 45° from torso. Floor stops descent — shoulder safety mechanism. Full lockout at top. Controlled eccentric. |
+| A2: Single-arm DB Row | Immediately after the press. Knee and hand on floor. Pull elbow past hip. No shoulder elevation. Feel lat contraction at top. |
 
-**Superset B** (4 rounds, 45s rest between rounds):
+> **HR rule**: start each set below 130 bpm — check before picking up the DBs.
+
+**Block B — Hinge + Active Rest** (4 rounds, same rest as Block A):
 
 | Exercise | Cue / Key Technique Note |
 |----------|--------------------------|
 | B1: DB Romanian Deadlift | Soft knee bend, push hips back, DBs stay close to legs, feel stretch in hamstrings at bottom. Neutral spine throughout. |
-| B2: Single-arm DB Row | Knee and hand on floor. Pull elbow past hip. No shoulder elevation. Feel lat contraction at top. |
+| B2: Band Face Pull (active rest) | 2×15 — pull to forehead level, elbows high, thumbs back at end position. Slotted here deliberately: HR drops faster than passive rest and the prehab is done before the finisher. |
 
-**Prehab Finisher (non-negotiable — 4 min)**:
-- Band face pull: 2×15 — pull to forehead level, elbows high, thumbs back at end position
-- Dead bug: 2×8/side — lower back pressed firmly into floor throughout; lower opposite arm/leg slowly
+**Finisher — KB Swing Metcon**:
+- W1: 4 rounds × 8 reps | moderate KB | 30s rest — re-establish hip hinge mechanics; write down the KB weight
+- W2: 6 rounds × 6 reps | heavy KB | 30s rest — maximal power every single rep
+- W3: 3 rounds × 12 reps | moderate KB | 30s rest — consistent power; every rep should look like the first
+- W4: 2 rounds × 8 reps | light KB | 30s rest — perfect mechanics only; no fatigue grinding
+
+**Core**:
+- Dead Bug: 2×8/side — lower back pressed firmly into floor throughout; lower opposite arm/leg slowly
 
 ---
 
@@ -164,13 +171,15 @@ Each session is **30 minutes**: 2 min warm-up, ~22 min main work (superset pairs
 - Glute bridge: 2×10 (activate glutes before squat)
 - BW goblet squat: 2×8 (elbows inside knees at bottom, chest tall)
 
-**Turkish Get-Up** — 3 sets × 2 reps/side (solo — TGU requires full focus, cannot be superseted; move slowly):
+**Turkish Get-Up** — 3 sets × 2 reps/side (W4: 2 sets × 2 reps/side):
 
 | Exercise | Cue / Key Technique Note |
 |----------|--------------------------|
 | Turkish Get-Up (TGU) | **Do this first while completely fresh — it demands full concentration.** Move slowly through each phase. Never rush a TGU. KB arm stays locked vertical throughout. Scan the KB at all times. |
 
-**Superset A** (4 rounds, 45s rest):
+> **Rest between sides: 90 seconds (W1/W3/W4) | 2 minutes (W2)** — TGU is a skill movement; treat rest like a skill drill, not a muscle set.
+
+**Block A — Squat + Carry** (4 rounds, 45s rest — 90s rest in W2):
 
 | Exercise | Cue / Key Technique Note |
 |----------|--------------------------|
@@ -183,11 +192,11 @@ Each session is **30 minutes**: 2 min warm-up, ~22 min main work (superset pairs
 
 ---
 
-### Day C — Single-Leg + Power (Thursday, 7:30–8:00am)
+### Day C — Vertical Pull + Push + Single-Leg + Power (Thursday, 7:30–8:00am)
 
-**Purpose**: Single-leg strength for athletic balance and injury prevention; power output via KB swing; push-up kept at RPE 6 max for shoulder safety; anti-lateral carry for core stability. Superset format pairs non-competing movements.
+**Purpose**: Pull-up + push-up as the primary strength pair — introduces the vertical pull pattern missing from Days A and B, creating balanced pulling stimulus across the week. Power and single-leg work follow as Block B. Suitcase carry stands alone so it can be loaded and executed with full focus.
 
-**Movement patterns**: Hinge/Power, Single-Leg Squat, Push (RPE 6 max), Carry
+**Movement patterns**: Vertical Pull, Horizontal Push (RPE 6 max), Power/Hinge, Single-Leg Squat, Carry
 
 **Warm-up (2 min)**:
 - Band Y-T-W: 2×8 each position — **do this before any pressing**; activates lower traps and rotator cuff
@@ -196,49 +205,58 @@ Each session is **30 minutes**: 2 min warm-up, ~22 min main work (superset pairs
   - W: elbows bent, pull band, squeeze shoulder blades
 - Shoulder CARs: 5 each arm
 
-**Superset A** (4 rounds, 45s rest):
+**Block A — Vertical Pull + Push** (3 rounds, 45s rest — 90s rest in W2):
 
 | Exercise | Cue / Key Technique Note |
 |----------|--------------------------|
-| A1: KB Swing | Power opener — hike it back, explosive hip extension, glutes squeeze at top. Sets the explosive tone. |
-| A2: DB Reverse Lunge | Step back (not forward — easier on knee). Knee hovers 1–2cm above floor. Front foot stays flat. Control the descent. |
+| A1: Pull-up (3-sec eccentric) | Full hang at bottom. Pull until chin clears bar. **3-second controlled lower on every rep — this is the strength stimulus.** Auto-regulate reps by round: W1 = 4 / 3 / 3 | W2 = 5 / 4 / 3–4 | W3 = 3–4 / 3 / 3 | W4 = 3 / 3 |
+| A2: Push-up variation (RPE 6 max) | Immediately after the pull-up set — no rest between A1 and A2. Pull-up and push-up are antagonists, so the push-up starts on a relatively fresh chest. W1/W3/W4: 8 reps | W2: 6 reps. Choose variation: Standard → Close-grip → Archer. Never push through shoulder discomfort. |
 
-**Superset B** (3 rounds, 45s rest):
+> Rest 90s after completing both A1 + A2, then repeat.
+
+**Block B — Power + Single-Leg** (4 rounds W1/W2 | 3 rounds W3 | 2 rounds W4 — 45s rest W1/W3/W4 | 90s rest W2):
 
 | Exercise | Cue / Key Technique Note |
 |----------|--------------------------|
-| B1: Push-up variation (RPE 6 max) | Choose by current capacity: Standard → Close-grip → Archer push-up. **No heavy overhead loading.** If shoulder feels off, go one step easier. Never push through discomfort. |
-| B2: KB Suitcase Carry (20m) | KB in ONE hand only. Walk without leaning to the KB side — this is the entire challenge. Anti-lateral flexion = obliques, QL, quadratus. Switch hands midway. |
+| B1: KB Swing | Hike it back (not squat down), explosive hip extension, glutes squeeze at top. This is a hip hinge, not a squat. W2: heavier KB than W1. |
+| B2: DB Reverse Lunge | Step back (not forward). Knee hovers 1–2cm above floor. Front foot stays flat. Control the descent. |
 
-**Prehab Finisher (4 min)**:
-- Band Y-T-W: 2×8 each position (all three in sequence = 1 round)
+**Standalone**:
+- KB Suitcase Carry: 2×20m/side — KB in ONE hand only. Walk without leaning to the KB side — this is the entire challenge. Switch hands between sets. W2: heavier KB than W1.
+
+**Prehab Finisher (3 min)**:
 - Bird dog: 2×6/side — opposite arm + leg extended, hold 2 sec at top, return without twisting hips
 
 ---
 
-### Day D — Full Body + Power (Friday, 7:30–8:00am)
+### Day D — Full Body + Jump Power (Friday, 7:30–8:00am)
 
-**Purpose**: Full-body integration to end the training week; maximise KB power output; conditioning element to complement the strength work. Finish strong heading into the weekend. Heavier swings and 60s rest in Superset A to allow for maximal power output.
+**Purpose**: Full-body integration to end the training week. Broad/Box jump replaces Friday swings — this keeps swings to Mon + Thu only (reducing cumulative posterior chain fatigue), adds a pure neural power stimulus with zero wrist load, and trains explosive hip extension with a fresh movement pattern. BSS paired with clean + press as an antagonist superset. Bent-over row stands alone so it can be loaded to maximum.
 
-**Movement patterns**: Power, Squat, Pull, Push
+**Movement patterns**: Jump Power, Single-Leg Squat, Push (RPE 6 max), Pull
 
 **Warm-up (2 min)**:
 - Band pull-apart: 2×15
 - Hip circles: 10 each direction
 
-**Superset A** (4 rounds, 60s rest — heavier, more power):
+**Power Opener** (4 rounds W1/W2 | 3 rounds W3 | 2 rounds W4 — 45s rest W1/W3/W4 | 90s rest W2):
 
 | Exercise | Cue / Key Technique Note |
 |----------|--------------------------|
-| A1: KB Swing (heaviest KB, maximal power) | Focus on maximal hip power each rep. These should feel fast and explosive, not grind-y. Hip hinge, not a squat. |
-| A2: Bulgarian Split Squat | Rear foot elevated on sofa/sturdy chair ~45cm. DB in each hand. Lower until rear knee hovers above floor. Front shin stays near vertical. This will be humbling — that is correct. |
+| Broad Jump or Box Jump | **Full reset between every rep** — step back, reset posture, then jump. This is not a continuous movement. Land soft: absorb with hips and knees, not a stiff landing. W1: submaximal — 4×4, focus on landing mechanics and hip drive. W2: maximal intent — 4×4. W3: 3×5, moderate effort. W4: 2×4, easy — focus on mechanics. |
 
-**Superset B** (3 rounds, 45s rest):
+**Block A — Single-Leg + Press** (4 rounds W1/W2 | 3 rounds W3 | 2 rounds W4 — same rest as Power Opener):
 
 | Exercise | Cue / Key Technique Note |
 |----------|--------------------------|
-| B1: KB Single-arm Clean + Press (press at RPE 6 max) | Clean to rack, brief pause, then press. Press at RPE 6 max — strict shoulder-awareness. If any impingement sensation, stop the press and finish set as clean-only. |
-| B2: DB Bent-over Row | Hinge to ~45°, DB in both hands. Row to hip crease, squeeze shoulder blades at top. Heavier than single-arm rows — bilateral advantage. |
+| A1: Bulgarian Split Squat | Rear foot elevated on sofa/sturdy chair ~45cm. DB in each hand. Lower until rear knee hovers above floor. Front shin stays near vertical. This will be humbling — that is correct. |
+| A2: KB Single-arm Clean + Press (press at RPE 6 max) | Clean to rack, brief pause, then press. Press at RPE 6 max — strict shoulder-awareness. If any impingement sensation, stop the press and finish set as clean-only. |
+
+**Block B — Pull Standalone** (3 rounds W1/W2/W3 | 2 rounds W4 — same rest):
+
+| Exercise | Cue / Key Technique Note |
+|----------|--------------------------|
+| DB Bent-over Row | Hinge to ~45°, DB in both hands. Row to hip crease, squeeze shoulder blades at top. **Stands alone this session so you can load it properly — this is the heaviest pull of the week.** |
 
 **Core Finisher (3 min)**:
 - Dead bug: 2×10/side — lower back pressed firmly into floor throughout
@@ -253,7 +271,7 @@ Each session is **30 minutes**: 2 min warm-up, ~22 min main work (superset pairs
 | Week | Phase | Superset Rounds | Reps | RPE Target | Rest Between Supersets | Notes |
 |------|-------|-----------------|------|------------|------------------------|-------|
 | Week 1 | Accumulation | 4 rounds | 8 | 7 | 45 sec | Re-establish all movement patterns. Choose moderate weights. Track every weight used — this is your baseline. |
-| Week 2 | Strength | 4 rounds | 6 | 8 | 60 sec | Increase load from Week 1. Fewer reps, more weight, longer rest. Supersets limit recovery vs straight sets — 6 reps at RPE 8 is the right target. |
+| Week 2 | Strength | 4 rounds | 6 | 8 | 90 sec (120s if HR >130) | Increase load from Week 1. Fewer reps, more weight, 90s rest minimum. Check HR before each set — start below 130 bpm. Swings on Mon + Thu only; Friday power is broad/box jump. |
 | Week 3 | Volume | 3 rounds | 12 | 7–8 | 45 sec | Lighter than Week 2, but more total reps per set. Metabolic stress accumulates through superset density. |
 | Week 4 | Deload | 2 rounds | 8 | 5–6 | 45 sec | 50% of Week 3's total volume. Same exercises, same form. Intentionally easy. This is where adaptation happens. |
 
@@ -292,13 +310,14 @@ Each session is **30 minutes**: 2 min warm-up, ~22 min main work (superset pairs
 
 **Workout (7:30–8:00am)**:
 - Warm-up (2 min): Band pull-apart 2×15 | Shoulder CARs 5/arm
-- Superset A — 4 rounds, 45s rest:
-  - A1: KB Swing: 4×8
-  - A2: DB Floor Press: 4×8
-- Superset B — 4 rounds, 45s rest:
+- Block A — 4 rounds, 45s rest:
+  - A1: DB Floor Press: 4×8
+  - A2: Single-arm DB Row: 4×8/side
+- Block B — 4 rounds, 45s rest:
   - B1: DB RDL: 4×8
-  - B2: Single-arm DB Row: 4×8/side
-- Prehab: Band face pull 2×15 | Dead bug 2×8/side
+  - B2: Band Face Pull (active rest): 2×15
+- Finisher — KB Swing: 4×8 (moderate KB, 30s rest — re-establish hip hinge mechanics; write down the KB weight)
+- Core: Dead bug 2×8/side
 
 ---
 
@@ -312,8 +331,8 @@ Each session is **30 minutes**: 2 min warm-up, ~22 min main work (superset pairs
 
 **Workout (7:30–8:00am)**:
 - Warm-up (2 min): Glute bridge 2×10 | BW goblet squat 2×8
-- Turkish Get-Up: 3×2/side (light KB — prioritise form; this is Week 1; solo, full focus)
-- Superset A — 4 rounds, 45s rest:
+- Turkish Get-Up: 3×2/side (light KB — prioritise form; 90s rest between sides)
+- Block A — 4 rounds, 45s rest:
   - A1: KB Goblet Squat: 4×8
   - A2: KB Farmer Carry (20m): 4 rounds
 - Prehab: Band face pull 2×15 | RKC Plank 2×20 sec
@@ -343,14 +362,15 @@ Each session is **30 minutes**: 2 min warm-up, ~22 min main work (superset pairs
 **Meals today**: Follow Training Day template
 
 **Workout (7:30–8:00am)**:
-- Warm-up (2 min): Band Y-T-W 2×8 | Shoulder CARs 5/arm
-- Superset A — 4 rounds, 45s rest:
-  - A1: KB Swing: 4×8
-  - A2: DB Reverse Lunge: 4×8/side
-- Superset B — 3 rounds, 45s rest:
-  - B1: Push-up variation (RPE 6 max): 3×8 (standard or close-grip for W1 — establishes baseline)
-  - B2: KB Suitcase Carry (20m): 3 rounds (do NOT lean to the KB side)
-- Prehab: Band Y-T-W 2×8 each position | Bird dog 2×6/side
+- Warm-up (2 min): Band Y-T-W 2×8 each position | Shoulder CARs 5/arm
+- Block A — 3 rounds, 45s rest:
+  - A1: Pull-up (3-sec eccentric): Round 1 = 4 reps | Round 2 = 3 reps | Round 3 = 3 reps
+  - A2: Push-up variation (RPE 6 max): 3×8 (standard — establishes baseline)
+- Block B — 4 rounds, 45s rest:
+  - B1: KB Swing: 4×8
+  - B2: DB Reverse Lunge: 4×8/side
+- Standalone: KB Suitcase Carry 2×20m/side
+- Prehab: Bird dog 2×6/side
 
 ---
 
@@ -364,12 +384,13 @@ Each session is **30 minutes**: 2 min warm-up, ~22 min main work (superset pairs
 
 **Workout (7:30–8:00am)**:
 - Warm-up (2 min): Band pull-apart 2×15 | Hip circles 10 each
-- Superset A — 4 rounds, 60s rest (heavier, more power):
-  - A1: KB Swing (heaviest KB): 4×8
-  - A2: Bulgarian Split Squat: 4×8/side
-- Superset B — 3 rounds, 45s rest:
-  - B1: KB Single-arm Clean + Press (press at RPE 6 max): 3×8/side
-  - B2: DB Bent-over Row: 3×8
+- Power Opener — 4 rounds, 45s rest:
+  - Broad/Box Jump: 4×4 (submaximal — focus on landing mechanics and hip drive; full reset between reps)
+- Block A — 4 rounds, 45s rest:
+  - A1: Bulgarian Split Squat: 4×8/side
+  - A2: KB Single-arm Clean + Press (press at RPE 6 max): 4×8/side
+- Block B — 3 rounds, 45s rest:
+  - DB Bent-over Row: 3×8 (heaviest pull of the week)
 - Core finisher: Dead bug 2×10/side | Side plank 2×20s/side
 
 ---
@@ -396,7 +417,7 @@ Each session is **30 minutes**: 2 min warm-up, ~22 min main work (superset pairs
 
 ### Week 2 — Strength Phase (4 rounds × 6 reps | RPE 8)
 
-**Goal for the week**: Increase loads from Week 1. Fewer reps, more weight. Rest 60 sec between supersets. Supersets limit recovery compared to straight sets, so 4 rounds × 6 reps at RPE 8 is the correct target — these sets should feel genuinely heavy. Form must remain crisp.
+**Goal for the week**: Increase loads from Week 1. Fewer reps, more weight. Rest 90 sec minimum between sets (120s if HR exceeds 130 bpm). Check HR before each set — start below 130 bpm. 4 rounds × 6 reps at RPE 8 is the correct target — these sets should feel genuinely heavy. Form must remain crisp. Swings on Mon + Thu only; Friday power is broad/box jump.
 
 ---
 
@@ -410,13 +431,16 @@ Each session is **30 minutes**: 2 min warm-up, ~22 min main work (superset pairs
 
 **Workout (7:30–8:00am)**:
 - Warm-up (2 min): Band pull-apart 2×15 | Shoulder CARs 5/arm
-- Superset A — 4 rounds, 60s rest:
-  - A1: KB Swing: 4×6 (heavier KB than W1; maximal power each rep)
-  - A2: DB Floor Press: 4×6 (increase load from W1)
-- Superset B — 4 rounds, 60s rest:
+- Block A — 4 rounds, 90s rest:
+  - A1: DB Floor Press: 4×6 (heavier than W1 — controlled eccentric)
+  - A2: Single-arm DB Row: 4×6/side (heavier — controlled eccentric)
+- Block B — 4 rounds, 90s rest:
   - B1: DB RDL: 4×6 (increase load from W1 by 2–4kg per DB)
-  - B2: Single-arm DB Row: 4×6/side (heavier; controlled eccentric)
-- Prehab: Band face pull 2×15 | Dead bug 2×8/side
+  - B2: Band Face Pull (active rest): 2×15 — HR drops faster than passive rest
+- Finisher — KB Swing: 6×6 (heavy KB, 30s rest — maximal power every rep)
+- Core: Dead bug 2×8/side
+
+> HR rule: start each set below 130 bpm.
 
 ---
 
@@ -430,8 +454,8 @@ Each session is **30 minutes**: 2 min warm-up, ~22 min main work (superset pairs
 
 **Workout (7:30–8:00am)**:
 - Warm-up (2 min): Glute bridge 2×10 | BW goblet squat 2×8
-- Turkish Get-Up: 3×2/side (heavier KB than W1; take 60–90 sec between sides; concentrate; solo)
-- Superset A — 4 rounds, 60s rest:
+- Turkish Get-Up: 3×2/side (heavier KB than W1; **2 min rest between sides** — skill movement, full concentration)
+- Block A — 4 rounds, 90s rest:
   - A1: KB Goblet Squat: 4×6 (heavier than W1; sit deep)
   - A2: KB Farmer Carry (20m): 4 rounds (heavier KB; posture challenge increases)
 - Prehab: Band face pull 2×15 | RKC Plank 2×20 sec
@@ -457,14 +481,15 @@ Each session is **30 minutes**: 2 min warm-up, ~22 min main work (superset pairs
 **Meals**: Follow Training Day template
 
 **Workout (7:30–8:00am)**:
-- Warm-up (2 min): Band Y-T-W 2×8 | Shoulder CARs 5/arm
-- Superset A — 4 rounds, 60s rest:
-  - A1: KB Swing: 4×6 (heavier KB)
-  - A2: DB Reverse Lunge: 4×6/side (increase load; controlled — do not rush)
-- Superset B — 3 rounds, 60s rest:
-  - B1: Push-up variation (RPE 6 max): 3×6 — advance one variation from W1 if W1 felt like RPE ≤6
-  - B2: KB Suitcase Carry (20m): 3 rounds (heavier KB; lateral lean = failed rep)
-- Prehab: Band Y-T-W 2×8 each position | Bird dog 2×6/side
+- Warm-up (2 min): Band Y-T-W 2×8 each position | Shoulder CARs 5/arm
+- Block A — 3 rounds, 90s rest:
+  - A1: Pull-up (3-sec eccentric): Round 1 = 5 reps | Round 2 = 4 reps | Round 3 = 3–4 reps
+  - A2: Push-up variation (RPE 6 max): 3×6 — advance one variation from W1 if W1 felt ≤ RPE 6
+- Block B — 4 rounds, 90s rest:
+  - B1: KB Swing: 4×6 (heavier KB — maximal power; HR will spike; full 90s before each set)
+  - B2: DB Reverse Lunge: 4×6/side (increase load; controlled — do not rush)
+- Standalone: KB Suitcase Carry 2×20m/side (heavier KB — lateral lean = failed rep)
+- Prehab: Bird dog 2×6/side
 
 ---
 
@@ -478,12 +503,13 @@ Each session is **30 minutes**: 2 min warm-up, ~22 min main work (superset pairs
 
 **Workout (7:30–8:00am)**:
 - Warm-up (2 min): Band pull-apart 2×15 | Hip circles 10 each
-- Superset A — 4 rounds, 60s rest (heavier, more power):
-  - A1: KB Swing (heaviest KB): 4×6
-  - A2: Bulgarian Split Squat: 4×6/side (increase load from W1)
-- Superset B — 3 rounds, 60s rest:
-  - B1: KB Single-arm Clean + Press (press at RPE 6 max): 3×6/side (increase clean load if press is limiting)
-  - B2: DB Bent-over Row: 3×6 (heaviest row of the cycle)
+- Power Opener — 4 rounds, 90s rest:
+  - Broad/Box Jump: 4×4 (maximal intent — full reset between reps; land soft; absorb with hips)
+- Block A — 4 rounds, 90s rest:
+  - A1: Bulgarian Split Squat: 4×6/side (increase load from W1; BSS will spike HR — full 90s)
+  - A2: KB Single-arm Clean + Press (press at RPE 6 max): 4×6/side (increase clean load if press is limiting)
+- Block B — 3 rounds, 90s rest:
+  - DB Bent-over Row: 3×6 (heaviest row of the cycle — stands alone for full focus)
 - Core finisher: Dead bug 2×10/side | Side plank 2×20s/side
 
 ---
@@ -524,13 +550,14 @@ Each session is **30 minutes**: 2 min warm-up, ~22 min main work (superset pairs
 
 **Workout (7:30–8:00am)**:
 - Warm-up (2 min): Band pull-apart 2×15 | Shoulder CARs 5/arm
-- Superset A — 3 rounds, 45s rest:
-  - A1: KB Swing: 3×12 (moderate KB; consistent power — every rep should look like the first)
-  - A2: DB Floor Press: 3×12 (reduce load from W2; controlled tempo — 2 sec down, 1 sec pause, press up)
-- Superset B — 3 rounds, 45s rest:
+- Block A — 3 rounds, 45s rest:
+  - A1: DB Floor Press: 3×12 (reduce load from W2; controlled tempo — 2 sec down, 1 sec pause, press up)
+  - A2: Single-arm DB Row: 3×12/side (reduce load; squeeze at top of every rep)
+- Block B — 3 rounds, 45s rest:
   - B1: DB RDL: 3×12 (reduce load ~20% from W2; feel the burn at rep 10–12)
-  - B2: Single-arm DB Row: 3×12/side (reduce load; squeeze at top of every rep)
-- Prehab: Band face pull 2×15 | Dead bug 2×8/side
+  - B2: Band Face Pull (active rest): 2×15 — HR drops while prehab gets done
+- Finisher — KB Swing: 3×12 (moderate KB, 30s rest — consistent power; every rep should look like the first)
+- Core: Dead bug 2×8/side
 
 ---
 
@@ -544,8 +571,8 @@ Each session is **30 minutes**: 2 min warm-up, ~22 min main work (superset pairs
 
 **Workout (7:30–8:00am)**:
 - Warm-up (2 min): Glute bridge 2×10 | BW goblet squat 2×8
-- Turkish Get-Up: 3×2/side (same weight as W1; TGU volume doesn't spike — quality focus; solo)
-- Superset A — 3 rounds, 45s rest:
+- Turkish Get-Up: 3×2/side (same weight as W1; TGU volume doesn't spike — quality focus; 90s rest between sides)
+- Block A — 3 rounds, 45s rest:
   - A1: KB Goblet Squat: 3×12 (moderate weight; feel depth and control)
   - A2: KB Farmer Carry (20m): 3 rounds (lighter than W2; focus on posture quality)
 - Prehab: Band face pull 2×15 | RKC Plank 2×20 sec
@@ -571,14 +598,15 @@ Each session is **30 minutes**: 2 min warm-up, ~22 min main work (superset pairs
 **Meals**: Follow Training Day template
 
 **Workout (7:30–8:00am)**:
-- Warm-up (2 min): Band Y-T-W 2×8 | Shoulder CARs 5/arm
-- Superset A — 3 rounds, 45s rest:
-  - A1: KB Swing: 3×12 (moderate KB; consistent power)
-  - A2: DB Reverse Lunge: 3×12/side (moderate weight; pace yourself — 24 total lunges per leg is a lot)
-- Superset B — 3 rounds, 45s rest:
-  - B1: Push-up variation (RPE 6 max): 3×12 (back to standard or close-grip; higher reps; strict form)
-  - B2: KB Suitcase Carry (20m): 3 rounds
-- Prehab: Band Y-T-W 2×8 each position | Bird dog 2×6/side
+- Warm-up (2 min): Band Y-T-W 2×8 each position | Shoulder CARs 5/arm
+- Block A — 3 rounds, 45s rest:
+  - A1: Pull-up (3-sec eccentric): Round 1 = 3–4 reps | Round 2 = 3 reps | Round 3 = 3 reps
+  - A2: Push-up variation (RPE 6 max): 3×12 (back to standard or close-grip; higher reps; strict form)
+- Block B — 3 rounds, 45s rest:
+  - B1: KB Swing: 3×12 (moderate KB — consistent power; 24 total swings per block is metabolically demanding)
+  - B2: DB Reverse Lunge: 3×12/side (moderate weight; pace yourself — 24 total lunges per leg is a lot)
+- Standalone: KB Suitcase Carry 2×20m/side
+- Prehab: Bird dog 2×6/side
 
 ---
 
@@ -592,12 +620,13 @@ Each session is **30 minutes**: 2 min warm-up, ~22 min main work (superset pairs
 
 **Workout (7:30–8:00am)**:
 - Warm-up (2 min): Band pull-apart 2×15 | Hip circles 10 each
-- Superset A — 3 rounds, 45s rest (power focus):
-  - A1: KB Swing (heaviest KB): 3×12 (volume day; moderate KB, consistent power)
-  - A2: Bulgarian Split Squat: 3×12/side (lighter weight; 12 reps/side is a significant metabolic challenge)
-- Superset B — 3 rounds, 45s rest:
-  - B1: KB Single-arm Clean + Press (press at RPE 6 max): 3×12/side (light press; high reps mean shoulder needs to be well-warmed)
-  - B2: DB Bent-over Row: 3×12 (moderate weight; tempo: 2 sec down)
+- Power Opener — 3 rounds, 45s rest:
+  - Broad/Box Jump: 3×5 (moderate effort; crisp mechanics; full reset between reps)
+- Block A — 3 rounds, 45s rest:
+  - A1: Bulgarian Split Squat: 3×12/side (lighter weight; 12 reps/side is a significant metabolic challenge)
+  - A2: KB Single-arm Clean + Press (press at RPE 6 max): 3×12/side (light press; high reps — shoulder needs to be well-warmed)
+- Block B — 3 rounds, 45s rest:
+  - DB Bent-over Row: 3×12 (moderate weight; tempo: 2 sec down)
 - Core finisher: Dead bug 2×10/side | Side plank 2×20s/side
 
 ---
@@ -640,13 +669,14 @@ Each session is **30 minutes**: 2 min warm-up, ~22 min main work (superset pairs
 
 **Workout (7:30–8:00am)**:
 - Warm-up (2 min): Band pull-apart 2×15 | Shoulder CARs 5/arm
-- Superset A — 2 rounds, 45s rest:
-  - A1: KB Swing: 2×8 (light-moderate KB; focus on perfect hip hinge mechanics)
-  - A2: DB Floor Press: 2×8 (light; smooth pressing motion; shoulder should feel great)
-- Superset B — 2 rounds, 45s rest:
+- Block A — 2 rounds, 45s rest:
+  - A1: DB Floor Press: 2×8 (light; smooth pressing motion; shoulder should feel great)
+  - A2: Single-arm DB Row: 2×8/side (50–60% of W2 load)
+- Block B — 2 rounds, 45s rest:
   - B1: DB RDL: 2×8 (50–60% of W2 load; feel the movement, not the weight)
-  - B2: Single-arm DB Row: 2×8/side
-- Prehab: Band face pull 2×15 | Dead bug 2×8/side (prehab does NOT deload — keep it)
+  - B2: Band Face Pull (active rest): 2×15 — prehab does NOT deload; keep it
+- Finisher — KB Swing: 2×8 (light KB, 30s rest — perfect mechanics only)
+- Core: Dead bug 2×8/side
 
 ---
 
@@ -660,8 +690,8 @@ Each session is **30 minutes**: 2 min warm-up, ~22 min main work (superset pairs
 
 **Workout (7:30–8:00am)**:
 - Warm-up (2 min): Glute bridge 2×10 | BW goblet squat 2×8
-- Turkish Get-Up: 2×2/side (lightest KB; use this session to refine technique details; solo)
-- Superset A — 2 rounds, 45s rest:
+- Turkish Get-Up: 2×2/side (lightest KB; use this session to refine technique details; 90s rest between sides)
+- Block A — 2 rounds, 45s rest:
   - A1: KB Goblet Squat: 2×8 (easy weight; think about position and depth, not load)
   - A2: KB Farmer Carry (20m): 2 rounds
 - Prehab: Band face pull 2×15 | RKC Plank 2×20 sec
@@ -687,14 +717,15 @@ Each session is **30 minutes**: 2 min warm-up, ~22 min main work (superset pairs
 **Meals**: Follow Training Day template
 
 **Workout (7:30–8:00am)**:
-- Warm-up (2 min): Band Y-T-W 2×8 | Shoulder CARs 5/arm
-- Superset A — 2 rounds, 45s rest:
-  - A1: KB Swing: 2×8 (moderate; clean technique)
-  - A2: DB Reverse Lunge: 2×8/side
-- Superset B — 2 rounds, 45s rest:
-  - B1: Push-up variation (RPE 6 max): 2×8 (standard; comfortable)
-  - B2: KB Suitcase Carry (20m): 2 rounds
-- Prehab: Band Y-T-W 2×8 each position | Bird dog 2×6/side
+- Warm-up (2 min): Band Y-T-W 2×8 each position | Shoulder CARs 5/arm
+- Block A — 2 rounds, 45s rest:
+  - A1: Pull-up (3-sec eccentric): 2 rounds × 3 reps (easy; focus on the controlled lower)
+  - A2: Push-up variation (RPE 6 max): 2×8 (standard; comfortable)
+- Block B — 2 rounds, 45s rest:
+  - B1: KB Swing: 2×8 (moderate KB; clean technique)
+  - B2: DB Reverse Lunge: 2×8/side
+- Standalone: KB Suitcase Carry 2×20m/side
+- Prehab: Bird dog 2×6/side
 
 ---
 
@@ -708,12 +739,13 @@ Each session is **30 minutes**: 2 min warm-up, ~22 min main work (superset pairs
 
 **Workout (7:30–8:00am)**:
 - Warm-up (2 min): Band pull-apart 2×15 | Hip circles 10 each
-- Superset A — 2 rounds, 45s rest:
-  - A1: KB Swing: 2×8 (lightest swing day of the cycle)
-  - A2: Bulgarian Split Squat: 2×8/side (bodyweight or very light DB — feel the range of motion)
-- Superset B — 2 rounds, 45s rest:
-  - B1: KB Single-arm Clean + Press (press at RPE 6 max): 2×8/side (very light press; feel the hip-to-shoulder connection)
-  - B2: DB Bent-over Row: 2×8 (light; think about upper back contraction)
+- Power Opener — 2 rounds, 45s rest:
+  - Broad/Box Jump: 2×4 (easy; focus on soft landing and hip drive; no strain)
+- Block A — 2 rounds, 45s rest:
+  - A1: Bulgarian Split Squat: 2×8/side (bodyweight or very light DB — feel the range of motion)
+  - A2: KB Single-arm Clean + Press (press at RPE 6 max): 2×8/side (very light press; feel the hip-to-shoulder connection)
+- Block B — 2 rounds, 45s rest:
+  - DB Bent-over Row: 2×8 (light; think about upper back contraction)
 - Core finisher: Dead bug 2×10/side | Side plank 2×20s/side
 
 ---
