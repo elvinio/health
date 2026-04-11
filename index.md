@@ -157,8 +157,8 @@ If you are new to this knowledgebase, the recommended reading order is:
 7. [Mobility & Prehab](./mobility-prehab.md) — keeps you training injury-free for decades
 8. [Hormones & Stress](./hormones-stress.md) — integrates everything; read last for full context
 9. [Grooming & Personal Care](./grooming-personal-care.md) — skin, hair, oral hygiene, and dressing for Singapore's climate and the 40–50 body
-10. [Monthly Plan — Male](./monthly-plan-male.md) — personalised 4-week plan for a 42yo Singaporean male (strength focus)
-11. [Monthly Plan — Female](./monthly-plan-female.md) — personalised 4-week plan for a 40yo Singaporean female (fat loss + strength)
+10. [Monthly Plan — Male](./monthly-plan-male.md) — personalised 4-week plan for a 42yo Singaporean male (strength focus) — also at [his dedicated page](./him)
+11. [Monthly Plan — Female](./monthly-plan-female.md) — personalised 4-week plan for a 40yo Singaporean female (fat loss + strength) — also at [her dedicated page](./her)
 
 ---
 

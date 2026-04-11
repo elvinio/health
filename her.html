@@ -1,0 +1,1544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#8b5e3c">
+<title>Monthly Plan — Female — Singapore 40–50</title>
+<style>
+  /* ── Reset ────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #faf6ee;
+    --paper:     #fdf9f2;
+    --text:      #2c2416;
+    --muted:     #7a6a52;
+    --accent:    #8b5e3c;
+    --accent2:   #5a7c5e;
+    --border:    #e5dcc8;
+    --toc-bg:    #f4ede0;
+    --toc-w:     285px;
+    --fab-size:  3.25rem;
+    --serif:     'Georgia', 'Palatino Linotype', 'Book Antiqua', Palatino, serif;
+    --sans:      -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    --mono:      'Courier New', Courier, monospace;
+    --safe-b:    env(safe-area-inset-bottom, 0px);
+    --safe-r:    env(safe-area-inset-right, 0px);
+  }
+
+  html {
+    font-size: 18px;
+    scroll-behavior: smooth;
+    /* Prevent text size bump in landscape on iOS */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--serif);
+    line-height: 1.85;
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ════════════════════════════════════════════════════════
+     TOC SIDEBAR
+  ════════════════════════════════════════════════════════ */
+  #toc-sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    width: var(--toc-w);
+    height: 100%;
+    height: 100dvh;
+    background: var(--toc-bg);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding: 1.4rem 0 5rem;
+    z-index: 300;
+    /* Desktop: always visible */
+  }
+
+  /* TOC header row with close button */
+  .toc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1rem 0.75rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0.6rem;
+  }
+
+  .toc-header h2 {
+    font-family: var(--sans);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* Close button — hidden on desktop */
+  #toc-close {
+    display: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 1.35rem;
+    line-height: 1;
+    padding: 0.25rem 0.35rem;
+    border-radius: 6px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  #toc-close:active { background: rgba(0,0,0,0.08); }
+
+  #toc-sidebar ul { list-style: none; padding: 0; }
+
+  #toc-sidebar li.toc-section { margin-top: 0.1rem; }
+
+  #toc-sidebar li.toc-section > a {
+    display: block;
+    padding: 0.5rem 1.25rem;
+    min-height: 2.75rem;
+    display: flex;
+    align-items: center;
+    font-family: var(--sans);
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--accent);
+    text-decoration: none;
+    letter-spacing: 0.02em;
+    border-left: 3px solid transparent;
+    transition: border-color 0.15s, background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #toc-sidebar li.toc-section > a:hover,
+  #toc-sidebar li.toc-section > a:active {
+    background: rgba(139,94,60,0.08);
+    border-left-color: var(--accent);
+  }
+
+  #toc-sidebar li.toc-section > ul {
+    padding-left: 0;
+    margin: 0 0 0.4rem;
+  }
+
+  #toc-sidebar .toc-h2 > a {
+    display: flex;
+    align-items: center;
+    min-height: 2.5rem;
+    padding: 0.3rem 1.25rem 0.3rem 1.75rem;
+    font-family: var(--sans);
+    font-size: 0.72rem;
+    color: #5a4e3a;
+    text-decoration: none;
+    border-left: 3px solid transparent;
+    transition: border-color 0.15s, background 0.15s;
+    line-height: 1.4;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #toc-sidebar .toc-h2 > a:hover,
+  #toc-sidebar .toc-h2 > a:active {
+    background: rgba(139,94,60,0.05);
+    border-left-color: var(--border);
+    color: var(--accent);
+  }
+
+  #toc-sidebar .toc-h3 > a {
+    display: flex;
+    align-items: center;
+    min-height: 2.25rem;
+    padding: 0.2rem 1.25rem 0.2rem 2.5rem;
+    font-family: var(--sans);
+    font-size: 0.66rem;
+    color: var(--muted);
+    text-decoration: none;
+    line-height: 1.35;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #toc-sidebar .toc-h3 > a:hover,
+  #toc-sidebar .toc-h3 > a:active { color: var(--accent); }
+
+  /* Active TOC link */
+  #toc-sidebar a.active {
+    color: var(--accent) !important;
+    font-weight: 700 !important;
+    border-left-color: var(--accent) !important;
+    background: rgba(139,94,60,0.1) !important;
+  }
+
+  /* ════════════════════════════════════════════════════════
+     BACKDROP (mobile overlay behind open sidebar)
+  ════════════════════════════════════════════════════════ */
+  #toc-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(30, 20, 10, 0.45);
+    z-index: 290;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    opacity: 0;
+    pointer-events: none;           /* invisible backdrop must NOT intercept touches */
+    transition: opacity 0.25s ease;
+  }
+
+  #toc-backdrop.visible {
+    opacity: 1;
+    pointer-events: auto;           /* only intercept touches when actually visible */
+  }
+
+  /* ════════════════════════════════════════════════════════
+     MAIN CONTENT
+  ════════════════════════════════════════════════════════ */
+  #main {
+    margin-left: var(--toc-w);
+    flex: 1;
+    max-width: 860px;
+    padding: 4rem 3rem 7rem 4rem;
+    min-width: 0; /* prevent flex overflow */
+  }
+
+  /* ── Section wrappers ─────────────────────────────────── */
+  .kb-section {
+    margin-bottom: 5rem;
+    border-top: 2px solid var(--border);
+    padding-top: 3rem;
+  }
+
+  .kb-section:first-child {
+    border-top: none;
+    padding-top: 0;
+  }
+
+  /* ── Typography ───────────────────────────────────────── */
+  h1 {
+    font-size: 2.05rem;
+    line-height: 1.25;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+    margin-top: 3rem;
+    margin-bottom: 0.65rem;
+    color: var(--text);
+    line-height: 1.3;
+    font-weight: 700;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.3rem;
+  }
+
+  h3 {
+    font-size: 1.18rem;
+    margin-top: 2.2rem;
+    margin-bottom: 0.5rem;
+    color: #3d2f1e;
+    font-weight: 700;
+    line-height: 1.35;
+  }
+
+  h4 {
+    font-size: 1rem;
+    margin-top: 1.6rem;
+    margin-bottom: 0.4rem;
+    color: var(--muted);
+    font-weight: 700;
+    font-style: italic;
+  }
+
+  p {
+    margin-bottom: 1.1rem;
+    text-align: justify;
+    hyphens: auto;
+  }
+
+  h2 + p, h3 + p, h4 + p { margin-top: 0; }
+
+  a { color: var(--accent2); text-decoration: underline; text-underline-offset: 2px; }
+  a:hover { color: var(--accent); }
+  strong { color: #2c1f0e; }
+  em { font-style: italic; color: #4a3a28; }
+
+  /* ── Lists ────────────────────────────────────────────── */
+  ul, ol { padding-left: 1.6rem; margin-bottom: 1.1rem; }
+  li { margin-bottom: 0.35rem; line-height: 1.75; }
+  li > ul, li > ol { margin-top: 0.25rem; margin-bottom: 0.25rem; }
+
+  /* ── Blockquotes ──────────────────────────────────────── */
+  blockquote {
+    border-left: 4px solid var(--accent);
+    background: #f5ede0;
+    margin: 1.5rem 0;
+    padding: 0.85rem 1.2rem;
+    border-radius: 0 6px 6px 0;
+    font-size: 0.97rem;
+    color: #3d2b1a;
+  }
+  blockquote p:last-child { margin-bottom: 0; }
+  blockquote strong { color: var(--accent); }
+
+  /* ── Tables — wrapped for horizontal scroll on mobile ─── */
+  .table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 1.5rem 0 2rem;
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+    font-family: var(--sans);
+    background: var(--paper);
+    min-width: 480px; /* scroll below this width */
+  }
+
+  thead { background: #e8dcc8; }
+
+  th {
+    padding: 0.65rem 0.9rem;
+    text-align: left;
+    font-weight: 700;
+    color: #3d2b1a;
+    border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 0.55rem 0.9rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    line-height: 1.55;
+    color: #2c2416;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:nth-child(even) td { background: rgba(0,0,0,0.018); }
+
+  /* ── Code ─────────────────────────────────────────────── */
+  code {
+    font-family: var(--mono);
+    font-size: 0.83em;
+    background: #ede5d6;
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+    color: #5a3520;
+  }
+
+  pre {
+    background: #2c2416;
+    color: #f0e8d8;
+    padding: 1.2rem 1.5rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    font-size: 0.82rem;
+    margin: 1.5rem 0;
+    line-height: 1.6;
+  }
+
+  pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+
+  /* ── Section label ────────────────────────────────────── */
+  .section-label {
+    font-family: var(--sans);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.65rem;
+    display: block;
+  }
+
+  /* ════════════════════════════════════════════════════════
+     FAB — floating action button (Contents)
+     Hidden on desktop; shown on mobile
+  ════════════════════════════════════════════════════════ */
+  #fab {
+    display: none; /* shown via media query */
+    position: fixed;
+    bottom: calc(1.5rem + var(--safe-b));
+    right: calc(1.25rem + var(--safe-r));
+    z-index: 310;                   /* above sidebar (300) and backdrop (290) */
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 2rem;
+    height: var(--fab-size);
+    padding: 0 1.1rem;
+    gap: 0.5rem;
+    font-family: var(--sans);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    align-items: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.28), 0 1px 4px rgba(0,0,0,0.15);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  #fab:active {
+    transform: scale(0.94);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  }
+
+  #fab svg {
+    flex-shrink: 0;
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+
+  /* ════════════════════════════════════════════════════════
+     RESPONSIVE BREAKPOINTS
+  ════════════════════════════════════════════════════════ */
+
+  /* Narrow desktop / large tablet */
+  @media (max-width: 1000px) {
+    :root { --toc-w: 250px; }
+    #main { padding: 3rem 2rem 6rem 2.5rem; max-width: none; }
+  }
+
+  /* Mobile — sidebar becomes an overlay drawer */
+  @media (max-width: 700px) {
+    /* Sidebar hidden off-screen by default */
+    #toc-sidebar {
+      transform: translateX(-105%);
+      transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+                  box-shadow 0.28s ease;
+      box-shadow: none;
+      width: min(var(--toc-w), 88vw);
+    }
+
+    /* Open state */
+    #toc-sidebar.open {
+      transform: translateX(0);
+      box-shadow: 6px 0 24px rgba(0,0,0,0.18);
+    }
+
+    /* Show close button & backdrop */
+    #toc-close { display: block; }
+    #toc-backdrop { display: block; }
+
+    /* Main takes full width */
+    #main {
+      margin-left: 0;
+      padding: 1.6rem 1.1rem calc(5rem + var(--safe-b)) 1.1rem;
+      max-width: none;
+    }
+
+    /* Show FAB */
+    #fab { display: flex; }
+
+    /* Typography scale */
+    html { font-size: 17px; }
+    h1 { font-size: 1.65rem; }
+    h2 { font-size: 1.3rem; margin-top: 2.2rem; }
+    h3 { font-size: 1.1rem; margin-top: 1.8rem; }
+
+    /* Left-align body text on narrow screens */
+    p { text-align: left; hyphens: none; }
+
+    /* Blockquotes slightly tighter */
+    blockquote { padding: 0.7rem 1rem; font-size: 0.93rem; }
+  }
+
+  /* Very small phones */
+  @media (max-width: 380px) {
+    html { font-size: 16px; }
+    #main { padding-left: 0.9rem; padding-right: 0.9rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Backdrop ──────────────────────────────────────────────────────────── -->
+<div id="toc-backdrop" aria-hidden="true"></div>
+
+<!-- ── TOC Sidebar ──────────────────────────────────────────────────────── -->
+<nav id="toc-sidebar" aria-label="Table of contents">
+  <div class="toc-header">
+    <h2>Contents</h2>
+    <button id="toc-close" aria-label="Close contents">&#x2715;</button>
+  </div>
+  <ul>
+<li class="toc-section"><a href="#monthly-plan-female-top">Monthly Plan — Female</a><ul>
+  <li class="toc-h3"><a href="#monthly-plan-female-40-year-old-singaporean-female-fat-loss-strength">40-Year-Old Singaporean Female — Fat Loss + Strength</a></li>
+  <li class="toc-h2"><a href="#monthly-plan-female-1-profile-summary">1. Profile Summary</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-female-why-the-programme-is-structured-this-way">Why the programme is structured this way</a></li>
+  <li class="toc-h2"><a href="#monthly-plan-female-2-daily-supplement-schedule">2. Daily Supplement Schedule</a></li>
+  <li class="toc-h2"><a href="#monthly-plan-female-3-daily-meal-template">3. Daily Meal Template</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-female-training-day-1500-kcal-143-g-protein">Training Day (~1,500 kcal, ~143 g protein)</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-female-rest-day-13001350-kcal-115120-g-protein">Rest Day (~1,300–1,350 kcal, ~115–120 g protein)</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-female-daily-protein-accounting">Daily Protein Accounting</a></li>
+  <li class="toc-h2"><a href="#monthly-plan-female-4-weekly-training-schedule-overview">4. Weekly Training Schedule Overview</a></li>
+  <li class="toc-h2"><a href="#monthly-plan-female-5-the-4-training-days-detailed">5. The 4 Training Days (Detailed)</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-female-day-a-lower-body-kb-swing">Day A — Lower Body + KB Swing</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-female-day-b-upper-body-turkish-get-up">Day B — Upper Body + Turkish Get-Up</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-female-day-c-zone-2-rucking-conditioning-circuit">Day C — Zone 2 Rucking + Conditioning Circuit</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-female-day-d-full-body-strength-carry">Day D — Full Body Strength + Carry</a></li>
+  <li class="toc-h2"><a href="#monthly-plan-female-6-the-4-week-undulating-periodisation">6. The 4-Week Undulating Periodisation</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-female-kb-swing-weekly-progression">KB Swing Weekly Progression</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-female-rucking-weekly-progression">Rucking Weekly Progression</a></li>
+  <li class="toc-h2"><a href="#monthly-plan-female-7-full-28-day-calendar">7. Full 28-Day Calendar</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-female-week-1-technique-accumulation">Week 1 — Technique + Accumulation</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-female-week-2-build">Week 2 — Build</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-female-week-3-volume">Week 3 — Volume</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-female-week-4-deload">Week 4 — Deload</a></li>
+  <li class="toc-h2"><a href="#monthly-plan-female-8-progressive-overload-guidelines">8. Progressive Overload Guidelines</a></li>
+  <li class="toc-h2"><a href="#monthly-plan-female-9-fat-loss-tracking">9. Fat Loss Tracking</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-female-weekly-weigh-in-protocol">Weekly Weigh-In Protocol</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-female-expected-rate-of-loss">Expected Rate of Loss</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-female-adjustments">Adjustments</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-female-monthly-measurements">Monthly Measurements</a></li>
+  <li class="toc-h2"><a href="#monthly-plan-female-notes-for-long-term-progress">Notes for Long-Term Progress</a></li>
+</ul></li>
+  </ul>
+</nav>
+
+<!-- ── Main ─────────────────────────────────────────────────────────────── -->
+<main id="main">
+<p style="margin-bottom:2rem"><a href="./" style="font-family:var(--sans);font-size:0.85rem">&#8592; Back to Knowledgebase</a></p>
+
+<section class="kb-section" id="monthly-plan-female-top">
+<span class="section-label">Monthly Plan — Female</span>
+<h1 id="monthly-plan-female-4-week-monthly-training-nutrition-plan">4-Week Monthly Training &amp; Nutrition Plan</h1>
+<h3 id="monthly-plan-female-40-year-old-singaporean-female-fat-loss-strength">40-Year-Old Singaporean Female — Fat Loss + Strength</h3>
+<hr />
+<h2 id="monthly-plan-female-1-profile-summary">1. Profile Summary</h2>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Age / Sex</td>
+<td>40, female</td>
+</tr>
+<tr>
+<td>Weight / Height</td>
+<td>65 kg / 155 cm</td>
+</tr>
+<tr>
+<td>BMI</td>
+<td>27.1 (moderate excess body fat)</td>
+</tr>
+<tr>
+<td>Training background</td>
+<td>3 years yoga, Pilates, light strength — intermediate</td>
+</tr>
+<tr>
+<td>Primary goal</td>
+<td>Fat loss</td>
+</tr>
+<tr>
+<td>Secondary goal</td>
+<td>Significant strength gain</td>
+</tr>
+<tr>
+<td>Training window</td>
+<td>7:30 am – 12:30 pm (school pick-up at 12:30 pm)</td>
+</tr>
+<tr>
+<td>Session length</td>
+<td>~75 min</td>
+</tr>
+<tr>
+<td>Equipment</td>
+<td>Mat, dumbbells, kettlebells, resistance bands</td>
+</tr>
+<tr>
+<td>Injury notes</td>
+<td>Occasional knee and lower back pain — manageable, generally resolves</td>
+</tr>
+</tbody>
+</table>
+<h3 id="monthly-plan-female-why-the-programme-is-structured-this-way">Why the programme is structured this way</h3>
+<p>Fat loss requires a sustained caloric deficit. However, without adequate protein and progressive resistance training, the body loses muscle alongside fat — a result that slows metabolism, reduces strength, and makes regaining fat more likely. This plan targets a modest deficit of 300–350 kcal/day, which supports roughly 0.5 kg of fat loss per week while preserving — and building — lean tissue.</p>
+<p>The programming choices are deliberate:</p>
+<ul>
+<li><strong>McGill-safe core work</strong> (bird dog, McGill curl-up, side plank, dead bug) replaces traditional sit-ups and crunches, which load the lumbar spine in flexion. These alternatives are backed by Dr Stuart McGill's research and are far more effective at building spinal endurance without aggravating the lower back.</li>
+<li><strong>Knee loading is graduated</strong>: goblet squat is introduced before split squat; lateral band walks and clamshells are non-negotiable warm-up staples every lower body session to activate hip abductors and reduce knee valgus under load.</li>
+<li><strong>Hip flexor and glute work</strong> are treated as injury prevention, not optional extras. Tight hip flexors (especially psoas) contribute to anterior pelvic tilt and lower back pain. Strong glutes offload both the lumbar spine and the knee.</li>
+<li><strong>Turkish Get-Up (TGU)</strong> is included from Week 1. Your three years of yoga and Pilates are an asset here — TGU requires the exact kind of body awareness, breath control, and segmental stability that Pilates builds. You will pick this up faster than most beginners. Start light (4–6 kg) and treat it as a moving meditation rather than a strength exercise until the sequence is seamless.</li>
+<li><strong>Rucking on Thursday</strong> delivers Zone 2 cardiovascular training and bone density stimulus without the knee impact of running. Both benefits are particularly relevant for women approaching perimenopause, where oestrogen decline accelerates bone loss.</li>
+<li><strong>Sunday family swimming</strong> is counted as Zone 1–2 active recovery — no structure needed, just enjoy it.</li>
+</ul>
+<hr />
+<h2 id="monthly-plan-female-2-daily-supplement-schedule">2. Daily Supplement Schedule</h2>
+<table>
+<thead>
+<tr>
+<th>Supplement</th>
+<th>Dose</th>
+<th>Timing</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Collagen (hydrolysed)</td>
+<td>15 g</td>
+<td>7:15 am — pre-workout</td>
+<td>Take with ~80 mg Vitamin C (1 kiwi or small glass of OJ). Shaw et al. research shows pre-exercise collagen + Vit C maximises tendon collagen synthesis by 3–4×. Critical for knee and connective tissue health.</td>
+</tr>
+<tr>
+<td>Vitamin D3</td>
+<td>3,000 IU</td>
+<td>With breakfast</td>
+<td>Take with fat for absorption — the eggs in your breakfast provide this. Singaporeans are frequently insufficient despite sun exposure due to indoor lifestyle and sunscreen use.</td>
+</tr>
+<tr>
+<td>Vitamin K2 MK-7</td>
+<td>150 mcg</td>
+<td>With breakfast alongside D3</td>
+<td>K2 directs calcium to bones rather than arteries. Always pair with D3 at meaningful doses.</td>
+</tr>
+<tr>
+<td>Whey protein isolate</td>
+<td>25 g</td>
+<td>Post-workout (~8:30 am)</td>
+<td>Mix with 200 ml cold milk. Isolate preferred — minimal lactose, easier on digestion. Triggers muscle protein synthesis within the anabolic window.</td>
+</tr>
+<tr>
+<td>Creatine monohydrate</td>
+<td>3 g</td>
+<td>Post-workout with food (training days); with lunch (rest days)</td>
+<td>3 g/day is effective for women — research supports the same absolute dose regardless of body weight for neuromuscular and cognitive benefits. No loading phase needed.</td>
+</tr>
+<tr>
+<td>Omega-3 fish oil</td>
+<td>2 g EPA+DHA</td>
+<td>With afternoon snack (~3:30 pm)</td>
+<td>Anti-inflammatory; supports joint health, fat loss, and mood. The fat in mixed nuts ensures absorption. Previously taken with dinner — now moved since dinner is a shake.</td>
+</tr>
+<tr>
+<td>Zinc picolinate</td>
+<td>20 mg</td>
+<td>With afternoon snack (~3:30 pm)</td>
+<td>Supports immune function, hormonal health, and recovery. Picolinate form is well-absorbed. Take with the nuts snack — never on an empty stomach.</td>
+</tr>
+<tr>
+<td>Ashwagandha KSM-66</td>
+<td>300 mg</td>
+<td>With afternoon snack (~3:30 pm)</td>
+<td>Clinically studied extract. Reduces cortisol, supports body composition, and improves sleep quality. Evening-adjacent timing still aligns with cortisol's natural afternoon decline.</td>
+</tr>
+<tr>
+<td>Magnesium glycinate</td>
+<td>320 mg</td>
+<td>9:15 pm</td>
+<td>Glycinate form is gentle on digestion and highly bioavailable. Benefits: sleep quality, muscle relaxation, PMS symptom relief (cramping, mood), and cardiovascular health. Non-negotiable for active women.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Notes on what is intentionally excluded:</strong> No pre-workout stimulants (no caffeine). Collagen + Vit C provides a connective-tissue-focused pre-workout routine that is stimulant-free. Ashwagandha at dinner provides mild adaptogenic support without disrupting morning cortisol rhythms needed for energy.</p>
+<hr />
+<h2 id="monthly-plan-female-3-daily-meal-template">3. Daily Meal Template</h2>
+<h3 id="monthly-plan-female-training-day-1500-kcal-143-g-protein">Training Day (~1,500 kcal, ~143 g protein)</h3>
+<table>
+<thead>
+<tr>
+<th>Time</th>
+<th>Meal</th>
+<th>Foods</th>
+<th>Approx. Protein</th>
+<th>Approx. Calories</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>7:15 am</td>
+<td>Pre-workout</td>
+<td>Collagen 15 g + Vit C (kiwi or small OJ) + 1 small banana</td>
+<td>14 g</td>
+<td>130 kcal</td>
+</tr>
+<tr>
+<td>8:30 am</td>
+<td>Breakfast (post-workout)</td>
+<td>1 scoop whey isolate (25 g) blended with 200 ml milk + ½ banana; PLUS 2 soft-boiled eggs. Take D3 + K2 + creatine here.</td>
+<td>~48 g</td>
+<td>~420 kcal</td>
+</tr>
+<tr>
+<td>10:30 am</td>
+<td>Morning snack</td>
+<td>150 g Greek yoghurt (plain, full-fat or 2%) + 1 tsp peanut butter</td>
+<td>~18 g</td>
+<td>~200 kcal</td>
+</tr>
+<tr>
+<td>12:00 pm</td>
+<td>Lunch (home-cooked)</td>
+<td>2 eggs (scrambled or hard-boiled) + large portion stir-fried vegetables + ½ cup cooked brown rice or 1 medium sweet potato.</td>
+<td>~30 g</td>
+<td>~380 kcal</td>
+</tr>
+<tr>
+<td>3:30 pm</td>
+<td>Afternoon snack</td>
+<td>1 handful mixed nuts (almonds, cashews, walnuts) + 1 piece of fruit (papaya, guava, or apple). <strong>Take Omega-3 2g + Zinc 20mg + Ashwagandha 300mg here</strong> (moved from dinner — fat in the nuts ensures good absorption).</td>
+<td>~7 g</td>
+<td>~180 kcal</td>
+</tr>
+<tr>
+<td>6:30 pm</td>
+<td>Dinner (shake)</td>
+<td><strong>Ninja Blast Dinner Shake:</strong> 300 ml unsweetened soy milk + 1 scoop whey isolate (25 g) + ½ frozen banana + 1 tbsp chia seeds. Optional: 1 tsp peanut butter for extra satiety. Blend 60 sec, drink immediately.</td>
+<td>~36–38 g</td>
+<td>~340–380 kcal</td>
+</tr>
+<tr>
+<td>9:15 pm</td>
+<td>Evening</td>
+<td>Magnesium glycinate 320 mg with water</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td></td>
+<td></td>
+<td><strong>~139–141 g</strong></td>
+<td><strong>~1,480–1,520 kcal</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The protein buffer above the 132 g target is intentional — on days where one snack is missed or the shake is slightly smaller, you remain above the minimum.</p>
+<h3 id="monthly-plan-female-rest-day-13001350-kcal-115120-g-protein">Rest Day (~1,300–1,350 kcal, ~115–120 g protein)</h3>
+<ul>
+<li><strong>Skip</strong> the pre-workout banana (no training demand for quick carbs)</li>
+<li><strong>Skip</strong> the morning snack (lower energy expenditure)</li>
+<li>Take creatine with lunch instead of post-workout</li>
+<li>Dinner shake stays the same — it is already low-calorie, no adjustment needed</li>
+<li>Everything else stays the same</li>
+</ul>
+<h3 id="monthly-plan-female-daily-protein-accounting">Daily Protein Accounting</h3>
+<table>
+<thead>
+<tr>
+<th>Meal</th>
+<th>Protein</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Whey + milk + 2 eggs (breakfast)</td>
+<td>~48 g</td>
+</tr>
+<tr>
+<td>Greek yoghurt snack (training days)</td>
+<td>~18 g</td>
+</tr>
+<tr>
+<td>Lunch (home-cooked)</td>
+<td>~30 g</td>
+</tr>
+<tr>
+<td>Nuts + fruit snack</td>
+<td>~7 g</td>
+</tr>
+<tr>
+<td>Dinner shake</td>
+<td>~36–38 g</td>
+</tr>
+<tr>
+<td><strong>Total (training day)</strong></td>
+<td><strong>~139–141 g</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="monthly-plan-female-4-weekly-training-schedule-overview">4. Weekly Training Schedule Overview</h2>
+<table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Session</th>
+<th>Focus</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Monday</td>
+<td>Strength Day A</td>
+<td>Lower Body + KB Swing</td>
+<td>7:30–8:45 am</td>
+</tr>
+<tr>
+<td>Tuesday</td>
+<td>Strength Day B</td>
+<td>Upper Body + TGU + Pilates</td>
+<td>7:30–8:50 am</td>
+</tr>
+<tr>
+<td>Wednesday</td>
+<td>Rest</td>
+<td>Walk / mobility / yoga</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Thursday</td>
+<td>Conditioning Day C</td>
+<td>Rucking (Zone 2) + Circuit</td>
+<td>7:30–9:15 am</td>
+</tr>
+<tr>
+<td>Friday</td>
+<td>Strength Day D</td>
+<td>Full Body + Loaded Carry</td>
+<td>7:30–8:50 am</td>
+</tr>
+<tr>
+<td>Saturday</td>
+<td>Rest</td>
+<td>Afternoon classes</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Sunday</td>
+<td>Family Swimming</td>
+<td>Zone 1–2 active recovery</td>
+<td>4:00 pm</td>
+</tr>
+</tbody>
+</table>
+<p>Four training sessions. Two rest days with optional low-intensity movement. One active recovery swim. Total weekly training load is appropriate for an intermediate trainee in a caloric deficit — enough stimulus to drive adaptation without accumulating excessive fatigue that impairs recovery and fat loss.</p>
+<hr />
+<h2 id="monthly-plan-female-5-the-4-training-days-detailed">5. The 4 Training Days (Detailed)</h2>
+<h3 id="monthly-plan-female-day-a-lower-body-kb-swing">Day A — Lower Body + KB Swing</h3>
+<p><strong>Monday, 7:30–8:45 am</strong><br />
+<strong>Purpose:</strong> Posterior chain development (swings), knee-safe squat pattern, hip hinge, knee and hip prehabilitation, McGill-safe core training.<br />
+<strong>Movement patterns:</strong> Hinge, Squat, Core.</p>
+<h4 id="monthly-plan-female-warm-up-10-min">Warm-Up (10 min)</h4>
+<p>A longer warm-up is warranted given the knee and lower back history. Do not skip this.</p>
+<ul>
+<li><strong>Glute bridge</strong> — 2×15: Activates the glutes before loading. Lay on your back, feet flat, drive hips to ceiling, squeeze at the top for 1 sec.</li>
+<li><strong>Clamshell</strong> — 2×12/side: Hip abductor activation. Reduces knee valgus (inward collapse) under load. Use a light band around the knees if available.</li>
+<li><strong>Bodyweight goblet squat</strong> — 2×10: Practice the pattern before loading. Hold hands at chest. Push knees out, sit to comfortable depth.</li>
+<li><strong>Ankle dorsiflexion wall stretch</strong> — 30 sec/side: Limited ankle mobility causes knee forward travel to compensate — address this.</li>
+<li><strong>Cat-cow</strong> — 10 reps: Warm up lumbar and thoracic spine gently.</li>
+</ul>
+<h4 id="monthly-plan-female-main-work">Main Work</h4>
+<ol>
+<li>
+<p><strong>KB Swing</strong><br />
+   - Key cues: "Hike" the KB back between your legs (like hiking a football), then drive through the heels and snap the hips forward explosively. The arms are just a pendulum — the power comes from the hips. Think "crush the ground" at the bottom. This is NOT a squat — the hips hinge back, not down.<br />
+   - The swing is the single best posterior chain conditioning exercise in this programme. It simultaneously trains hip hinge power, glute strength, and cardiovascular conditioning.</p>
+</li>
+<li>
+<p><strong>KB Goblet Squat</strong><br />
+   - Hold the KB at chest height with both hands cupping the bell. This front load forces an upright torso — far kinder to the lumbar spine than a back squat. Push the knees out over the toes. Depth to comfortable range; do not force range past the point where your lower back rounds.</p>
+</li>
+<li>
+<p><strong>DB Romanian Deadlift (RDL)</strong><br />
+   - Start LIGHT — 8–10 kg DBs in Week 1. The goal in early weeks is pattern, not load. Hinge at the hip (imagine a rod through your hips and the wall behind you), keep the back perfectly neutral, feel the hamstrings load. The bar traces the legs. Stop when you feel maximum hamstring stretch (usually just below the knee). Do not round the lower back.</p>
+</li>
+<li>
+<p><strong>Clamshell + Lateral Band Walk</strong><br />
+   - These are non-negotiable for knee health. The lateral band walk in particular directly strengthens the gluteus medius — the muscle that controls knee alignment. Use a light-to-medium band above the knees. 15 steps each direction.</p>
+</li>
+</ol>
+<h4 id="monthly-plan-female-core-finisher-mcgill-safe">Core Finisher (McGill-Safe)</h4>
+<ul>
+<li><strong>McGill curl-up</strong> — 3×8: NOT a sit-up. Lie on your back. Place hands under the lumbar curve (you should feel a natural arch there — keep it). Curl only the head and shoulders slightly off the floor. Hold 8–10 sec. This trains anterior core without compressing the lumbar discs.</li>
+<li><strong>Bird dog</strong> — 3×8/side: On hands and knees. Extend one arm and the opposite leg simultaneously. Keep the spine absolutely still — no hip rotation, no sagging. Pause 3 sec at the top.</li>
+<li><strong>Side plank</strong> — 3×25–30 sec/side: From the forearm. Hips stacked. If this is too difficult, modify with the bottom knee on the floor.</li>
+</ul>
+<h4 id="monthly-plan-female-pilates-finisher-10-min">Pilates Finisher (10 min)</h4>
+<ul>
+<li><strong>Dead bug</strong> — 2×8/side: Lie on your back, arms to ceiling, hips and knees at 90°. Lower one arm and the opposite leg toward the floor simultaneously while maintaining back contact with the mat. Your Pilates background means you will understand the "imprint" position here.</li>
+<li><strong>Single-leg stretch</strong> — 2×10: Classic Pilates. Curl the head and shoulders up, draw one knee to chest, extend the other leg.</li>
+<li><strong>Spine stretch forward</strong> — 1×8: Seated, legs extended. Round forward from the crown of the head. Decompress the spine.</li>
+</ul>
+<hr />
+<h3 id="monthly-plan-female-day-b-upper-body-turkish-get-up">Day B — Upper Body + Turkish Get-Up</h3>
+<p><strong>Tuesday, 7:30–8:50 am</strong><br />
+<strong>Purpose:</strong> Pull and push patterns, TGU for full-body integration, shoulder health, Pilates core.<br />
+<strong>Movement patterns:</strong> Pull, Push, Full-body (TGU), Core.</p>
+<h4 id="monthly-plan-female-warm-up-7-min">Warm-Up (7 min)</h4>
+<ul>
+<li><strong>Shoulder CARs (Controlled Articular Rotations)</strong> — 5 slow circles/arm: Move through the full rotator cuff range deliberately.</li>
+<li><strong>Band pull-apart</strong> — 2×20: Hold a light band at chest height, arms wide, pull it apart until it touches the chest. Activates rear deltoids and rotator cuff.</li>
+<li><strong>Cat-cow</strong> — 10 reps</li>
+<li><strong>Arm circles + wrist circles</strong> — 10 sec each direction</li>
+</ul>
+<h4 id="monthly-plan-female-main-work-1">Main Work</h4>
+<ol>
+<li>
+<p><strong>Turkish Get-Up (TGU)</strong><br />
+   - Begin the session with TGU while your nervous system is fresh — technique breaks down when fatigued.<br />
+   - Start with 4–6 kg. Three reps per side, moving slowly.<br />
+   - The 6-phase sequence: (1) Roll to press — extend the arm, lock the elbow; (2) Roll to elbow — keep eyes on the bell; (3) Post to hand — press up through the shoulder; (4) Hip bridge — drive the hip high; (5) Sweep the leg through to the kneeling position; (6) Stand. Reverse for the descent.<br />
+   - Your yoga and Pilates background is a genuine advantage here. The body awareness required — the breath, the segmental control, the shoulder packing — are all skills you have been training for three years. TGU will feel more familiar than it does to most people who begin it. Be patient with the sequence and trust that fluency will come within two to three sessions.</p>
+</li>
+<li>
+<p><strong>Single-arm DB Row</strong><br />
+   - Place one knee and the same-side hand on a chair or box for support. Row the DB up toward the hip, not the shoulder. Feel the lat engage. Avoid rotating the torso. Heavy is fine here once the pattern is established.</p>
+</li>
+<li>
+<p><strong>Push-up progression</strong><br />
+   - Progress in this order: mat incline push-up (hands elevated) → standard push-up → archer push-up (one arm wider, loading shifts to that side).<br />
+   - Choose the variation where you can complete all reps with perfect form: body in a straight line from heel to crown, elbows at roughly 45° from the torso, chest touches the surface.</p>
+</li>
+<li>
+<p><strong>DB Floor Press</strong><br />
+   - Lie on the floor, DBs at chest height, elbows at 45°. Press to full extension. The floor limits shoulder ROM at the bottom — this makes it safer than a full bench press for people building shoulder strength, and the reduced ROM is protective for anyone with anterior shoulder sensitivity.</p>
+</li>
+<li>
+<p><strong>Band Face Pull</strong><br />
+   - Anchor a band to a door frame or sturdy furniture at face height. Pull toward the nose with elbows high and wide. Finish with external rotation (hands pull apart slightly at the end range). This is the most important shoulder health exercise in the programme. Do it every upper body session without exception.</p>
+</li>
+</ol>
+<h4 id="monthly-plan-female-pilates-finisher-10-min-1">Pilates Finisher (10 min)</h4>
+<ul>
+<li><strong>The Hundred</strong> — 1×100 pumps: Lie on back, legs at 45° (or tabletop if needed), arms pumping by the sides. 5 pumps inhale, 5 pumps exhale. Maintain the curl of the head and shoulders.</li>
+<li><strong>Single-leg stretch</strong> — 2×10</li>
+<li><strong>Spine stretch + Swan</strong> — 2×8 each: Spine stretch rounds forward; Swan extends from prone — the combination works the spine in both directions.</li>
+</ul>
+<hr />
+<h3 id="monthly-plan-female-day-c-zone-2-rucking-conditioning-circuit">Day C — Zone 2 Rucking + Conditioning Circuit</h3>
+<p><strong>Thursday, 7:30–9:15 am</strong><br />
+<strong>Purpose:</strong> Cardiovascular health, Zone 2 aerobic base, metabolic conditioning, active recovery for joints.<br />
+<strong>Movement patterns:</strong> Cardiovascular, Hinge, Push, Pull, Squat.</p>
+<h4 id="monthly-plan-female-rucking-3540-min">Rucking (35–40 min)</h4>
+<ul>
+<li><strong>Load</strong>: Start at 5 kg; increase to 7 kg by Week 3.</li>
+<li><strong>Pace</strong>: Zone 2 — you should be able to speak in full sentences. Target heart rate: 108–126 bpm for age 40 (60–70% of HRmax). Use the talk test if you do not have a heart rate monitor.</li>
+<li><strong>Route</strong>: Neighbourhood loop or park. Start before 9 am to avoid Singapore heat and humidity.</li>
+<li><strong>Posture</strong>: Upright, shoulders back, pack sitting high on the back (not hanging low). Engage the core lightly throughout.</li>
+<li><strong>Why rucking specifically</strong>: Unlike running, rucking is low-impact on the knees while still providing a vertical compressive force on the skeleton — a key stimulus for maintaining bone density. For women approaching perimenopause, where oestrogen decline accelerates bone loss, this is a meaningful benefit. It also burns significantly more calories than walking (~2–3× more per hour) without the injury risk of running.</li>
+</ul>
+<h4 id="monthly-plan-female-post-ruck-conditioning-circuit-20-min-2-rounds">Post-Ruck Conditioning Circuit (20 min, 2 rounds)</h4>
+<p>Perform back-to-back with 90 sec rest between rounds. This is a metabolic finisher, not a strength session — keep weights moderate.</p>
+<ul>
+<li>KB Swing: ×12</li>
+<li>Push-up (or incline): ×10</li>
+<li>Single-arm DB Row: ×10/side</li>
+<li>Goblet Squat: ×10</li>
+<li>Rest 90 sec</li>
+</ul>
+<h4 id="monthly-plan-female-mobility-finisher-10-min-addresses-root-causes-of-knee-and-lower-back-pain">Mobility Finisher (10 min — addresses root causes of knee and lower back pain)</h4>
+<ul>
+<li><strong>90/90 hip mobility</strong> — 2 min: Sit in the 90/90 position (one hip internally rotated, one externally). Work through the end range gently.</li>
+<li><strong>World's greatest stretch</strong> — 3 reps/side: Lunge forward, place the same-side hand on the floor, rotate the opposite arm to the ceiling. Combines hip flexor stretch, thoracic rotation, and hamstring lengthening.</li>
+<li><strong>Couch stretch (kneeling hip flexor)</strong> — 60 sec/side: Rear foot on a sofa or chair, front leg at 90°. This targets the rectus femoris and psoas. Tight psoas pulls the lumbar spine into excessive extension (anterior pelvic tilt), which is one of the most common contributing factors to lower back pain. This stretch should be a daily habit.</li>
+<li><strong>Foam roller T-spine</strong> — 60 sec: Roller perpendicular to the spine at three levels (lower thoracic, mid thoracic, upper thoracic). Arms crossed over chest. Gently extend over the roller. Do not roll the lower back.</li>
+</ul>
+<hr />
+<h3 id="monthly-plan-female-day-d-full-body-strength-carry">Day D — Full Body Strength + Carry</h3>
+<p><strong>Friday, 7:30–8:50 am</strong><br />
+<strong>Purpose:</strong> Full-body integration, loaded carry, single-leg strength, anti-rotation core.<br />
+<strong>Movement patterns:</strong> Power/Full-body, Single-Leg, Pull, Carry, Core.</p>
+<h4 id="monthly-plan-female-warm-up-7-min-1">Warm-Up (7 min)</h4>
+<ul>
+<li><strong>Hip hinge drill (bodyweight)</strong> — 2×10: Stand with feet hip-width. Push hips back as far as possible while keeping the back flat. Touch fingers to mid-shin. Stand and repeat. Feel the hamstrings load.</li>
+<li><strong>Thoracic rotation in quadruped</strong> — 10/side: On hands and knees, one hand behind the head, rotate the elbow to the ceiling. Warms up the thoracic spine for the pressing movement.</li>
+<li><strong>Glute bridge</strong> — 2×15</li>
+<li><strong>Band pull-apart</strong> — 2×15</li>
+</ul>
+<h4 id="monthly-plan-female-main-work-2">Main Work</h4>
+<ol>
+<li>
+<p><strong>KB Single-arm Clean + Press</strong><br />
+   - Start with 8 kg. The clean: hinge and "hike" the KB, then aggressively pull the elbow high as the hips extend, "catching" the KB in the rack position (bell resting on the forearm, elbow tucked to ribs). From rack: press straight overhead to full lockout. Lower back to rack, then hinge and park the KB.<br />
+   - This is a full-body power chain exercise — hips generate the energy, the shoulder completes it. It is excellent for fat loss because it demands coordination, power, and stability simultaneously.</p>
+</li>
+<li>
+<p><strong>Bulgarian Split Squat</strong><br />
+   - Rear foot elevated on a chair behind you, DBs held at sides. Lower the back knee toward the floor under control. Depth to comfortable range — do not push through knee discomfort. The front foot does the work. This is the most challenging single-leg exercise in the programme, so start with light DBs (or bodyweight) and earn the load gradually.</p>
+</li>
+<li>
+<p><strong>DB Bent-over Row</strong><br />
+   - Both arms simultaneously. Hinge at the hip (maintain the back angle throughout the set), pull the DBs to the lower rib cage. This can be loaded heavier than the single-arm row because you have bilateral stability.</p>
+</li>
+<li>
+<p><strong>KB or DB Farmer Carry</strong><br />
+   - 3×20 m. Measure out a corridor or garden path. Hold a KB or DB in each hand, stand tall, brace the core, and walk. This exercise is deceptively hard and carries outsized benefits: grip strength, core bracing under load, posture, and trap development.</p>
+</li>
+<li>
+<p><strong>Band Pallof Press</strong><br />
+   - Anchor a band to a door frame or sturdy furniture at chest height. Stand sideways to the anchor. Hold the band at chest with both hands. Press directly forward to full arm extension, hold 2 sec, return. The band tries to rotate you — resist it. This is anti-rotation core training, which is more functional than most traditional ab exercises.</p>
+</li>
+</ol>
+<h4 id="monthly-plan-female-cool-down-10-min">Cool-Down (10 min)</h4>
+<ul>
+<li><strong>Foam roller</strong>: IT band (side of thigh), quads, glutes — key for knee maintenance.</li>
+<li><strong>90/90 hip</strong> — 1 min/side</li>
+<li><strong>Child's pose + thoracic extension</strong> — hold each 30–60 sec</li>
+</ul>
+<hr />
+<h2 id="monthly-plan-female-6-the-4-week-undulating-periodisation">6. The 4-Week Undulating Periodisation</h2>
+<table>
+<thead>
+<tr>
+<th>Week</th>
+<th>Phase</th>
+<th>Sets</th>
+<th>Reps</th>
+<th>RPE</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Week 1</td>
+<td>Technique + Accumulation</td>
+<td>3</td>
+<td>10</td>
+<td>6–7</td>
+<td>Master movement patterns. Lighter loads. Feel comfortable with TGU and swings. The goal this week is not fatigue — it is fluency.</td>
+</tr>
+<tr>
+<td>Week 2</td>
+<td>Build</td>
+<td>4</td>
+<td>8</td>
+<td>7–8</td>
+<td>Increase loads. Technique should be solid. Add one set across most exercises. You should feel challenged but not crushed.</td>
+</tr>
+<tr>
+<td>Week 3</td>
+<td>Volume</td>
+<td>4</td>
+<td>10–12</td>
+<td>7–8</td>
+<td>More total reps. Metabolic stress. Slightly lighter than Week 2 per set, but more total volume. Expect to feel this in the 48 hours after sessions.</td>
+</tr>
+<tr>
+<td>Week 4</td>
+<td>Deload</td>
+<td>2</td>
+<td>10</td>
+<td>5</td>
+<td>50% volume. Same exercises. Light and technical. This is not a "lazy week" — it is when adaptation consolidates. Use extra time for mobility work.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="monthly-plan-female-kb-swing-weekly-progression">KB Swing Weekly Progression</h3>
+<table>
+<thead>
+<tr>
+<th>Week</th>
+<th>Sets × Reps</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Week 1</td>
+<td>3×12</td>
+<td>Technique focus — nail the hip hinge and explosive extension</td>
+</tr>
+<tr>
+<td>Week 2</td>
+<td>4×12</td>
+<td>Add a set; increase KB weight if Week 1 felt easy</td>
+</tr>
+<tr>
+<td>Week 3</td>
+<td>4×15</td>
+<td>More reps per set; same or slightly lighter KB</td>
+</tr>
+<tr>
+<td>Week 4</td>
+<td>2×10</td>
+<td>Deload; lighter KB or fewer reps; stay grooved</td>
+</tr>
+</tbody>
+</table>
+<h3 id="monthly-plan-female-rucking-weekly-progression">Rucking Weekly Progression</h3>
+<table>
+<thead>
+<tr>
+<th>Week</th>
+<th>Pack Weight</th>
+<th>Duration</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Week 1</td>
+<td>5 kg</td>
+<td>35 min</td>
+<td>Establish the habit and pace</td>
+</tr>
+<tr>
+<td>Week 2</td>
+<td>5 kg</td>
+<td>40 min</td>
+<td>Add 5 minutes</td>
+</tr>
+<tr>
+<td>Week 3</td>
+<td>7 kg</td>
+<td>35 min</td>
+<td>Increase load, reduce duration</td>
+</tr>
+<tr>
+<td>Week 4</td>
+<td>5 kg</td>
+<td>30 min</td>
+<td>Deload — lighter, shorter</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="monthly-plan-female-7-full-28-day-calendar">7. Full 28-Day Calendar</h2>
+<hr />
+<h3 id="monthly-plan-female-week-1-technique-accumulation">Week 1 — Technique + Accumulation</h3>
+<p><em>Sets: 3 | Reps: 10 | RPE: 6–7</em><br />
+<em>The priority this week is learning the movements. Choose weights that feel easy-to-moderate — you are building patterns, not building fatigue.</em></p>
+<hr />
+<h4 id="monthly-plan-female-day-1-monday-training-day-a-lower-body-kb-swing">Day 1 — Monday (Training Day A — Lower Body + KB Swing)</h4>
+<p><strong>Workout:</strong><br />
+- Warm-up: Glute bridge 2×15 | Clamshell 2×12/side | BW Goblet Squat 2×10 | Ankle stretch 30s/side | Cat-cow 10 reps<br />
+- KB Swing: 3×12 (technique week — focus on hip snap; use a moderate KB you can control)<br />
+- KB Goblet Squat: 3×10 (light KB; comfortable depth; push knees out)<br />
+- DB RDL: 3×10 (8–10 kg DBs; hinge pattern establishment; back neutral)<br />
+- Clamshell: 2×15/side | Lateral band walk: 2×15 steps each direction<br />
+- McGill curl-up: 3×8 | Bird dog: 3×8/side | Side plank: 3×25 sec/side<br />
+- Pilates: Dead bug 2×8/side | Single-leg stretch 2×10 | Spine stretch 1×8</p>
+<p><strong>Meals:</strong> Training day template<br />
+<strong>Supplements:</strong> Collagen 15 g + Vit C at 7:15 am; whey + creatine post-workout; D3 + K2 with breakfast; omega-3 + zinc + ashwagandha with afternoon snack (~3:30 pm); magnesium at 9:15 pm</p>
+<hr />
+<h4 id="monthly-plan-female-day-2-tuesday-training-day-b-upper-body-tgu">Day 2 — Tuesday (Training Day B — Upper Body + TGU)</h4>
+<p><strong>Workout:</strong><br />
+- Warm-up: Shoulder CARs 5/arm | Band pull-apart 2×20 | Cat-cow 10 | Arm circles + wrist circles<br />
+- TGU: 3×3/side (4–6 kg; very slow; every phase deliberate)<br />
+- Single-arm DB Row: 3×10/side (moderate DB; feel the lat)<br />
+- Push-up: 3×10 (choose your level: incline, standard, or archer)<br />
+- DB Floor Press: 3×10 (light-moderate DBs)<br />
+- Band Face Pull: 3×15<br />
+- Pilates: The Hundred 1×100 pumps | Single-leg stretch 2×10 | Spine stretch + Swan 2×8</p>
+<p><strong>Meals:</strong> Training day template<br />
+<strong>Supplements:</strong> Same as Monday</p>
+<hr />
+<h4 id="monthly-plan-female-day-3-wednesday-rest-day">Day 3 — Wednesday (Rest Day)</h4>
+<p><strong>Activity:</strong> 20–30 min gentle walk (neighbourhood or park, before 10 am). Optional: 20 min yoga or Pilates flow at home.<br />
+<strong>Focus:</strong> Hip flexor stretching (couch stretch) and foam rolling if the legs feel heavy from Monday.<br />
+<strong>Meals:</strong> Rest day template (~1,350 kcal)<br />
+<strong>Supplements:</strong> Skip collagen pre-workout; take creatine with lunch; skip morning snack; all others as normal</p>
+<hr />
+<h4 id="monthly-plan-female-day-4-thursday-training-day-c-rucking-conditioning">Day 4 — Thursday (Training Day C — Rucking + Conditioning)</h4>
+<p><strong>Workout:</strong><br />
+- Rucking: 5 kg pack, 35 min, Zone 2 pace (conversational), before 9 am<br />
+- Post-ruck circuit (2 rounds, 90 sec rest):<br />
+  - KB Swing: ×12<br />
+  - Push-up: ×10<br />
+  - Single-arm DB Row: ×10/side<br />
+  - Goblet Squat: ×10<br />
+- Mobility finisher: 90/90 hip 2 min | World's greatest stretch 3/side | Couch stretch 60s/side | Foam roller T-spine 60s</p>
+<p><strong>Meals:</strong> Training day template<br />
+<strong>Supplements:</strong> Collagen 15 g + Vit C at 7:15 am; whey + creatine post-workout; D3 + K2 with breakfast; omega-3 + zinc + ashwagandha with afternoon snack (~3:30 pm); magnesium at 9:15 pm</p>
+<hr />
+<h4 id="monthly-plan-female-day-5-friday-training-day-d-full-body-carry">Day 5 — Friday (Training Day D — Full Body + Carry)</h4>
+<p><strong>Workout:</strong><br />
+- Warm-up: Hip hinge drill 2×10 | Thoracic rotation quad 10/side | Glute bridge 2×15 | Band pull-apart 2×15<br />
+- KB Single-arm Clean + Press: 3×8/side (8 kg; learn the rack position)<br />
+- Bulgarian Split Squat: 3×8/side (bodyweight or very light DBs; controlled depth)<br />
+- DB Bent-over Row: 3×10 (moderate DBs; maintain hip hinge throughout)<br />
+- Farmer Carry: 3×20 m (moderate KBs or DBs; upright posture)<br />
+- Band Pallof Press: 3×8/side (slow; resist rotation; 2 sec hold at extension)<br />
+- Cool-down: Foam roller IT band + quads + glutes | 90/90 hip 1 min/side | Child's pose + thoracic extension</p>
+<p><strong>Meals:</strong> Training day template<br />
+<strong>Supplements:</strong> Same as Monday/Thursday training days</p>
+<hr />
+<h4 id="monthly-plan-female-day-6-saturday-rest">Day 6 — Saturday (Rest)</h4>
+<p><strong>Activity:</strong> Afternoon classes as scheduled.<br />
+<strong>Meals:</strong> Rest day template<br />
+<strong>Supplements:</strong> Rest day — creatine with lunch; all others as normal</p>
+<hr />
+<h4 id="monthly-plan-female-day-7-sunday-family-swimming">Day 7 — Sunday (Family Swimming)</h4>
+<p><strong>Activity:</strong> Family swimming at 4 pm — Zone 1–2, enjoy it. No lap targets, no structure. This is active recovery.<br />
+<strong>Meals:</strong> Rest day template (light on carbs; slightly higher protein if hungry)<br />
+<strong>Supplements:</strong> Rest day — creatine with lunch<br />
+<strong>Weekly weigh-in:</strong> This morning, post-void, before eating. Record weight. This is your Week 1 baseline.</p>
+<hr />
+<h3 id="monthly-plan-female-week-2-build">Week 2 — Build</h3>
+<p><em>Sets: 4 | Reps: 8 | RPE: 7–8</em><br />
+<em>Add one set to most exercises. Increase weights where Week 1 felt easy (RPE ≤6). Technique should now be solid — you can afford to push harder.</em></p>
+<hr />
+<h4 id="monthly-plan-female-day-8-monday-training-day-a">Day 8 — Monday (Training Day A)</h4>
+<p><strong>Workout:</strong><br />
+- Warm-up: same as Week 1 Day A<br />
+- KB Swing: 4×12 (increase KB weight if Week 1 was comfortable)<br />
+- KB Goblet Squat: 4×8 (add 2–4 kg to the KB)<br />
+- DB RDL: 4×8 (increase to 10–12 kg DBs if back stayed neutral last week)<br />
+- Clamshell: 2×15/side | Lateral band walk: 2×15 steps<br />
+- McGill curl-up: 3×8 | Bird dog: 3×8/side | Side plank: 3×30 sec/side<br />
+- Pilates: Dead bug 2×8/side | Single-leg stretch 2×10 | Spine stretch 1×8</p>
+<p><strong>Meals:</strong> Training day template<br />
+<strong>Supplements:</strong> Training day schedule as above</p>
+<hr />
+<h4 id="monthly-plan-female-day-9-tuesday-training-day-b">Day 9 — Tuesday (Training Day B)</h4>
+<p><strong>Workout:</strong><br />
+- Warm-up: same as Week 1 Day B<br />
+- TGU: 3×3/side (consolidate the sequence; same weight or +2 kg if fully confident)<br />
+- Single-arm DB Row: 4×8/side (heavier than Week 1)<br />
+- Push-up: 4×8 (progress to the next variation if the previous was easy)<br />
+- DB Floor Press: 4×8 (add 1–2 kg per hand)<br />
+- Band Face Pull: 3×15<br />
+- Pilates: The Hundred 1×100 | Single-leg stretch 2×10 | Spine stretch + Swan 2×8</p>
+<p><strong>Meals:</strong> Training day template<br />
+<strong>Supplements:</strong> Training day schedule</p>
+<hr />
+<h4 id="monthly-plan-female-day-10-wednesday-rest">Day 10 — Wednesday (Rest)</h4>
+<p><strong>Activity:</strong> 30 min walk. Optional yoga or Pilates flow (20–30 min).<br />
+<strong>Meals:</strong> Rest day template<br />
+<strong>Supplements:</strong> Rest day schedule</p>
+<hr />
+<h4 id="monthly-plan-female-day-11-thursday-training-day-c">Day 11 — Thursday (Training Day C)</h4>
+<p><strong>Workout:</strong><br />
+- Rucking: 5 kg pack, 40 min, Zone 2<br />
+- Post-ruck circuit (2 rounds, 90 sec rest): KB Swing ×12 | Push-up ×10 | Single-arm DB Row ×10/side | Goblet Squat ×10<br />
+- Mobility finisher: 90/90 hip | World's greatest stretch | Couch stretch | T-spine foam roller</p>
+<p><strong>Meals:</strong> Training day template<br />
+<strong>Supplements:</strong> Training day schedule</p>
+<hr />
+<h4 id="monthly-plan-female-day-12-friday-training-day-d">Day 12 — Friday (Training Day D)</h4>
+<p><strong>Workout:</strong><br />
+- Warm-up: same as Week 1 Day D<br />
+- KB Single-arm Clean + Press: 4×6/side (add weight or improve technique smoothness)<br />
+- Bulgarian Split Squat: 4×6/side (add light DBs if bodyweight was easy)<br />
+- DB Bent-over Row: 4×8 (heavier than Week 1)<br />
+- Farmer Carry: 3×20 m (increase carry weight slightly)<br />
+- Band Pallof Press: 3×10/side<br />
+- Cool-down: same as Week 1 Day D</p>
+<p><strong>Meals:</strong> Training day template<br />
+<strong>Supplements:</strong> Training day schedule</p>
+<hr />
+<h4 id="monthly-plan-female-day-13-saturday-rest">Day 13 — Saturday (Rest)</h4>
+<p><strong>Activity:</strong> Afternoon classes.<br />
+<strong>Meals:</strong> Rest day template<br />
+<strong>Supplements:</strong> Rest day schedule</p>
+<hr />
+<h4 id="monthly-plan-female-day-14-sunday-family-swimming">Day 14 — Sunday (Family Swimming)</h4>
+<p><strong>Activity:</strong> Family swimming at 4 pm. Zone 1–2, enjoy the water.<br />
+<strong>Meals:</strong> Rest day template<br />
+<strong>Weekly weigh-in:</strong> Sunday morning, post-void, before eating. Compare to Week 1. Target: 0.3–0.5 kg loss.</p>
+<hr />
+<h3 id="monthly-plan-female-week-3-volume">Week 3 — Volume</h3>
+<p><em>Sets: 4 | Reps: 10–12 | RPE: 7–8</em><br />
+<em>More total reps than Week 2. Weights may be slightly lighter per set than Week 2, but total volume is higher. Metabolic stress is the goal. Expect muscle soreness in the 24–48 hours after sessions — this is normal adaptation.</em></p>
+<hr />
+<h4 id="monthly-plan-female-day-15-monday-training-day-a">Day 15 — Monday (Training Day A)</h4>
+<p><strong>Workout:</strong><br />
+- Warm-up: same as prior weeks<br />
+- KB Swing: 4×15 (same KB as Week 2 or slightly lighter for more reps)<br />
+- KB Goblet Squat: 4×12 (same or +2 kg; maintain depth and form)<br />
+- DB RDL: 4×12 (same as Week 2 weight; more reps this week)<br />
+- Clamshell: 2×15/side | Lateral band walk: 2×15 steps<br />
+- McGill curl-up: 3×8 | Bird dog: 3×10/side | Side plank: 3×35 sec/side<br />
+- Pilates: Dead bug 2×10/side | Single-leg stretch 2×10 | Spine stretch 1×8</p>
+<p><strong>Meals:</strong> Training day template<br />
+<strong>Supplements:</strong> Training day schedule</p>
+<hr />
+<h4 id="monthly-plan-female-day-16-tuesday-training-day-b">Day 16 — Tuesday (Training Day B)</h4>
+<p><strong>Workout:</strong><br />
+- Warm-up: same as prior weeks<br />
+- TGU: 3×3/side (if pattern is now smooth, consider +2 kg; only if confident)<br />
+- Single-arm DB Row: 4×12/side<br />
+- Push-up: 4×12 (or introduce next progression)<br />
+- DB Floor Press: 4×12<br />
+- Band Face Pull: 3×20<br />
+- Pilates: The Hundred 1×100 | Single-leg stretch 2×12 | Spine stretch + Swan 2×8</p>
+<p><strong>Meals:</strong> Training day template<br />
+<strong>Supplements:</strong> Training day schedule</p>
+<hr />
+<h4 id="monthly-plan-female-day-17-wednesday-rest">Day 17 — Wednesday (Rest)</h4>
+<p><strong>Activity:</strong> 30–40 min walk. Consider a longer yoga session (30–40 min) — your body will appreciate the mobility work at the peak volume week.<br />
+<strong>Meals:</strong> Rest day template<br />
+<strong>Supplements:</strong> Rest day schedule</p>
+<hr />
+<h4 id="monthly-plan-female-day-18-thursday-training-day-c">Day 18 — Thursday (Training Day C)</h4>
+<p><strong>Workout:</strong><br />
+- Rucking: <strong>7 kg pack</strong>, 35 min, Zone 2 (increased load, reduced duration)<br />
+- Post-ruck circuit (2 rounds, 90 sec rest): KB Swing ×12 | Push-up ×10 | Single-arm DB Row ×10/side | Goblet Squat ×12<br />
+- Mobility finisher: 90/90 hip | World's greatest stretch | Couch stretch | T-spine foam roller</p>
+<p><strong>Meals:</strong> Training day template<br />
+<strong>Supplements:</strong> Training day schedule</p>
+<hr />
+<h4 id="monthly-plan-female-day-19-friday-training-day-d">Day 19 — Friday (Training Day D)</h4>
+<p><strong>Workout:</strong><br />
+- Warm-up: same as prior weeks<br />
+- KB Single-arm Clean + Press: 4×8/side (same weight as Week 2 or +2 kg if confident)<br />
+- Bulgarian Split Squat: 4×10/side (moderate DBs; volume focus this week)<br />
+- DB Bent-over Row: 4×12<br />
+- Farmer Carry: 4×20 m (add a fourth set this week)<br />
+- Band Pallof Press: 3×12/side<br />
+- Cool-down: same as prior weeks</p>
+<p><strong>Meals:</strong> Training day template<br />
+<strong>Supplements:</strong> Training day schedule</p>
+<hr />
+<h4 id="monthly-plan-female-day-20-saturday-rest">Day 20 — Saturday (Rest)</h4>
+<p><strong>Activity:</strong> Afternoon classes.<br />
+<strong>Meals:</strong> Rest day template<br />
+<strong>Supplements:</strong> Rest day schedule</p>
+<hr />
+<h4 id="monthly-plan-female-day-21-sunday-family-swimming">Day 21 — Sunday (Family Swimming)</h4>
+<p><strong>Activity:</strong> Family swimming at 4 pm. Zone 1–2.<br />
+<strong>Meals:</strong> Rest day template<br />
+<strong>Weekly weigh-in:</strong> Sunday morning, post-void. Check trend over 3 weeks.</p>
+<hr />
+<h3 id="monthly-plan-female-week-4-deload">Week 4 — Deload</h3>
+<p><em>Sets: 2 | Reps: 10 | RPE: 5</em><br />
+<em>Half the total volume of Week 3. Same exercises, same movement patterns, significantly lighter loads. The deload is when your body consolidates the adaptations from the previous three weeks. Do not skip it. Soreness should disappear. You should finish each session feeling energised, not drained.</em></p>
+<hr />
+<h4 id="monthly-plan-female-day-22-monday-training-day-a">Day 22 — Monday (Training Day A)</h4>
+<p><strong>Workout:</strong><br />
+- Warm-up: same as prior weeks — take extra time here<br />
+- KB Swing: 2×10 (lighter KB; perfect technique; this is a movement quality day)<br />
+- KB Goblet Squat: 2×10 (comfortable, lighter KB)<br />
+- DB RDL: 2×10 (8–10 kg; light; feel the hinge)<br />
+- Clamshell: 2×12/side | Lateral band walk: 2×12 steps<br />
+- McGill curl-up: 2×8 | Bird dog: 2×8/side | Side plank: 2×20 sec/side<br />
+- Pilates: Dead bug 2×6/side | Single-leg stretch 2×8 | Spine stretch 1×8</p>
+<p><strong>Meals:</strong> Training day template<br />
+<strong>Supplements:</strong> Training day schedule</p>
+<hr />
+<h4 id="monthly-plan-female-day-23-tuesday-training-day-b">Day 23 — Tuesday (Training Day B)</h4>
+<p><strong>Workout:</strong><br />
+- Warm-up: same as prior weeks<br />
+- TGU: 2×3/side (light weight; this is a technique and movement quality day — slow and deliberate)<br />
+- Single-arm DB Row: 2×10/side (lighter)<br />
+- Push-up: 2×10 (easy variation; no pushing to failure)<br />
+- DB Floor Press: 2×10 (light)<br />
+- Band Face Pull: 2×15<br />
+- Pilates: The Hundred 1×60 pumps | Single-leg stretch 2×8 | Spine stretch + Swan 2×6</p>
+<p><strong>Meals:</strong> Training day template<br />
+<strong>Supplements:</strong> Training day schedule</p>
+<hr />
+<h4 id="monthly-plan-female-day-24-wednesday-rest">Day 24 — Wednesday (Rest)</h4>
+<p><strong>Activity:</strong> Optional 30 min walk or a full yoga flow session. Treat this as a recovery day — the body is consolidating three weeks of hard work.<br />
+<strong>Meals:</strong> Rest day template<br />
+<strong>Supplements:</strong> Rest day schedule</p>
+<hr />
+<h4 id="monthly-plan-female-day-25-thursday-training-day-c">Day 25 — Thursday (Training Day C)</h4>
+<p><strong>Workout:</strong><br />
+- Rucking: 5 kg pack, 30 min, Zone 2 (deload — lighter, shorter)<br />
+- Post-ruck circuit (1 round only — deload week): KB Swing ×10 | Push-up ×8 | Single-arm DB Row ×8/side | Goblet Squat ×10<br />
+- Mobility finisher: Extended — take 15 min here. Couch stretch, 90/90, World's greatest stretch, foam roller full body.</p>
+<p><strong>Meals:</strong> Training day template<br />
+<strong>Supplements:</strong> Training day schedule</p>
+<hr />
+<h4 id="monthly-plan-female-day-26-friday-training-day-d">Day 26 — Friday (Training Day D)</h4>
+<p><strong>Workout:</strong><br />
+- Warm-up: same as prior weeks<br />
+- KB Single-arm Clean + Press: 2×6/side (light; technique focus)<br />
+- Bulgarian Split Squat: 2×8/side (light or bodyweight)<br />
+- DB Bent-over Row: 2×10 (light)<br />
+- Farmer Carry: 2×20 m (lighter load — still brace and walk tall)<br />
+- Band Pallof Press: 2×8/side<br />
+- Cool-down: extended — foam roller full body, 90/90 hip, child's pose, thoracic extension</p>
+<p><strong>Meals:</strong> Training day template<br />
+<strong>Supplements:</strong> Training day schedule</p>
+<hr />
+<h4 id="monthly-plan-female-day-27-saturday-rest">Day 27 — Saturday (Rest)</h4>
+<p><strong>Activity:</strong> Afternoon classes. Notice how your energy levels feel compared to earlier in the month — the deload should produce a sense of freshness.<br />
+<strong>Meals:</strong> Rest day template<br />
+<strong>Supplements:</strong> Rest day schedule</p>
+<hr />
+<h4 id="monthly-plan-female-day-28-sunday-family-swimming-end-of-month-review">Day 28 — Sunday (Family Swimming + End-of-Month Review)</h4>
+<p><strong>Activity:</strong> Family swimming at 4 pm.<br />
+<strong>Meals:</strong> Rest day template<br />
+<strong>Weekly weigh-in and monthly measurements:</strong> Sunday morning, post-void. Record weight. Also take measurements: waist (narrowest point), hip circumference, and thigh circumference. Compare to Day 1 measurements. This is your full month result.</p>
+<hr />
+<h2 id="monthly-plan-female-8-progressive-overload-guidelines">8. Progressive Overload Guidelines</h2>
+<p><strong>When to add weight:</strong><br />
+Complete all prescribed sets and reps at RPE ≤6 for two consecutive sessions → increase weight. For dumbbells: add 1–2 kg. For kettlebells: move to the next bell size. Do not chase weight — chase technique.</p>
+<p><strong>Knee rule:</strong><br />
+If goblet squat causes knee pain during or after the session, reduce depth to the point that is pain-free. If pain persists at any depth, substitute a box squat: sit back onto a chair and stand. This removes the need to control the descent and is a safe bridge exercise while the knee is sensitive.</p>
+<p><strong>Lower back rule:</strong><br />
+If the RDL causes lower back pain, reduce weight significantly and revisit the hip hinge pattern. Film yourself from the side if possible. If pain persists despite lightening the load, substitute the hip thrust: sit your back against a sofa, feet flat, drive the hips up to full extension. The hip thrust is glute-dominant and places minimal load on the lumbar spine.</p>
+<p><strong>TGU rule:</strong><br />
+Do not increase KB weight until you can complete all 6 phases on both sides with smooth, unhurried movement. Rushing the TGU with a weight you cannot control defeats its purpose. The movement should feel like a deliberate sequence, not a struggle.</p>
+<p><strong>Deload rule:</strong><br />
+Take a deload week every fourth week regardless of how you feel. The adaptations from hard training occur during recovery, not during the sessions themselves.</p>
+<hr />
+<h2 id="monthly-plan-female-9-fat-loss-tracking">9. Fat Loss Tracking</h2>
+<h3 id="monthly-plan-female-weekly-weigh-in-protocol">Weekly Weigh-In Protocol</h3>
+<ul>
+<li>Weigh every Sunday morning, post-void, before eating or drinking</li>
+<li>Wear minimal or no clothing for consistency</li>
+<li>Log the number — do not react emotionally to a single reading; look for the trend over 3–4 weeks</li>
+</ul>
+<h3 id="monthly-plan-female-expected-rate-of-loss">Expected Rate of Loss</h3>
+<ul>
+<li><strong>Target: 0.3–0.5 kg/week</strong> — this is the sustainable, muscle-preserving range</li>
+<li>0.3 kg/week = ~100 g fat lost per day at the cellular level — genuinely meaningful over a month</li>
+<li>Over this 4-week programme: expect 1.2–2.0 kg of fat loss if the plan is followed consistently</li>
+</ul>
+<h3 id="monthly-plan-female-adjustments">Adjustments</h3>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Losing &gt;0.7 kg/week</td>
+<td>Add 100 kcal/day — risk of muscle loss at faster rate. Add to breakfast (extra egg or slightly more milk).</td>
+</tr>
+<tr>
+<td>No loss after 2 full weeks</td>
+<td>Reduce lunch carbs by half: ¼ cup brown rice instead of ½ cup. This is the first and simplest lever to pull.</td>
+</tr>
+<tr>
+<td>Scale not moving but measurements decreasing</td>
+<td>Continue as-is — this is body recomposition (fat loss + muscle gain). Common in the first 4–6 weeks of a new programme.</td>
+</tr>
+<tr>
+<td>Very hungry on rest days</td>
+<td>Add a small protein snack (100 g cottage cheese or 1 hard-boiled egg) — this is preferable to eating off-plan.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="monthly-plan-female-monthly-measurements">Monthly Measurements</h3>
+<p>Take on Day 1 and Day 28, same time of day (morning, before eating):<br />
+- <strong>Waist</strong>: at the narrowest point, just above the navel<br />
+- <strong>Hip</strong>: at the widest point across the buttocks<br />
+- <strong>Thigh</strong>: at the mid-thigh of the dominant leg, measured from the same anatomical landmark each time</p>
+<p>Scale weight alone misses the most important changes happening in your body. A month of consistent training and appropriate nutrition will almost certainly produce visible changes in measurements and how clothes fit, even if the scale moves less than expected (especially in the early weeks as muscles adapt and glycogen stores shift).</p>
+<hr />
+<h2 id="monthly-plan-female-notes-for-long-term-progress">Notes for Long-Term Progress</h2>
+<p>This 4-week plan is designed to be <strong>repeatable with progressive loading</strong>. After Week 4 (deload), begin again from Week 1 of the same structure — but with heavier loads than you started this cycle. Every 4 weeks you will be measurably stronger than the previous cycle.</p>
+<p>Three months of consistent application of this plan — with honest nutrition adherence and progressive loading — will produce a transformation in both body composition and physical capacity that three more years of yoga and Pilates alone would not. The combination of resistance training, adequate protein, modest caloric deficit, and Zone 2 cardio is one of the most evidence-based approaches to body composition improvement in the scientific literature for women.</p>
+<p>The knee and lower back issues you experience are not a barrier — they are a signal. This programme addresses their root causes (weak glutes, tight hip flexors, poor anterior core endurance) directly. Most people with similar presentations find that pain frequency and severity decrease significantly within 6–8 weeks of consistent hip/glute work and McGill core training.</p>
+<p>Finally: the Sunday family swim is not optional. It is one of the best things in this programme.</p>
+</section>
+</main>
+
+<!-- ── FAB ───────────────────────────────────────────────────────────────── -->
+<button id="fab" aria-label="Open table of contents">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <line x1="3" y1="6"  x2="21" y2="6"/>
+    <line x1="3" y1="12" x2="16" y2="12"/>
+    <line x1="3" y1="18" x2="21" y2="18"/>
+  </svg>
+  Contents
+</button>
+
+<script>
+(function () {
+  const sidebar  = document.getElementById('toc-sidebar');
+  const backdrop = document.getElementById('toc-backdrop');
+  const fab      = document.getElementById('fab');
+  const closeBtn = document.getElementById('toc-close');
+
+  function openTOC() {
+    sidebar.classList.add('open');
+    backdrop.classList.add('visible');
+    fab.setAttribute('aria-expanded', 'true');
+    document.body.style.overflow = 'hidden'; // prevent background scroll
+  }
+
+  function closeTOC() {
+    sidebar.classList.remove('open');
+    backdrop.classList.remove('visible');
+    fab.setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = '';
+  }
+
+  fab.addEventListener('click', openTOC);
+  closeBtn.addEventListener('click', closeTOC);
+  backdrop.addEventListener('click', closeTOC);
+
+  // Close sidebar when a TOC link is tapped (mobile)
+  sidebar.querySelectorAll('a').forEach(function(link) {
+    link.addEventListener('click', function() {
+      if (window.innerWidth <= 700) closeTOC();
+    });
+  });
+
+  // Escape key closes
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeTOC();
+  });
+
+  // ── Wrap all tables for horizontal scroll ──
+  document.querySelectorAll('#main table').forEach(function(t) {
+    if (t.parentNode.classList.contains('table-wrap')) return;
+    var wrap = document.createElement('div');
+    wrap.className = 'table-wrap';
+    t.parentNode.insertBefore(wrap, t);
+    wrap.appendChild(t);
+  });
+
+  // ── Highlight active TOC link on scroll ──
+  var headings = Array.from(document.querySelectorAll('#main h1,#main h2,#main h3,#main h4'))
+                      .filter(function(h) { return h.id; });
+
+  function getActiveHeading() {
+    var scrollY = window.scrollY + window.innerHeight * 0.18;
+    var active = headings[0];
+    for (var i = 0; i < headings.length; i++) {
+      if (headings[i].getBoundingClientRect().top + window.scrollY <= scrollY) {
+        active = headings[i];
+      } else {
+        break;
+      }
+    }
+    return active;
+  }
+
+  var lastActive = null;
+  function updateActive() {
+    var h = getActiveHeading();
+    if (!h || h === lastActive) return;
+    lastActive = h;
+    var allLinks = sidebar.querySelectorAll('a');
+    allLinks.forEach(function(l) { l.classList.remove('active'); });
+    var link = sidebar.querySelector('a[href="#' + h.id + '"]');
+    if (link) {
+      link.classList.add('active');
+      // Scroll the TOC to show the active link (desktop always-visible sidebar)
+      link.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }
+
+  var ticking = false;
+  window.addEventListener('scroll', function() {
+    if (!ticking) {
+      requestAnimationFrame(function() { updateActive(); ticking = false; });
+      ticking = true;
+    }
+  }, { passive: true });
+
+  updateActive(); // run once on load
+})();
+</script>
+
+</body>
+</html>

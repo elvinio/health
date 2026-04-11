@@ -1,0 +1,1793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#8b5e3c">
+<title>Monthly Plan — Male — Singapore 40–50</title>
+<style>
+  /* ── Reset ────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #faf6ee;
+    --paper:     #fdf9f2;
+    --text:      #2c2416;
+    --muted:     #7a6a52;
+    --accent:    #8b5e3c;
+    --accent2:   #5a7c5e;
+    --border:    #e5dcc8;
+    --toc-bg:    #f4ede0;
+    --toc-w:     285px;
+    --fab-size:  3.25rem;
+    --serif:     'Georgia', 'Palatino Linotype', 'Book Antiqua', Palatino, serif;
+    --sans:      -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    --mono:      'Courier New', Courier, monospace;
+    --safe-b:    env(safe-area-inset-bottom, 0px);
+    --safe-r:    env(safe-area-inset-right, 0px);
+  }
+
+  html {
+    font-size: 18px;
+    scroll-behavior: smooth;
+    /* Prevent text size bump in landscape on iOS */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--serif);
+    line-height: 1.85;
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ════════════════════════════════════════════════════════
+     TOC SIDEBAR
+  ════════════════════════════════════════════════════════ */
+  #toc-sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    width: var(--toc-w);
+    height: 100%;
+    height: 100dvh;
+    background: var(--toc-bg);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding: 1.4rem 0 5rem;
+    z-index: 300;
+    /* Desktop: always visible */
+  }
+
+  /* TOC header row with close button */
+  .toc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1rem 0.75rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0.6rem;
+  }
+
+  .toc-header h2 {
+    font-family: var(--sans);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* Close button — hidden on desktop */
+  #toc-close {
+    display: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 1.35rem;
+    line-height: 1;
+    padding: 0.25rem 0.35rem;
+    border-radius: 6px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  #toc-close:active { background: rgba(0,0,0,0.08); }
+
+  #toc-sidebar ul { list-style: none; padding: 0; }
+
+  #toc-sidebar li.toc-section { margin-top: 0.1rem; }
+
+  #toc-sidebar li.toc-section > a {
+    display: block;
+    padding: 0.5rem 1.25rem;
+    min-height: 2.75rem;
+    display: flex;
+    align-items: center;
+    font-family: var(--sans);
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--accent);
+    text-decoration: none;
+    letter-spacing: 0.02em;
+    border-left: 3px solid transparent;
+    transition: border-color 0.15s, background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #toc-sidebar li.toc-section > a:hover,
+  #toc-sidebar li.toc-section > a:active {
+    background: rgba(139,94,60,0.08);
+    border-left-color: var(--accent);
+  }
+
+  #toc-sidebar li.toc-section > ul {
+    padding-left: 0;
+    margin: 0 0 0.4rem;
+  }
+
+  #toc-sidebar .toc-h2 > a {
+    display: flex;
+    align-items: center;
+    min-height: 2.5rem;
+    padding: 0.3rem 1.25rem 0.3rem 1.75rem;
+    font-family: var(--sans);
+    font-size: 0.72rem;
+    color: #5a4e3a;
+    text-decoration: none;
+    border-left: 3px solid transparent;
+    transition: border-color 0.15s, background 0.15s;
+    line-height: 1.4;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #toc-sidebar .toc-h2 > a:hover,
+  #toc-sidebar .toc-h2 > a:active {
+    background: rgba(139,94,60,0.05);
+    border-left-color: var(--border);
+    color: var(--accent);
+  }
+
+  #toc-sidebar .toc-h3 > a {
+    display: flex;
+    align-items: center;
+    min-height: 2.25rem;
+    padding: 0.2rem 1.25rem 0.2rem 2.5rem;
+    font-family: var(--sans);
+    font-size: 0.66rem;
+    color: var(--muted);
+    text-decoration: none;
+    line-height: 1.35;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #toc-sidebar .toc-h3 > a:hover,
+  #toc-sidebar .toc-h3 > a:active { color: var(--accent); }
+
+  /* Active TOC link */
+  #toc-sidebar a.active {
+    color: var(--accent) !important;
+    font-weight: 700 !important;
+    border-left-color: var(--accent) !important;
+    background: rgba(139,94,60,0.1) !important;
+  }
+
+  /* ════════════════════════════════════════════════════════
+     BACKDROP (mobile overlay behind open sidebar)
+  ════════════════════════════════════════════════════════ */
+  #toc-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(30, 20, 10, 0.45);
+    z-index: 290;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    opacity: 0;
+    pointer-events: none;           /* invisible backdrop must NOT intercept touches */
+    transition: opacity 0.25s ease;
+  }
+
+  #toc-backdrop.visible {
+    opacity: 1;
+    pointer-events: auto;           /* only intercept touches when actually visible */
+  }
+
+  /* ════════════════════════════════════════════════════════
+     MAIN CONTENT
+  ════════════════════════════════════════════════════════ */
+  #main {
+    margin-left: var(--toc-w);
+    flex: 1;
+    max-width: 860px;
+    padding: 4rem 3rem 7rem 4rem;
+    min-width: 0; /* prevent flex overflow */
+  }
+
+  /* ── Section wrappers ─────────────────────────────────── */
+  .kb-section {
+    margin-bottom: 5rem;
+    border-top: 2px solid var(--border);
+    padding-top: 3rem;
+  }
+
+  .kb-section:first-child {
+    border-top: none;
+    padding-top: 0;
+  }
+
+  /* ── Typography ───────────────────────────────────────── */
+  h1 {
+    font-size: 2.05rem;
+    line-height: 1.25;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+    margin-top: 3rem;
+    margin-bottom: 0.65rem;
+    color: var(--text);
+    line-height: 1.3;
+    font-weight: 700;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.3rem;
+  }
+
+  h3 {
+    font-size: 1.18rem;
+    margin-top: 2.2rem;
+    margin-bottom: 0.5rem;
+    color: #3d2f1e;
+    font-weight: 700;
+    line-height: 1.35;
+  }
+
+  h4 {
+    font-size: 1rem;
+    margin-top: 1.6rem;
+    margin-bottom: 0.4rem;
+    color: var(--muted);
+    font-weight: 700;
+    font-style: italic;
+  }
+
+  p {
+    margin-bottom: 1.1rem;
+    text-align: justify;
+    hyphens: auto;
+  }
+
+  h2 + p, h3 + p, h4 + p { margin-top: 0; }
+
+  a { color: var(--accent2); text-decoration: underline; text-underline-offset: 2px; }
+  a:hover { color: var(--accent); }
+  strong { color: #2c1f0e; }
+  em { font-style: italic; color: #4a3a28; }
+
+  /* ── Lists ────────────────────────────────────────────── */
+  ul, ol { padding-left: 1.6rem; margin-bottom: 1.1rem; }
+  li { margin-bottom: 0.35rem; line-height: 1.75; }
+  li > ul, li > ol { margin-top: 0.25rem; margin-bottom: 0.25rem; }
+
+  /* ── Blockquotes ──────────────────────────────────────── */
+  blockquote {
+    border-left: 4px solid var(--accent);
+    background: #f5ede0;
+    margin: 1.5rem 0;
+    padding: 0.85rem 1.2rem;
+    border-radius: 0 6px 6px 0;
+    font-size: 0.97rem;
+    color: #3d2b1a;
+  }
+  blockquote p:last-child { margin-bottom: 0; }
+  blockquote strong { color: var(--accent); }
+
+  /* ── Tables — wrapped for horizontal scroll on mobile ─── */
+  .table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 1.5rem 0 2rem;
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+    font-family: var(--sans);
+    background: var(--paper);
+    min-width: 480px; /* scroll below this width */
+  }
+
+  thead { background: #e8dcc8; }
+
+  th {
+    padding: 0.65rem 0.9rem;
+    text-align: left;
+    font-weight: 700;
+    color: #3d2b1a;
+    border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 0.55rem 0.9rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    line-height: 1.55;
+    color: #2c2416;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:nth-child(even) td { background: rgba(0,0,0,0.018); }
+
+  /* ── Code ─────────────────────────────────────────────── */
+  code {
+    font-family: var(--mono);
+    font-size: 0.83em;
+    background: #ede5d6;
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+    color: #5a3520;
+  }
+
+  pre {
+    background: #2c2416;
+    color: #f0e8d8;
+    padding: 1.2rem 1.5rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    font-size: 0.82rem;
+    margin: 1.5rem 0;
+    line-height: 1.6;
+  }
+
+  pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+
+  /* ── Section label ────────────────────────────────────── */
+  .section-label {
+    font-family: var(--sans);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.65rem;
+    display: block;
+  }
+
+  /* ════════════════════════════════════════════════════════
+     FAB — floating action button (Contents)
+     Hidden on desktop; shown on mobile
+  ════════════════════════════════════════════════════════ */
+  #fab {
+    display: none; /* shown via media query */
+    position: fixed;
+    bottom: calc(1.5rem + var(--safe-b));
+    right: calc(1.25rem + var(--safe-r));
+    z-index: 310;                   /* above sidebar (300) and backdrop (290) */
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 2rem;
+    height: var(--fab-size);
+    padding: 0 1.1rem;
+    gap: 0.5rem;
+    font-family: var(--sans);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    align-items: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.28), 0 1px 4px rgba(0,0,0,0.15);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  #fab:active {
+    transform: scale(0.94);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  }
+
+  #fab svg {
+    flex-shrink: 0;
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+
+  /* ════════════════════════════════════════════════════════
+     RESPONSIVE BREAKPOINTS
+  ════════════════════════════════════════════════════════ */
+
+  /* Narrow desktop / large tablet */
+  @media (max-width: 1000px) {
+    :root { --toc-w: 250px; }
+    #main { padding: 3rem 2rem 6rem 2.5rem; max-width: none; }
+  }
+
+  /* Mobile — sidebar becomes an overlay drawer */
+  @media (max-width: 700px) {
+    /* Sidebar hidden off-screen by default */
+    #toc-sidebar {
+      transform: translateX(-105%);
+      transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+                  box-shadow 0.28s ease;
+      box-shadow: none;
+      width: min(var(--toc-w), 88vw);
+    }
+
+    /* Open state */
+    #toc-sidebar.open {
+      transform: translateX(0);
+      box-shadow: 6px 0 24px rgba(0,0,0,0.18);
+    }
+
+    /* Show close button & backdrop */
+    #toc-close { display: block; }
+    #toc-backdrop { display: block; }
+
+    /* Main takes full width */
+    #main {
+      margin-left: 0;
+      padding: 1.6rem 1.1rem calc(5rem + var(--safe-b)) 1.1rem;
+      max-width: none;
+    }
+
+    /* Show FAB */
+    #fab { display: flex; }
+
+    /* Typography scale */
+    html { font-size: 17px; }
+    h1 { font-size: 1.65rem; }
+    h2 { font-size: 1.3rem; margin-top: 2.2rem; }
+    h3 { font-size: 1.1rem; margin-top: 1.8rem; }
+
+    /* Left-align body text on narrow screens */
+    p { text-align: left; hyphens: none; }
+
+    /* Blockquotes slightly tighter */
+    blockquote { padding: 0.7rem 1rem; font-size: 0.93rem; }
+  }
+
+  /* Very small phones */
+  @media (max-width: 380px) {
+    html { font-size: 16px; }
+    #main { padding-left: 0.9rem; padding-right: 0.9rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Backdrop ──────────────────────────────────────────────────────────── -->
+<div id="toc-backdrop" aria-hidden="true"></div>
+
+<!-- ── TOC Sidebar ──────────────────────────────────────────────────────── -->
+<nav id="toc-sidebar" aria-label="Table of contents">
+  <div class="toc-header">
+    <h2>Contents</h2>
+    <button id="toc-close" aria-label="Close contents">&#x2715;</button>
+  </div>
+  <ul>
+<li class="toc-section"><a href="#monthly-plan-male-top">Monthly Plan — Male</a><ul>
+  <li class="toc-h2"><a href="#monthly-plan-male-table-of-contents">Table of Contents</a></li>
+  <li class="toc-h2"><a href="#monthly-plan-male-1-profile-summary">1. Profile Summary</a></li>
+  <li class="toc-h2"><a href="#monthly-plan-male-2-daily-supplement-schedule">2. Daily Supplement Schedule</a></li>
+  <li class="toc-h2"><a href="#monthly-plan-male-3-daily-meal-templates">3. Daily Meal Templates</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-male-training-day-2100-kcal-130g-protein">Training Day (~2,100 kcal | 130g protein)</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-male-rest-day-1950-kcal-120130g-protein">Rest Day (~1,950 kcal | 120–130g protein)</a></li>
+  <li class="toc-h2"><a href="#monthly-plan-male-4-weekly-training-schedule-overview">4. Weekly Training Schedule Overview</a></li>
+  <li class="toc-h2"><a href="#monthly-plan-male-5-the-4-training-days-detailed">5. The 4 Training Days — Detailed</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-male-day-a-hinge-push-monday-730800am">Day A — Hinge + Push (Monday, 7:30–8:00am)</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-male-day-b-squat-tgu-tuesday-730800am">Day B — Squat + TGU (Tuesday, 7:30–8:00am)</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-male-day-c-single-leg-power-thursday-730800am">Day C — Single-Leg + Power (Thursday, 7:30–8:00am)</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-male-day-d-full-body-power-friday-730800am">Day D — Full Body + Power (Friday, 7:30–8:00am)</a></li>
+  <li class="toc-h2"><a href="#monthly-plan-male-6-4-week-undulating-periodisation">6. 4-Week Undulating Periodisation</a></li>
+  <li class="toc-h2"><a href="#monthly-plan-male-7-full-28-day-calendar">7. Full 28-Day Calendar</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-male-week-1-accumulation-phase-4-rounds-8-reps-rpe-7">Week 1 — Accumulation Phase (4 rounds × 8 reps | RPE 7)</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-male-week-2-strength-phase-4-rounds-6-reps-rpe-8">Week 2 — Strength Phase (4 rounds × 6 reps | RPE 8)</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-male-week-3-volume-phase-3-rounds-12-reps-rpe-78">Week 3 — Volume Phase (3 rounds × 12 reps | RPE 7–8)</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-male-week-4-deload-phase-2-rounds-8-reps-rpe-56">Week 4 — Deload Phase (2 rounds × 8 reps | RPE 5–6)</a></li>
+  <li class="toc-h2"><a href="#monthly-plan-male-8-progressive-overload-rules">8. Progressive Overload Rules</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-male-when-to-increase-load">When to Increase Load</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-male-when-not-to-increase-load">When NOT to Increase Load</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-male-the-shoulder-rule">The Shoulder Rule</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-male-load-progression-across-cycles-expected">Load Progression Across Cycles (Expected)</a></li>
+  <li class="toc-h2"><a href="#monthly-plan-male-9-what-to-track">9. What to Track</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-male-training-log-every-session">Training Log (Every Session)</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-male-weekly-check-in-same-day-each-week-recommended-sunday-morning">Weekly Check-In (Same Day Each Week — Recommended: Sunday Morning)</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-male-monthly-benchmarks-end-of-each-4-week-cycle">Monthly Benchmarks (End of Each 4-Week Cycle)</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-male-nutrition-spot-check-once-per-week">Nutrition Spot-Check (Once Per Week)</a></li>
+  <li class="toc-h2"><a href="#monthly-plan-male-appendix-quick-reference-cards">Appendix: Quick Reference Cards</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-male-morning-workout-checklist-training-days">Morning Workout Checklist (Training Days)</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-male-shoulder-red-flags-stop-and-reassess">Shoulder Red Flags — Stop and Reassess</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-male-rucking-zone-2-reference">Rucking Zone 2 Reference</a></li>
+  <li class="toc-h3"><a href="#monthly-plan-male-supplement-quick-reference">Supplement Quick-Reference</a></li>
+</ul></li>
+  </ul>
+</nav>
+
+<!-- ── Main ─────────────────────────────────────────────────────────────── -->
+<main id="main">
+<p style="margin-bottom:2rem"><a href="./" style="font-family:var(--sans);font-size:0.85rem">&#8592; Back to Knowledgebase</a></p>
+
+<section class="kb-section" id="monthly-plan-male-top">
+<span class="section-label">Monthly Plan — Male</span>
+<h1 id="monthly-plan-male-4-week-personalised-training-nutrition-plan">4-Week Personalised Training &amp; Nutrition Plan</h1>
+<p><strong>Profile</strong>: 42-year-old Singaporean male | 62kg | 164cm | BMI 23.1 | Advanced (4 years consistent)<br />
+<strong>Goal</strong>: Significant strength gain via slight caloric surplus (~200 kcal/day)<br />
+<strong>Equipment</strong>: Home gym — dumbbells, kettlebells, resistance bands, mat<br />
+<strong>Injury note</strong>: Occasional shoulder impingement — no heavy overhead pressing; band prehab every session; floor press over bench; all overhead work capped at RPE 6</p>
+<hr />
+<h2 id="monthly-plan-male-table-of-contents">Table of Contents</h2>
+<ol>
+<li><a href="#monthly-plan-male-1-profile-summary">Profile Summary</a></li>
+<li><a href="#monthly-plan-male-2-daily-supplement-schedule">Daily Supplement Schedule</a></li>
+<li><a href="#monthly-plan-male-3-daily-meal-templates">Daily Meal Templates</a></li>
+<li><a href="#monthly-plan-male-4-weekly-training-schedule-overview">Weekly Training Schedule Overview</a></li>
+<li><a href="#monthly-plan-male-5-the-4-training-days-detailed">The 4 Training Days — Detailed</a></li>
+<li><a href="#monthly-plan-male-6-4-week-undulating-periodisation">4-Week Undulating Periodisation</a></li>
+<li><a href="#monthly-plan-male-7-full-28-day-calendar">Full 28-Day Calendar</a></li>
+<li><a href="#monthly-plan-male-8-progressive-overload-rules">Progressive Overload Rules</a></li>
+<li><a href="#monthly-plan-male-9-what-to-track">What to Track</a></li>
+</ol>
+<hr />
+<h2 id="monthly-plan-male-1-profile-summary">1. Profile Summary</h2>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Age / Sex</td>
+<td>42, male</td>
+</tr>
+<tr>
+<td>Weight / Height</td>
+<td>62kg / 164cm</td>
+</tr>
+<tr>
+<td>BMI</td>
+<td>23.1 (lean frame)</td>
+</tr>
+<tr>
+<td>Training Experience</td>
+<td>4 years consistent — advanced</td>
+</tr>
+<tr>
+<td>Primary Goal</td>
+<td>Get significantly stronger (strength focus)</td>
+</tr>
+<tr>
+<td>Caloric Strategy</td>
+<td>Slight surplus ~200 kcal/day</td>
+</tr>
+<tr>
+<td>Training Days</td>
+<td>Monday, Tuesday, Thursday, Friday (7:30–8:00am)</td>
+</tr>
+<tr>
+<td>Cardio</td>
+<td>Rucking Saturday or Sunday morning (Zone 2); Sunday swimming (active recovery)</td>
+</tr>
+<tr>
+<td>Equipment</td>
+<td>Home gym: dumbbells, kettlebells, resistance bands, mat</td>
+</tr>
+<tr>
+<td>Shoulder Note</td>
+<td>Occasional impingement — no heavy overhead pressing; all pressing at RPE 6 max; band prehab non-negotiable every session</td>
+</tr>
+<tr>
+<td>Stimulants</td>
+<td>None — no caffeine</td>
+</tr>
+<tr>
+<td>Lifestyle</td>
+<td>Office Mon–Fri (leaves 8:30am, home 6:15pm); Saturday afternoon classes; Sunday family swimming 4pm</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Macros target</strong>:<br />
+- Calories: ~2,100 kcal/day (training days); ~1,950 kcal (rest days)<br />
+- Protein: 130g/day (~2.1g/kg)<br />
+- Carbs: ~250g/day<br />
+- Fat: ~65g/day</p>
+<hr />
+<h2 id="monthly-plan-male-2-daily-supplement-schedule">2. Daily Supplement Schedule</h2>
+<table>
+<thead>
+<tr>
+<th>Supplement</th>
+<th>Dose</th>
+<th>Timing</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Collagen (hydrolysed)</td>
+<td>15g</td>
+<td>7:15am — 15 min pre-workout</td>
+<td>Mix in water. Pair immediately with 80mg Vitamin C (½ glass OJ or 1 kiwi). Vitamin C required for collagen synthesis. <strong>On rest days: skip.</strong></td>
+</tr>
+<tr>
+<td>Vitamin D3</td>
+<td>4,000 IU</td>
+<td>With breakfast (~8:30am)</td>
+<td>Take with a fatty meal — D3 is fat-soluble.</td>
+</tr>
+<tr>
+<td>Vitamin K2 MK-7</td>
+<td>150mcg</td>
+<td>With breakfast alongside D3</td>
+<td>Always pair K2 with D3 — directs calcium to bones, not arteries.</td>
+</tr>
+<tr>
+<td>Creatine monohydrate</td>
+<td>5g</td>
+<td>Post-workout with breakfast</td>
+<td>Mix into oats or milk. <strong>On rest days: take with breakfast instead.</strong> No loading phase needed after initial.</td>
+</tr>
+<tr>
+<td>Omega-3 fish oil</td>
+<td>2g EPA+DHA</td>
+<td>With dinner (~7:00pm)</td>
+<td>Take with food to reduce fishy burps. Check label — dose to achieve 2g combined EPA+DHA, not just total oil.</td>
+</tr>
+<tr>
+<td>Zinc picolinate</td>
+<td>30mg</td>
+<td>With dinner (~7:00pm)</td>
+<td>Picolinate form has good absorption. Do not take on empty stomach.</td>
+</tr>
+<tr>
+<td>Magnesium glycinate</td>
+<td>400mg</td>
+<td>9:15pm with small snack</td>
+<td>Glycinate form: gentle, non-laxative, supports sleep quality and muscle recovery. Small snack = handful of nuts.</td>
+</tr>
+<tr>
+<td>Whey protein</td>
+<td>30g</td>
+<td>Post-workout mixed with 250ml cold milk</td>
+<td><strong>Only use if daily protein from food falls short of 130g.</strong> Not mandatory if meals are on target.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key rules:</strong><br />
+- D3 + K2 always together, always with fat<br />
+- Collagen + Vitamin C always paired, always 15 min pre-workout (not on rest days)<br />
+- Magnesium at night — do not take in the morning, reduces sleep benefit<br />
+- Creatine timing is flexible; consistency matters more than exact window</p>
+<hr />
+<h2 id="monthly-plan-male-3-daily-meal-templates">3. Daily Meal Templates</h2>
+<h3 id="monthly-plan-male-training-day-2100-kcal-130g-protein">Training Day (~2,100 kcal | 130g protein)</h3>
+<table>
+<thead>
+<tr>
+<th>Time</th>
+<th>Meal</th>
+<th>Foods</th>
+<th>Protein</th>
+<th>Kcal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>7:15am</td>
+<td>Pre-workout primer</td>
+<td>Collagen 15g + Vit C source (½ glass OJ or 1 kiwi) + 1 medium banana</td>
+<td>~15g</td>
+<td>~190</td>
+</tr>
+<tr>
+<td>8:30am</td>
+<td>Breakfast (post-workout)</td>
+<td>½ cup dry steel-cut oats (cooked overnight) + 3 soft-boiled eggs + 1 tbsp peanut butter + 1 cup (250ml) fresh milk + D3/K2 + Creatine 5g</td>
+<td>~42g</td>
+<td>~550</td>
+</tr>
+<tr>
+<td>1:00pm</td>
+<td>Lunch (office salad bowl)</td>
+<td>Build your bowl: ~130g chicken breast or thigh + 1 hard-boiled egg + ½ scoop potato salad + tomato + celery + salsa. Chicken breast = leaner; thigh = slightly more fat, more flavour. Both hit the protein target.</td>
+<td>~42–45g</td>
+<td>~450</td>
+</tr>
+<tr>
+<td>4:00pm</td>
+<td>Afternoon snack</td>
+<td>1 handful mixed nuts (almonds, cashews, walnuts ~30g) + 1 apple</td>
+<td>~7g</td>
+<td>~220</td>
+</tr>
+<tr>
+<td>7:00pm</td>
+<td>Dinner (home-cooked)</td>
+<td>180g grilled/baked chicken breast OR 150g salmon OR 200g lean pork loin + ½ cup cooked brown rice + stir-fried vegetables (kangkong, broccoli, tofu optional — any combo) + Omega-3 + Zinc</td>
+<td>~42g</td>
+<td>~580</td>
+</tr>
+<tr>
+<td>9:15pm</td>
+<td>Evening wind-down</td>
+<td>150g Greek yoghurt (full-fat or 2%) + Magnesium glycinate 400mg</td>
+<td>~18g</td>
+<td>~180</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td></td>
+<td></td>
+<td><strong>~163g</strong>*</td>
+<td><strong>~2,170</strong>*</td>
+</tr>
+</tbody>
+</table>
+<p><em>Protein and calories are estimates. If dinner protein is lower (e.g. 120g salmon), skip or reduce the nut snack. Whey protein shake (30g + 250ml milk = ~42g protein, ~250 kcal) only if you are short on protein from food — do not default to using it every day.</em></p>
+<hr />
+<h3 id="monthly-plan-male-rest-day-1950-kcal-120130g-protein">Rest Day (~1,950 kcal | 120–130g protein)</h3>
+<table>
+<thead>
+<tr>
+<th>Time</th>
+<th>Meal</th>
+<th>Foods</th>
+<th>Protein</th>
+<th>Kcal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>8:00am</td>
+<td>Breakfast</td>
+<td>Same oats + 3 eggs + peanut butter + milk + D3/K2 + <strong>Creatine 5g (here, not post-workout)</strong></td>
+<td>~42g</td>
+<td>~550</td>
+</tr>
+<tr>
+<td>1:00pm</td>
+<td>Lunch</td>
+<td>Same office salad bowl as training day</td>
+<td>~42–45g</td>
+<td>~450</td>
+</tr>
+<tr>
+<td>4:00pm</td>
+<td>Afternoon snack</td>
+<td>15g nuts + 1 small fruit</td>
+<td>~4g</td>
+<td>~150</td>
+</tr>
+<tr>
+<td>7:00pm</td>
+<td>Dinner</td>
+<td>Same as training day template</td>
+<td>~42g</td>
+<td>~580</td>
+</tr>
+<tr>
+<td>9:15pm</td>
+<td>Evening wind-down</td>
+<td>100g Greek yoghurt + Magnesium glycinate 400mg</td>
+<td>~10g</td>
+<td>~130</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td></td>
+<td></td>
+<td><strong>~140g</strong></td>
+<td><strong>~1,970</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Rest day adjustments</strong>: Skip the pre-workout collagen + banana (saves ~190 kcal). Reduce afternoon snack and evening yoghurt portions slightly. Dinner stays the same — protein target still applies even on rest days for muscle protein synthesis.</p>
+<hr />
+<h2 id="monthly-plan-male-4-weekly-training-schedule-overview">4. Weekly Training Schedule Overview</h2>
+<table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Session</th>
+<th>Focus</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Monday</td>
+<td>Strength Day A</td>
+<td>Hinge + Push (superset format)</td>
+<td>7:30–8:00am</td>
+</tr>
+<tr>
+<td>Tuesday</td>
+<td>Strength Day B</td>
+<td>Squat + TGU (superset format)</td>
+<td>7:30–8:00am</td>
+</tr>
+<tr>
+<td>Wednesday</td>
+<td>Rest</td>
+<td>Active recovery — 20–30 min walk, foam roll</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Thursday</td>
+<td>Strength Day C</td>
+<td>Single-Leg + Power (superset format)</td>
+<td>7:30–8:00am</td>
+</tr>
+<tr>
+<td>Friday</td>
+<td>Strength Day D</td>
+<td>Full Body + Power (superset format)</td>
+<td>7:30–8:00am</td>
+</tr>
+<tr>
+<td>Saturday</td>
+<td>Rucking (Zone 2)</td>
+<td>8–10kg pack, 35–45 min, neighbourhood/park connector</td>
+<td>7:00–8:00am</td>
+</tr>
+<tr>
+<td>Sunday</td>
+<td>Family Swimming</td>
+<td>Zone 1–2 active recovery</td>
+<td>4:00pm</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Zone 2 target for age 42</strong>: Heart rate 107–125 bpm (180 − 42 = 138 max; Zone 2 = ~65–90% aerobic threshold). For rucking, aim for the lower end — pack weight will push HR up. You should be able to hold a conversation but feel consistently warm.</p>
+<p><strong>Why staying in Zone 2 matters — not Zone 3 or higher</strong>: Once HR climbs above ~125 bpm into Zone 3 (the "grey zone"), you shift from predominantly fat oxidation to carbohydrate burning, and the training stimulus changes entirely. Zone 3 is neither easy enough to recover from nor hard enough to build true cardiovascular capacity — it produces fatigue without the mitochondrial adaptations you want. For someone doing 4 hard strength sessions per week, a Zone 3+ ruck is an unplanned fifth hard session that accumulates systemic fatigue and impairs recovery for Monday's training. Zone 2 keeps the aerobic system developing (PGC-1α signalling, mitochondrial biogenesis, improved fat oxidation) while leaving the body fresh for strength work. If your HR spikes — uphill section, heavier pack, Singapore heat — slow your pace or pause briefly to let it drop back down.</p>
+<hr />
+<h2 id="monthly-plan-male-5-the-4-training-days-detailed">5. The 4 Training Days — Detailed</h2>
+<p>Each session is <strong>30 minutes</strong>: 2 min warm-up, ~22 min main work (superset pairs), 4–5 min prehab finisher. Supersets pair antagonist or non-competing movements — you rest one muscle group while working another, making 30 minutes as productive as a conventional 45-minute session. Rest: 45 sec between supersets (W1/W3/W4), 60 sec (W2 strength week).</p>
+<hr />
+<h3 id="monthly-plan-male-day-a-hinge-push-monday-730800am">Day A — Hinge + Push (Monday, 7:30–8:00am)</h3>
+<p><strong>Purpose</strong>: Develop posterior chain power and strength via hip hinge; build horizontal push strength using floor press (shoulder-safe — floor limits ROM at the bottom, reducing impingement risk); balance the push with horizontal pull. Superset format pairs non-competing movements to maximise density in 30 minutes.</p>
+<p><strong>Movement patterns</strong>: Hinge, Horizontal Push, Horizontal Pull</p>
+<p><strong>Warm-up (2 min)</strong>:<br />
+- Band pull-apart: 2×15 (shoulder prehab activation — do before any pressing)<br />
+- Shoulder CARs (Controlled Articular Rotations): 5 slow circles each arm</p>
+<p><strong>Superset A</strong> (4 rounds, 45s rest between rounds):</p>
+<table>
+<thead>
+<tr>
+<th>Exercise</th>
+<th>Cue / Key Technique Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A1: KB Swing</td>
+<td>Hike it back (not squat down), explosive hip extension, glutes squeeze at top, soft landing back into hinge. This is a hip hinge, not a squat.</td>
+</tr>
+<tr>
+<td>A2: DB Floor Press</td>
+<td>Lie on floor, DB in hands, elbows at 45° from torso (not flared). Floor stops the descent — this is the safety mechanism for your shoulder. Full lockout at top.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Superset B</strong> (4 rounds, 45s rest between rounds):</p>
+<table>
+<thead>
+<tr>
+<th>Exercise</th>
+<th>Cue / Key Technique Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B1: DB Romanian Deadlift</td>
+<td>Soft knee bend, push hips back, DBs stay close to legs, feel stretch in hamstrings at bottom. Neutral spine throughout.</td>
+</tr>
+<tr>
+<td>B2: Single-arm DB Row</td>
+<td>Knee and hand on floor. Pull elbow past hip. No shoulder elevation. Feel lat contraction at top.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Prehab Finisher (non-negotiable — 4 min)</strong>:<br />
+- Band face pull: 2×15 — pull to forehead level, elbows high, thumbs back at end position<br />
+- Dead bug: 2×8/side — lower back pressed firmly into floor throughout; lower opposite arm/leg slowly</p>
+<hr />
+<h3 id="monthly-plan-male-day-b-squat-tgu-tuesday-730800am">Day B — Squat + TGU (Tuesday, 7:30–8:00am)</h3>
+<p><strong>Purpose</strong>: Build squat strength through full range; Turkish Get-Up (TGU) addresses shoulder stability and full-body integration — critical for long-term shoulder health. TGU is performed solo (cannot be superseted — it demands full focus). Goblet squat and farmer carry are paired as a metabolic superset.</p>
+<p><strong>Movement patterns</strong>: Shoulder Stability, Squat, Carry/Core</p>
+<p><strong>Warm-up (2 min)</strong>:<br />
+- Glute bridge: 2×10 (activate glutes before squat)<br />
+- BW goblet squat: 2×8 (elbows inside knees at bottom, chest tall)</p>
+<p><strong>Turkish Get-Up</strong> — 3 sets × 2 reps/side (solo — TGU requires full focus, cannot be superseted; move slowly):</p>
+<table>
+<thead>
+<tr>
+<th>Exercise</th>
+<th>Cue / Key Technique Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Turkish Get-Up (TGU)</td>
+<td><strong>Do this first while completely fresh — it demands full concentration.</strong> Move slowly through each phase. Never rush a TGU. KB arm stays locked vertical throughout. Scan the KB at all times.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Superset A</strong> (4 rounds, 45s rest):</p>
+<table>
+<thead>
+<tr>
+<th>Exercise</th>
+<th>Cue / Key Technique Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A1: KB Goblet Squat</td>
+<td>KB at chest, elbows up, chest tall. Sit into hips, knees track over toes. Full depth.</td>
+</tr>
+<tr>
+<td>A2: KB Farmer Carry (20m)</td>
+<td>KB in one or both hands. Shoulders packed down and back. Tall posture, slight core brace. Do NOT lean to the loaded side.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Prehab Finisher (4 min)</strong>:<br />
+- Band face pull: 2×15 — pull to forehead level, elbows high, thumbs back at end position<br />
+- RKC Plank: 2×20 sec — tuck pelvis, squeeze glutes, pull elbows toward toes, pull toes toward elbows. Total body tension.</p>
+<hr />
+<h3 id="monthly-plan-male-day-c-single-leg-power-thursday-730800am">Day C — Single-Leg + Power (Thursday, 7:30–8:00am)</h3>
+<p><strong>Purpose</strong>: Single-leg strength for athletic balance and injury prevention; power output via KB swing; push-up kept at RPE 6 max for shoulder safety; anti-lateral carry for core stability. Superset format pairs non-competing movements.</p>
+<p><strong>Movement patterns</strong>: Hinge/Power, Single-Leg Squat, Push (RPE 6 max), Carry</p>
+<p><strong>Warm-up (2 min)</strong>:<br />
+- Band Y-T-W: 2×8 each position — <strong>do this before any pressing</strong>; activates lower traps and rotator cuff<br />
+  - Y: arms at ~135° (overhead Y shape), thumbs up<br />
+  - T: arms at 90° (T shape), thumbs up<br />
+  - W: elbows bent, pull band, squeeze shoulder blades<br />
+- Shoulder CARs: 5 each arm</p>
+<p><strong>Superset A</strong> (4 rounds, 45s rest):</p>
+<table>
+<thead>
+<tr>
+<th>Exercise</th>
+<th>Cue / Key Technique Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A1: KB Swing</td>
+<td>Power opener — hike it back, explosive hip extension, glutes squeeze at top. Sets the explosive tone.</td>
+</tr>
+<tr>
+<td>A2: DB Reverse Lunge</td>
+<td>Step back (not forward — easier on knee). Knee hovers 1–2cm above floor. Front foot stays flat. Control the descent.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Superset B</strong> (3 rounds, 45s rest):</p>
+<table>
+<thead>
+<tr>
+<th>Exercise</th>
+<th>Cue / Key Technique Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B1: Push-up variation (RPE 6 max)</td>
+<td>Choose by current capacity: Standard → Close-grip → Archer push-up. <strong>No heavy overhead loading.</strong> If shoulder feels off, go one step easier. Never push through discomfort.</td>
+</tr>
+<tr>
+<td>B2: KB Suitcase Carry (20m)</td>
+<td>KB in ONE hand only. Walk without leaning to the KB side — this is the entire challenge. Anti-lateral flexion = obliques, QL, quadratus. Switch hands midway.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Prehab Finisher (4 min)</strong>:<br />
+- Band Y-T-W: 2×8 each position (all three in sequence = 1 round)<br />
+- Bird dog: 2×6/side — opposite arm + leg extended, hold 2 sec at top, return without twisting hips</p>
+<hr />
+<h3 id="monthly-plan-male-day-d-full-body-power-friday-730800am">Day D — Full Body + Power (Friday, 7:30–8:00am)</h3>
+<p><strong>Purpose</strong>: Full-body integration to end the training week; maximise KB power output; conditioning element to complement the strength work. Finish strong heading into the weekend. Heavier swings and 60s rest in Superset A to allow for maximal power output.</p>
+<p><strong>Movement patterns</strong>: Power, Squat, Pull, Push</p>
+<p><strong>Warm-up (2 min)</strong>:<br />
+- Band pull-apart: 2×15<br />
+- Hip circles: 10 each direction</p>
+<p><strong>Superset A</strong> (4 rounds, 60s rest — heavier, more power):</p>
+<table>
+<thead>
+<tr>
+<th>Exercise</th>
+<th>Cue / Key Technique Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A1: KB Swing (heaviest KB, maximal power)</td>
+<td>Focus on maximal hip power each rep. These should feel fast and explosive, not grind-y. Hip hinge, not a squat.</td>
+</tr>
+<tr>
+<td>A2: Bulgarian Split Squat</td>
+<td>Rear foot elevated on sofa/sturdy chair ~45cm. DB in each hand. Lower until rear knee hovers above floor. Front shin stays near vertical. This will be humbling — that is correct.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Superset B</strong> (3 rounds, 45s rest):</p>
+<table>
+<thead>
+<tr>
+<th>Exercise</th>
+<th>Cue / Key Technique Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B1: KB Single-arm Clean + Press (press at RPE 6 max)</td>
+<td>Clean to rack, brief pause, then press. Press at RPE 6 max — strict shoulder-awareness. If any impingement sensation, stop the press and finish set as clean-only.</td>
+</tr>
+<tr>
+<td>B2: DB Bent-over Row</td>
+<td>Hinge to ~45°, DB in both hands. Row to hip crease, squeeze shoulder blades at top. Heavier than single-arm rows — bilateral advantage.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Core Finisher (3 min)</strong>:<br />
+- Dead bug: 2×10/side — lower back pressed firmly into floor throughout<br />
+- Side plank: 2×20s/side — straight body alignment, top hip not drooping</p>
+<hr />
+<h2 id="monthly-plan-male-6-4-week-undulating-periodisation">6. 4-Week Undulating Periodisation</h2>
+<p><strong>The principle</strong>: Intensity and volume rotate week-to-week across four distinct phases. This stops the body from accommodating to a fixed stimulus — a common plateau for advanced trainees. Movements stay constant; the stress variable changes.</p>
+<table>
+<thead>
+<tr>
+<th>Week</th>
+<th>Phase</th>
+<th>Superset Rounds</th>
+<th>Reps</th>
+<th>RPE Target</th>
+<th>Rest Between Supersets</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Week 1</td>
+<td>Accumulation</td>
+<td>4 rounds</td>
+<td>8</td>
+<td>7</td>
+<td>45 sec</td>
+<td>Re-establish all movement patterns. Choose moderate weights. Track every weight used — this is your baseline.</td>
+</tr>
+<tr>
+<td>Week 2</td>
+<td>Strength</td>
+<td>4 rounds</td>
+<td>6</td>
+<td>8</td>
+<td>60 sec</td>
+<td>Increase load from Week 1. Fewer reps, more weight, longer rest. Supersets limit recovery vs straight sets — 6 reps at RPE 8 is the right target.</td>
+</tr>
+<tr>
+<td>Week 3</td>
+<td>Volume</td>
+<td>3 rounds</td>
+<td>12</td>
+<td>7–8</td>
+<td>45 sec</td>
+<td>Lighter than Week 2, but more total reps per set. Metabolic stress accumulates through superset density.</td>
+</tr>
+<tr>
+<td>Week 4</td>
+<td>Deload</td>
+<td>2 rounds</td>
+<td>8</td>
+<td>5–6</td>
+<td>45 sec</td>
+<td>50% of Week 3's total volume. Same exercises, same form. Intentionally easy. This is where adaptation happens.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Cycle restart</strong>: After Week 4, return to Week 1 structure — but with heavier weights than the previous cycle's Week 1. This is progressive overload in action.</p>
+<p><strong>TGU exception</strong>: TGU does not follow the superset format and is performed solo. Sets and reps do not follow the main periodisation table:<br />
+- W1/W3: 3 sets × 2 reps/side<br />
+- W2: 3 sets × 2 reps/side — heavier KB, full concentration<br />
+- W4: 2 sets × 2 reps/side — light KB, quality only</p>
+<hr />
+<h2 id="monthly-plan-male-7-full-28-day-calendar">7. Full 28-Day Calendar</h2>
+<blockquote>
+<p><strong>How to read the calendar</strong>: Each training day shows the exercise, sets × reps for that week's phase, and any key notes. Rest days, rucking, and swimming days are also shown. Meals reference the templates in Section 3 unless noted otherwise.</p>
+</blockquote>
+<hr />
+<h3 id="monthly-plan-male-week-1-accumulation-phase-4-rounds-8-reps-rpe-7">Week 1 — Accumulation Phase (4 rounds × 8 reps | RPE 7)</h3>
+<p><strong>Goal for the week</strong>: Re-establish movement patterns. Choose weights that feel moderately challenging — you should be able to complete all reps with good form and feel like you had 2–3 reps in reserve. Write down every weight used.</p>
+<hr />
+<h4 id="monthly-plan-male-day-1-monday-strength-day-a">Day 1 — Monday | Strength Day A</h4>
+<p><strong>Phase</strong>: Accumulation | <strong>Session</strong>: Hinge + Horizontal Push</p>
+<p><strong>Supplements today (Training Day)</strong>:<br />
+- 7:15am: Collagen 15g + Vit C<br />
+- 8:30am: D3 4000 IU + K2 150mcg + Creatine 5g (post-workout, with breakfast)<br />
+- 7:00pm: Omega-3 2g EPA+DHA + Zinc 30mg (with dinner)<br />
+- 9:15pm: Magnesium glycinate 400mg</p>
+<p><strong>Meals today</strong>: Follow Training Day template</p>
+<p><strong>Workout (7:30–8:00am)</strong>:<br />
+- Warm-up (2 min): Band pull-apart 2×15 | Shoulder CARs 5/arm<br />
+- Superset A — 4 rounds, 45s rest:<br />
+  - A1: KB Swing: 4×8<br />
+  - A2: DB Floor Press: 4×8<br />
+- Superset B — 4 rounds, 45s rest:<br />
+  - B1: DB RDL: 4×8<br />
+  - B2: Single-arm DB Row: 4×8/side<br />
+- Prehab: Band face pull 2×15 | Dead bug 2×8/side</p>
+<hr />
+<h4 id="monthly-plan-male-day-2-tuesday-strength-day-b">Day 2 — Tuesday | Strength Day B</h4>
+<p><strong>Phase</strong>: Accumulation | <strong>Session</strong>: Squat + Pull + TGU</p>
+<p><strong>Supplements today (Training Day)</strong>: Same as Day 1</p>
+<p><strong>Meals today</strong>: Follow Training Day template</p>
+<p><strong>Workout (7:30–8:00am)</strong>:<br />
+- Warm-up (2 min): Glute bridge 2×10 | BW goblet squat 2×8<br />
+- Turkish Get-Up: 3×2/side (light KB — prioritise form; this is Week 1; solo, full focus)<br />
+- Superset A — 4 rounds, 45s rest:<br />
+  - A1: KB Goblet Squat: 4×8<br />
+  - A2: KB Farmer Carry (20m): 4 rounds<br />
+- Prehab: Band face pull 2×15 | RKC Plank 2×20 sec</p>
+<hr />
+<h4 id="monthly-plan-male-day-3-wednesday-rest-day">Day 3 — Wednesday | Rest Day</h4>
+<p><strong>Supplements today (Rest Day)</strong>:<br />
+- 8:00am: D3 4000 IU + K2 150mcg + Creatine 5g (with breakfast)<br />
+- 7:00pm: Omega-3 2g + Zinc 30mg (with dinner)<br />
+- 9:15pm: Magnesium glycinate 400mg<br />
+- No collagen (rest day — no pre-workout)</p>
+<p><strong>Meals today</strong>: Follow Rest Day template (~1,950 kcal)</p>
+<p><strong>Activity</strong>: Rest / Active Recovery — 20–30 min easy walk; foam roll 10 min (focus: thoracic spine, hip flexors, hamstrings). No formal training.</p>
+<hr />
+<h4 id="monthly-plan-male-day-4-thursday-strength-day-c">Day 4 — Thursday | Strength Day C</h4>
+<p><strong>Phase</strong>: Accumulation | <strong>Session</strong>: Push + Single-Leg + Carry + Power</p>
+<p><strong>Supplements today (Training Day)</strong>: Same as Day 1</p>
+<p><strong>Meals today</strong>: Follow Training Day template</p>
+<p><strong>Workout (7:30–8:00am)</strong>:<br />
+- Warm-up (2 min): Band Y-T-W 2×8 | Shoulder CARs 5/arm<br />
+- Superset A — 4 rounds, 45s rest:<br />
+  - A1: KB Swing: 4×8<br />
+  - A2: DB Reverse Lunge: 4×8/side<br />
+- Superset B — 3 rounds, 45s rest:<br />
+  - B1: Push-up variation (RPE 6 max): 3×8 (standard or close-grip for W1 — establishes baseline)<br />
+  - B2: KB Suitcase Carry (20m): 3 rounds (do NOT lean to the KB side)<br />
+- Prehab: Band Y-T-W 2×8 each position | Bird dog 2×6/side</p>
+<hr />
+<h4 id="monthly-plan-male-day-5-friday-strength-day-d">Day 5 — Friday | Strength Day D</h4>
+<p><strong>Phase</strong>: Accumulation | <strong>Session</strong>: Full Body + KB Power</p>
+<p><strong>Supplements today (Training Day)</strong>: Same as Day 1</p>
+<p><strong>Meals today</strong>: Follow Training Day template</p>
+<p><strong>Workout (7:30–8:00am)</strong>:<br />
+- Warm-up (2 min): Band pull-apart 2×15 | Hip circles 10 each<br />
+- Superset A — 4 rounds, 60s rest (heavier, more power):<br />
+  - A1: KB Swing (heaviest KB): 4×8<br />
+  - A2: Bulgarian Split Squat: 4×8/side<br />
+- Superset B — 3 rounds, 45s rest:<br />
+  - B1: KB Single-arm Clean + Press (press at RPE 6 max): 3×8/side<br />
+  - B2: DB Bent-over Row: 3×8<br />
+- Core finisher: Dead bug 2×10/side | Side plank 2×20s/side</p>
+<hr />
+<h4 id="monthly-plan-male-day-6-saturday-rucking-zone-2-cardio">Day 6 — Saturday | Rucking (Zone 2 Cardio)</h4>
+<p><strong>Supplements today (Rest Day)</strong>: Same as Wednesday (no collagen)</p>
+<p><strong>Meals today</strong>: Follow Rest Day template</p>
+<p><strong>Activity</strong>: Rucking — 8–10kg pack (backpack with water + weight plates or sandbag). 35–45 min. Neighbourhood or park connector route. Target HR: 107–125 bpm (Zone 2 for age 42). You should be able to speak in short sentences but breathing is elevated. Keep pace steady — no intervals. This is your weekly Zone 2 cardiovascular investment.</p>
+<hr />
+<h4 id="monthly-plan-male-day-7-sunday-family-swimming-active-recovery">Day 7 — Sunday | Family Swimming (Active Recovery)</h4>
+<p><strong>Supplements today (Rest Day)</strong>: Same as Wednesday</p>
+<p><strong>Meals today</strong>: Follow Rest Day template</p>
+<p><strong>Activity</strong>: Family swimming at 4:00pm. Zone 1–2 effort — no sprinting, no hard laps. Easy freestyle, some floating, enjoy it. This counts as active recovery. Total movement without accumulated fatigue.</p>
+<hr />
+<h3 id="monthly-plan-male-week-2-strength-phase-4-rounds-6-reps-rpe-8">Week 2 — Strength Phase (4 rounds × 6 reps | RPE 8)</h3>
+<p><strong>Goal for the week</strong>: Increase loads from Week 1. Fewer reps, more weight. Rest 60 sec between supersets. Supersets limit recovery compared to straight sets, so 4 rounds × 6 reps at RPE 8 is the correct target — these sets should feel genuinely heavy. Form must remain crisp.</p>
+<hr />
+<h4 id="monthly-plan-male-day-8-monday-strength-day-a">Day 8 — Monday | Strength Day A</h4>
+<p><strong>Phase</strong>: Strength | <strong>Session</strong>: Hinge + Horizontal Push</p>
+<p><strong>Supplements</strong>: Training Day schedule (same as Week 1 training days)</p>
+<p><strong>Meals</strong>: Follow Training Day template</p>
+<p><strong>Workout (7:30–8:00am)</strong>:<br />
+- Warm-up (2 min): Band pull-apart 2×15 | Shoulder CARs 5/arm<br />
+- Superset A — 4 rounds, 60s rest:<br />
+  - A1: KB Swing: 4×6 (heavier KB than W1; maximal power each rep)<br />
+  - A2: DB Floor Press: 4×6 (increase load from W1)<br />
+- Superset B — 4 rounds, 60s rest:<br />
+  - B1: DB RDL: 4×6 (increase load from W1 by 2–4kg per DB)<br />
+  - B2: Single-arm DB Row: 4×6/side (heavier; controlled eccentric)<br />
+- Prehab: Band face pull 2×15 | Dead bug 2×8/side</p>
+<hr />
+<h4 id="monthly-plan-male-day-9-tuesday-strength-day-b">Day 9 — Tuesday | Strength Day B</h4>
+<p><strong>Phase</strong>: Strength | <strong>Session</strong>: Squat + Pull + TGU</p>
+<p><strong>Supplements</strong>: Training Day schedule</p>
+<p><strong>Meals</strong>: Follow Training Day template</p>
+<p><strong>Workout (7:30–8:00am)</strong>:<br />
+- Warm-up (2 min): Glute bridge 2×10 | BW goblet squat 2×8<br />
+- Turkish Get-Up: 3×2/side (heavier KB than W1; take 60–90 sec between sides; concentrate; solo)<br />
+- Superset A — 4 rounds, 60s rest:<br />
+  - A1: KB Goblet Squat: 4×6 (heavier than W1; sit deep)<br />
+  - A2: KB Farmer Carry (20m): 4 rounds (heavier KB; posture challenge increases)<br />
+- Prehab: Band face pull 2×15 | RKC Plank 2×20 sec</p>
+<hr />
+<h4 id="monthly-plan-male-day-10-wednesday-rest-day">Day 10 — Wednesday | Rest Day</h4>
+<p><strong>Activity</strong>: Rest / Active Recovery — 20–30 min walk; foam roll 10 min. Legs may feel fatigued from Tuesday's squats — spend extra time on quads and glutes.</p>
+<p><strong>Supplements</strong>: Rest Day schedule (creatine with breakfast)</p>
+<p><strong>Meals</strong>: Rest Day template (~1,950 kcal)</p>
+<hr />
+<h4 id="monthly-plan-male-day-11-thursday-strength-day-c">Day 11 — Thursday | Strength Day C</h4>
+<p><strong>Phase</strong>: Strength | <strong>Session</strong>: Push + Single-Leg + Carry + Power</p>
+<p><strong>Supplements</strong>: Training Day schedule</p>
+<p><strong>Meals</strong>: Follow Training Day template</p>
+<p><strong>Workout (7:30–8:00am)</strong>:<br />
+- Warm-up (2 min): Band Y-T-W 2×8 | Shoulder CARs 5/arm<br />
+- Superset A — 4 rounds, 60s rest:<br />
+  - A1: KB Swing: 4×6 (heavier KB)<br />
+  - A2: DB Reverse Lunge: 4×6/side (increase load; controlled — do not rush)<br />
+- Superset B — 3 rounds, 60s rest:<br />
+  - B1: Push-up variation (RPE 6 max): 3×6 — advance one variation from W1 if W1 felt like RPE ≤6<br />
+  - B2: KB Suitcase Carry (20m): 3 rounds (heavier KB; lateral lean = failed rep)<br />
+- Prehab: Band Y-T-W 2×8 each position | Bird dog 2×6/side</p>
+<hr />
+<h4 id="monthly-plan-male-day-12-friday-strength-day-d">Day 12 — Friday | Strength Day D</h4>
+<p><strong>Phase</strong>: Strength | <strong>Session</strong>: Full Body + KB Power</p>
+<p><strong>Supplements</strong>: Training Day schedule</p>
+<p><strong>Meals</strong>: Follow Training Day template</p>
+<p><strong>Workout (7:30–8:00am)</strong>:<br />
+- Warm-up (2 min): Band pull-apart 2×15 | Hip circles 10 each<br />
+- Superset A — 4 rounds, 60s rest (heavier, more power):<br />
+  - A1: KB Swing (heaviest KB): 4×6<br />
+  - A2: Bulgarian Split Squat: 4×6/side (increase load from W1)<br />
+- Superset B — 3 rounds, 60s rest:<br />
+  - B1: KB Single-arm Clean + Press (press at RPE 6 max): 3×6/side (increase clean load if press is limiting)<br />
+  - B2: DB Bent-over Row: 3×6 (heaviest row of the cycle)<br />
+- Core finisher: Dead bug 2×10/side | Side plank 2×20s/side</p>
+<hr />
+<h4 id="monthly-plan-male-day-13-saturday-rucking">Day 13 — Saturday | Rucking</h4>
+<p><strong>Supplements</strong>: Rest Day schedule</p>
+<p><strong>Meals</strong>: Rest Day template</p>
+<p><strong>Activity</strong>: Rucking — 8–10kg pack. 35–45 min. Zone 2 pace (HR 107–125 bpm). Note: legs may be fatigued from Week 2's heavy squats — this is fine; rucking is low-impact enough. If legs feel unusually heavy, keep it 35 min and reduce pack to 8kg.</p>
+<hr />
+<h4 id="monthly-plan-male-day-14-sunday-family-swimming">Day 14 — Sunday | Family Swimming</h4>
+<p><strong>Supplements</strong>: Rest Day schedule</p>
+<p><strong>Meals</strong>: Rest Day template</p>
+<p><strong>Activity</strong>: Family swimming at 4:00pm. Easy effort. Enjoy recovery.</p>
+<hr />
+<h3 id="monthly-plan-male-week-3-volume-phase-3-rounds-12-reps-rpe-78">Week 3 — Volume Phase (3 rounds × 12 reps | RPE 7–8)</h3>
+<p><strong>Goal for the week</strong>: Reduce load compared to Week 2, but dramatically increase reps. This accumulates metabolic stress through superset density. Sets will feel manageable at rep 1 and surprisingly hard at rep 12. Rest 45 sec between supersets.</p>
+<hr />
+<h4 id="monthly-plan-male-day-15-monday-strength-day-a">Day 15 — Monday | Strength Day A</h4>
+<p><strong>Phase</strong>: Volume | <strong>Session</strong>: Hinge + Horizontal Push</p>
+<p><strong>Supplements</strong>: Training Day schedule</p>
+<p><strong>Meals</strong>: Follow Training Day template</p>
+<p><strong>Workout (7:30–8:00am)</strong>:<br />
+- Warm-up (2 min): Band pull-apart 2×15 | Shoulder CARs 5/arm<br />
+- Superset A — 3 rounds, 45s rest:<br />
+  - A1: KB Swing: 3×12 (moderate KB; consistent power — every rep should look like the first)<br />
+  - A2: DB Floor Press: 3×12 (reduce load from W2; controlled tempo — 2 sec down, 1 sec pause, press up)<br />
+- Superset B — 3 rounds, 45s rest:<br />
+  - B1: DB RDL: 3×12 (reduce load ~20% from W2; feel the burn at rep 10–12)<br />
+  - B2: Single-arm DB Row: 3×12/side (reduce load; squeeze at top of every rep)<br />
+- Prehab: Band face pull 2×15 | Dead bug 2×8/side</p>
+<hr />
+<h4 id="monthly-plan-male-day-16-tuesday-strength-day-b">Day 16 — Tuesday | Strength Day B</h4>
+<p><strong>Phase</strong>: Volume | <strong>Session</strong>: Squat + Pull + TGU</p>
+<p><strong>Supplements</strong>: Training Day schedule</p>
+<p><strong>Meals</strong>: Follow Training Day template</p>
+<p><strong>Workout (7:30–8:00am)</strong>:<br />
+- Warm-up (2 min): Glute bridge 2×10 | BW goblet squat 2×8<br />
+- Turkish Get-Up: 3×2/side (same weight as W1; TGU volume doesn't spike — quality focus; solo)<br />
+- Superset A — 3 rounds, 45s rest:<br />
+  - A1: KB Goblet Squat: 3×12 (moderate weight; feel depth and control)<br />
+  - A2: KB Farmer Carry (20m): 3 rounds (lighter than W2; focus on posture quality)<br />
+- Prehab: Band face pull 2×15 | RKC Plank 2×20 sec</p>
+<hr />
+<h4 id="monthly-plan-male-day-17-wednesday-rest-day">Day 17 — Wednesday | Rest Day</h4>
+<p><strong>Activity</strong>: Rest / Active Recovery — 20–30 min walk; foam roll + light stretching 15 min. Body is accumulating fatigue from high-rep work — honour the rest day.</p>
+<p><strong>Supplements</strong>: Rest Day schedule</p>
+<p><strong>Meals</strong>: Rest Day template</p>
+<hr />
+<h4 id="monthly-plan-male-day-18-thursday-strength-day-c">Day 18 — Thursday | Strength Day C</h4>
+<p><strong>Phase</strong>: Volume | <strong>Session</strong>: Push + Single-Leg + Carry + Power</p>
+<p><strong>Supplements</strong>: Training Day schedule</p>
+<p><strong>Meals</strong>: Follow Training Day template</p>
+<p><strong>Workout (7:30–8:00am)</strong>:<br />
+- Warm-up (2 min): Band Y-T-W 2×8 | Shoulder CARs 5/arm<br />
+- Superset A — 3 rounds, 45s rest:<br />
+  - A1: KB Swing: 3×12 (moderate KB; consistent power)<br />
+  - A2: DB Reverse Lunge: 3×12/side (moderate weight; pace yourself — 24 total lunges per leg is a lot)<br />
+- Superset B — 3 rounds, 45s rest:<br />
+  - B1: Push-up variation (RPE 6 max): 3×12 (back to standard or close-grip; higher reps; strict form)<br />
+  - B2: KB Suitcase Carry (20m): 3 rounds<br />
+- Prehab: Band Y-T-W 2×8 each position | Bird dog 2×6/side</p>
+<hr />
+<h4 id="monthly-plan-male-day-19-friday-strength-day-d">Day 19 — Friday | Strength Day D</h4>
+<p><strong>Phase</strong>: Volume | <strong>Session</strong>: Full Body + KB Power</p>
+<p><strong>Supplements</strong>: Training Day schedule</p>
+<p><strong>Meals</strong>: Follow Training Day template</p>
+<p><strong>Workout (7:30–8:00am)</strong>:<br />
+- Warm-up (2 min): Band pull-apart 2×15 | Hip circles 10 each<br />
+- Superset A — 3 rounds, 45s rest (power focus):<br />
+  - A1: KB Swing (heaviest KB): 3×12 (volume day; moderate KB, consistent power)<br />
+  - A2: Bulgarian Split Squat: 3×12/side (lighter weight; 12 reps/side is a significant metabolic challenge)<br />
+- Superset B — 3 rounds, 45s rest:<br />
+  - B1: KB Single-arm Clean + Press (press at RPE 6 max): 3×12/side (light press; high reps mean shoulder needs to be well-warmed)<br />
+  - B2: DB Bent-over Row: 3×12 (moderate weight; tempo: 2 sec down)<br />
+- Core finisher: Dead bug 2×10/side | Side plank 2×20s/side</p>
+<hr />
+<h4 id="monthly-plan-male-day-20-saturday-rucking">Day 20 — Saturday | Rucking</h4>
+<p><strong>Supplements</strong>: Rest Day schedule</p>
+<p><strong>Meals</strong>: Rest Day template</p>
+<p><strong>Activity</strong>: Rucking — 8–10kg pack. 35–45 min. Zone 2 pace. After a high-rep volume week, this will serve as excellent active recovery. Keep HR on the lower end of Zone 2 (107–115 bpm).</p>
+<hr />
+<h4 id="monthly-plan-male-day-21-sunday-family-swimming">Day 21 — Sunday | Family Swimming</h4>
+<p><strong>Supplements</strong>: Rest Day schedule</p>
+<p><strong>Meals</strong>: Rest Day template</p>
+<p><strong>Activity</strong>: Family swimming at 4:00pm. Easy effort. You are entering the last full training week before the deload — let this be restorative.</p>
+<hr />
+<h3 id="monthly-plan-male-week-4-deload-phase-2-rounds-8-reps-rpe-56">Week 4 — Deload Phase (2 rounds × 8 reps | RPE 5–6)</h3>
+<p><strong>Goal for the week</strong>: Intentional reduction in volume and intensity. This is where supercompensation occurs — the body adapts to the previous 3 weeks of stress. Do not skip the deload or turn it into a "light week that still feels hard." RPE 5–6 means you could easily do 5 more reps. That is the goal.</p>
+<p><strong>Deload mindset</strong>: This is not a waste. Elite athletes take deloads. This week allows joints, tendons, and the nervous system to recover. You will feel stronger in Week 1 of the next cycle.</p>
+<hr />
+<h4 id="monthly-plan-male-day-22-monday-strength-day-a-deload">Day 22 — Monday | Strength Day A (Deload)</h4>
+<p><strong>Phase</strong>: Deload | <strong>Session</strong>: Hinge + Horizontal Push</p>
+<p><strong>Supplements</strong>: Training Day schedule</p>
+<p><strong>Meals</strong>: Follow Training Day template (keep protein intake up even during deload)</p>
+<p><strong>Workout (7:30–8:00am)</strong>:<br />
+- Warm-up (2 min): Band pull-apart 2×15 | Shoulder CARs 5/arm<br />
+- Superset A — 2 rounds, 45s rest:<br />
+  - A1: KB Swing: 2×8 (light-moderate KB; focus on perfect hip hinge mechanics)<br />
+  - A2: DB Floor Press: 2×8 (light; smooth pressing motion; shoulder should feel great)<br />
+- Superset B — 2 rounds, 45s rest:<br />
+  - B1: DB RDL: 2×8 (50–60% of W2 load; feel the movement, not the weight)<br />
+  - B2: Single-arm DB Row: 2×8/side<br />
+- Prehab: Band face pull 2×15 | Dead bug 2×8/side (prehab does NOT deload — keep it)</p>
+<hr />
+<h4 id="monthly-plan-male-day-23-tuesday-strength-day-b-deload">Day 23 — Tuesday | Strength Day B (Deload)</h4>
+<p><strong>Phase</strong>: Deload | <strong>Session</strong>: Squat + Pull + TGU</p>
+<p><strong>Supplements</strong>: Training Day schedule</p>
+<p><strong>Meals</strong>: Follow Training Day template</p>
+<p><strong>Workout (7:30–8:00am)</strong>:<br />
+- Warm-up (2 min): Glute bridge 2×10 | BW goblet squat 2×8<br />
+- Turkish Get-Up: 2×2/side (lightest KB; use this session to refine technique details; solo)<br />
+- Superset A — 2 rounds, 45s rest:<br />
+  - A1: KB Goblet Squat: 2×8 (easy weight; think about position and depth, not load)<br />
+  - A2: KB Farmer Carry (20m): 2 rounds<br />
+- Prehab: Band face pull 2×15 | RKC Plank 2×20 sec</p>
+<hr />
+<h4 id="monthly-plan-male-day-24-wednesday-rest-day">Day 24 — Wednesday | Rest Day</h4>
+<p><strong>Activity</strong>: Rest / Active Recovery — 20–30 min walk; foam roll 10 min. Body is transitioning into recovery mode — honour this.</p>
+<p><strong>Supplements</strong>: Rest Day schedule</p>
+<p><strong>Meals</strong>: Rest Day template</p>
+<hr />
+<h4 id="monthly-plan-male-day-25-thursday-strength-day-c-deload">Day 25 — Thursday | Strength Day C (Deload)</h4>
+<p><strong>Phase</strong>: Deload | <strong>Session</strong>: Push + Single-Leg + Carry + Power</p>
+<p><strong>Supplements</strong>: Training Day schedule</p>
+<p><strong>Meals</strong>: Follow Training Day template</p>
+<p><strong>Workout (7:30–8:00am)</strong>:<br />
+- Warm-up (2 min): Band Y-T-W 2×8 | Shoulder CARs 5/arm<br />
+- Superset A — 2 rounds, 45s rest:<br />
+  - A1: KB Swing: 2×8 (moderate; clean technique)<br />
+  - A2: DB Reverse Lunge: 2×8/side<br />
+- Superset B — 2 rounds, 45s rest:<br />
+  - B1: Push-up variation (RPE 6 max): 2×8 (standard; comfortable)<br />
+  - B2: KB Suitcase Carry (20m): 2 rounds<br />
+- Prehab: Band Y-T-W 2×8 each position | Bird dog 2×6/side</p>
+<hr />
+<h4 id="monthly-plan-male-day-26-friday-strength-day-d-deload">Day 26 — Friday | Strength Day D (Deload)</h4>
+<p><strong>Phase</strong>: Deload | <strong>Session</strong>: Full Body + KB Power</p>
+<p><strong>Supplements</strong>: Training Day schedule</p>
+<p><strong>Meals</strong>: Follow Training Day template</p>
+<p><strong>Workout (7:30–8:00am)</strong>:<br />
+- Warm-up (2 min): Band pull-apart 2×15 | Hip circles 10 each<br />
+- Superset A — 2 rounds, 45s rest:<br />
+  - A1: KB Swing: 2×8 (lightest swing day of the cycle)<br />
+  - A2: Bulgarian Split Squat: 2×8/side (bodyweight or very light DB — feel the range of motion)<br />
+- Superset B — 2 rounds, 45s rest:<br />
+  - B1: KB Single-arm Clean + Press (press at RPE 6 max): 2×8/side (very light press; feel the hip-to-shoulder connection)<br />
+  - B2: DB Bent-over Row: 2×8 (light; think about upper back contraction)<br />
+- Core finisher: Dead bug 2×10/side | Side plank 2×20s/side</p>
+<hr />
+<h4 id="monthly-plan-male-day-27-saturday-rucking-optional-reduced">Day 27 — Saturday | Rucking (Optional / Reduced)</h4>
+<p><strong>Supplements</strong>: Rest Day schedule</p>
+<p><strong>Meals</strong>: Rest Day template</p>
+<p><strong>Activity</strong>: Rucking — optional during deload week. If rucking, reduce to 6–8kg pack, 30–35 min. Zone 2 pace — keep it easy. Alternatively, replace with a 30–40 min easy walk (no pack) — this is completely acceptable in deload week.</p>
+<hr />
+<h4 id="monthly-plan-male-day-28-sunday-family-swimming-cycle-review">Day 28 — Sunday | Family Swimming + Cycle Review</h4>
+<p><strong>Supplements</strong>: Rest Day schedule</p>
+<p><strong>Meals</strong>: Rest Day template</p>
+<p><strong>Activity</strong>: Family swimming at 4:00pm. Easy effort.</p>
+<p><strong>End of Cycle — Review Checklist</strong>:<br />
+- [ ] Compare W1 and W2 weights used — did loads increase? Note any sticking points.<br />
+- [ ] Compare push-up benchmark (Day 5 vs Day 19 vs Day 26 — adjusted for fatigue)<br />
+- [ ] Check bodyweight (post-void, morning) — should be same or +0.5 to +1kg over 4 weeks (lean surplus)<br />
+- [ ] Note any shoulder discomfort — if yes, add 1 extra face pull set per session in next cycle<br />
+- [ ] Set new starting weights for the next cycle's Week 1 — should be slightly heavier than this cycle's Week 1</p>
+<hr />
+<h2 id="monthly-plan-male-8-progressive-overload-rules">8. Progressive Overload Rules</h2>
+<h3 id="monthly-plan-male-when-to-increase-load">When to Increase Load</h3>
+<p>Increase weight on an exercise when <strong>both</strong> of the following are true:<br />
+1. You completed all sets at the top of the rep range (e.g. all 8 reps in W1, all 5 in W2) with good form<br />
+2. RPE was ≤7 on the final set for <strong>2 consecutive sessions</strong> of that exercise</p>
+<p><strong>Increments</strong>:<br />
+- Dumbbells: +2kg per DB (i.e. +4kg total load for bilateral exercises)<br />
+- Kettlebells: next size up (typically +4kg jumps — if the jump feels too large, split the difference using a resistance band as counterbalance or add a DB)<br />
+- Push-ups: advance one variation level (standard → close-grip → archer → pike)</p>
+<h3 id="monthly-plan-male-when-not-to-increase-load">When NOT to Increase Load</h3>
+<ul>
+<li>Form deteriorates at any rep before the prescribed rep count</li>
+<li>RPE is 8+ across all sets (not just the last one)</li>
+<li>During deload week — no increases regardless of how easy it feels</li>
+<li>Any session where shoulder feels pre-symptomatic (even slightly "off")</li>
+</ul>
+<h3 id="monthly-plan-male-the-shoulder-rule">The Shoulder Rule</h3>
+<p>This is non-negotiable and applies to every pressing and overhead movement:</p>
+<ol>
+<li>If you feel shoulder discomfort (not muscle burn — discomfort) at any point during a press: <strong>stop that set immediately</strong></li>
+<li>Drop to the previous weight or a lower push-up variation for the remainder of the session</li>
+<li>Add 1 extra set of band face pulls (3×15 → 4×15) at the prehab finisher for that session</li>
+<li><strong>Do not push through impingement</strong> — training through shoulder pain converts a minor issue into a structural problem. One skipped set costs nothing. One impingement flare-up costs 2–4 weeks.</li>
+</ol>
+<h3 id="monthly-plan-male-load-progression-across-cycles-expected">Load Progression Across Cycles (Expected)</h3>
+<table>
+<thead>
+<tr>
+<th>Exercise</th>
+<th>Cycle 1 W1 Target</th>
+<th>Cycle 2 W1 Target</th>
+<th>Cycle 3 W1 Target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>KB Swing</td>
+<td>20–24kg</td>
+<td>24–28kg</td>
+<td>28–32kg</td>
+</tr>
+<tr>
+<td>DB RDL</td>
+<td>2×16–20kg</td>
+<td>2×20–24kg</td>
+<td>2×22–26kg</td>
+</tr>
+<tr>
+<td>DB Floor Press</td>
+<td>2×14–18kg</td>
+<td>2×16–20kg</td>
+<td>2×18–22kg</td>
+</tr>
+<tr>
+<td>KB Goblet Squat</td>
+<td>20–24kg</td>
+<td>24kg</td>
+<td>28kg</td>
+</tr>
+<tr>
+<td>Bulgarian Split Squat</td>
+<td>BW or 2×8kg</td>
+<td>2×10–12kg</td>
+<td>2×12–14kg</td>
+</tr>
+</tbody>
+</table>
+<p>These are estimates based on your profile. Your actual starting weights may differ — use the W1 RPE 7 target as your calibration.</p>
+<hr />
+<h2 id="monthly-plan-male-9-what-to-track">9. What to Track</h2>
+<h3 id="monthly-plan-male-training-log-every-session">Training Log (Every Session)</h3>
+<p>Keep a simple log — notebook, phone note, or app. Record after each session:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>What to Write</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Date</td>
+<td>e.g. Mon 24 Mar</td>
+</tr>
+<tr>
+<td>Session</td>
+<td>e.g. Day A</td>
+</tr>
+<tr>
+<td>Exercise</td>
+<td>Name</td>
+</tr>
+<tr>
+<td>Weight used</td>
+<td>e.g. 2×18kg DB RDL</td>
+</tr>
+<tr>
+<td>Sets × reps achieved</td>
+<td>e.g. 4×8 (all complete) or 4×8,8,8,7 (failed last rep)</td>
+</tr>
+<tr>
+<td>RPE</td>
+<td>1–10 scale</td>
+</tr>
+<tr>
+<td>Notes</td>
+<td>e.g. "shoulder felt slightly tight on press rep 6 — stopped early; added face pull set"</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Why this matters</strong>: Without logs, "I think I used 18kg last time" becomes your planning basis. With logs, you know exactly what to beat.</p>
+<hr />
+<h3 id="monthly-plan-male-weekly-check-in-same-day-each-week-recommended-sunday-morning">Weekly Check-In (Same Day Each Week — Recommended: Sunday Morning)</h3>
+<ul>
+<li>[ ] <strong>Bodyweight</strong>: Morning, post-void, before eating. Record in kg to 1 decimal. Same scale, same conditions.</li>
+<li>[ ] <strong>Waist measurement</strong>: Around navel level. Relaxed (not sucked in). 1 measurement per week.</li>
+<li>[ ] <strong>Sleep quality</strong>: Subjective 1–5 (helps correlate recovery with training output)</li>
+<li>[ ] <strong>Energy levels</strong>: Subjective 1–5</li>
+</ul>
+<p><strong>Bodyweight target over 4 weeks</strong>: +0.5 to +1.0kg. This is a lean surplus — you are not trying to gain fast; slow gain preserves the lean frame and avoids excess fat. If weight is unchanged after 2 weeks, add 100–150 kcal/day (extra tablespoon peanut butter, handful of nuts, or extra half-cup rice).</p>
+<hr />
+<h3 id="monthly-plan-male-monthly-benchmarks-end-of-each-4-week-cycle">Monthly Benchmarks (End of Each 4-Week Cycle)</h3>
+<p>Perform these tests in a fresh state (e.g. Day 28 or the following Monday):</p>
+<table>
+<thead>
+<tr>
+<th>Benchmark</th>
+<th>How to Test</th>
+<th>Record</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Push-up max</td>
+<td>Max reps, strict form, stop when form breaks</td>
+<td>Total reps</td>
+</tr>
+<tr>
+<td>KB Swing load</td>
+<td>Heaviest KB for 10 clean reps</td>
+<td>Weight used</td>
+</tr>
+<tr>
+<td>DB RDL</td>
+<td>Heaviest 5 clean reps</td>
+<td>Weight per DB</td>
+</tr>
+<tr>
+<td>Dead hang</td>
+<td>From pull-up bar or rings if available</td>
+<td>Time in seconds</td>
+</tr>
+<tr>
+<td>Single-leg balance</td>
+<td>Stand on 1 leg, eyes closed</td>
+<td>Time per side</td>
+</tr>
+</tbody>
+</table>
+<p>Monthly benchmarks tell you whether the programme is working. Strength gains should be visible over 2–3 cycles. Push-up reps may fluctuate with fatigue; swing and RDL loads should trend upward.</p>
+<hr />
+<h3 id="monthly-plan-male-nutrition-spot-check-once-per-week">Nutrition Spot-Check (Once Per Week)</h3>
+<p>You do not need to log every meal every day. But once per week, log a full day to verify you are hitting targets. Use Cronometer or a similar app. Key things to check:<br />
+- Did protein hit 130g?<br />
+- Did total calories land ~2,100 on training days?<br />
+- Was fat above 40g (important for hormone production and D3/K2 absorption)?</p>
+<hr />
+<h2 id="monthly-plan-male-appendix-quick-reference-cards">Appendix: Quick Reference Cards</h2>
+<h3 id="monthly-plan-male-morning-workout-checklist-training-days">Morning Workout Checklist (Training Days)</h3>
+<pre><code>7:15am  → Collagen 15g + Vit C source (OJ or kiwi)
+7:20am  → 1 banana
+7:30am  → Warm-up starts (2 min)
+7:32am  → Supersets begin
+7:54am  → Prehab finisher (4–5 min)
+8:00am  → Breakfast + D3 + K2 + Creatine 5g
+8:30am  → Leave for office
+</code></pre>
+<h3 id="monthly-plan-male-shoulder-red-flags-stop-and-reassess">Shoulder Red Flags — Stop and Reassess</h3>
+<ul>
+<li>Sharp pain at any point during pressing movement</li>
+<li>Pain that lingers more than 5 minutes post-set</li>
+<li>Clicking/catching sensation under the acromion with overhead reach</li>
+<li>Weakness on one side that was not present previously</li>
+</ul>
+<p>If any of the above: skip remaining press sets that session, double the face pull volume, and if symptoms persist for &gt;3 days, rest the shoulder completely for 5–7 days before returning to press movements.</p>
+<h3 id="monthly-plan-male-rucking-zone-2-reference">Rucking Zone 2 Reference</h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Heart rate</td>
+<td>107–125 bpm</td>
+</tr>
+<tr>
+<td>Pace feel</td>
+<td>Can speak full sentences; breathing elevated but not gasping</td>
+</tr>
+<tr>
+<td>Duration</td>
+<td>35–45 min</td>
+</tr>
+<tr>
+<td>Pack weight</td>
+<td>8–10kg</td>
+</tr>
+<tr>
+<td>Terrain</td>
+<td>Flat to moderate — avoid steep hills; inclines spike HR above Zone 2</td>
+</tr>
+<tr>
+<td>Footwear</td>
+<td>Trail shoes or sturdy walking shoes — not running flats</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Why you must not let HR spike above 125 bpm during rucking:</strong></p>
+<p>Zone 2 (107–125 bpm) is where the body trains the aerobic energy system most efficiently — it stimulates mitochondrial biogenesis (growth of new mitochondria in muscle cells) and develops the fat oxidation pathway. These are the long-term adaptations that improve cardiovascular health, metabolic efficiency, and longevity.</p>
+<p>The moment HR crosses into Zone 3 (roughly 126–138 bpm), several things happen:<br />
+- <strong>Fuel source shifts</strong> — the body moves away from fat oxidation toward carbohydrate burning. You are no longer training the same system.<br />
+- <strong>Recovery cost rises sharply</strong> — Zone 3 is metabolically expensive. Unlike Zone 2, which you can recover from overnight, Zone 3 work accumulates fatigue over days. With 4 strength sessions already in the week, this erodes your capacity to train hard on Monday.<br />
+- <strong>No additional aerobic benefit</strong> — Zone 3 is sometimes called the "grey zone" because it is too easy to build VO2max (you need Zone 4–5 for that) and too hard to build aerobic base. It is the least productive intensity for your goals.</p>
+<p><strong>Practical control during Singapore rucking:</strong><br />
+- If you hit a hill, slow your pace or take the hill at half-speed<br />
+- If HR spikes above 125, stop walking briefly (30–60 sec) until it drops back to 115, then resume<br />
+- In the morning heat (even at 7am), HR runs 5–10 bpm higher than in air-conditioning — factor this in and be willing to go slower than feels necessary</p>
+<h3 id="monthly-plan-male-supplement-quick-reference">Supplement Quick-Reference</h3>
+<table>
+<thead>
+<tr>
+<th>Time</th>
+<th>What</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>7:15am (training days only)</td>
+<td>Collagen 15g + Vit C</td>
+</tr>
+<tr>
+<td>8:30am</td>
+<td>D3 4000 IU + K2 150mcg + Creatine 5g</td>
+</tr>
+<tr>
+<td>7:00pm</td>
+<td>Omega-3 2g EPA+DHA + Zinc 30mg</td>
+</tr>
+<tr>
+<td>9:15pm</td>
+<td>Magnesium glycinate 400mg</td>
+</tr>
+<tr>
+<td>Post-workout (if needed)</td>
+<td>Whey 30g + 250ml milk</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><em>Document version: March 2026. Review and update weights, benchmarks, and meal costs at the start of each new 4-week cycle.</em></p>
+</section>
+</main>
+
+<!-- ── FAB ───────────────────────────────────────────────────────────────── -->
+<button id="fab" aria-label="Open table of contents">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <line x1="3" y1="6"  x2="21" y2="6"/>
+    <line x1="3" y1="12" x2="16" y2="12"/>
+    <line x1="3" y1="18" x2="21" y2="18"/>
+  </svg>
+  Contents
+</button>
+
+<script>
+(function () {
+  const sidebar  = document.getElementById('toc-sidebar');
+  const backdrop = document.getElementById('toc-backdrop');
+  const fab      = document.getElementById('fab');
+  const closeBtn = document.getElementById('toc-close');
+
+  function openTOC() {
+    sidebar.classList.add('open');
+    backdrop.classList.add('visible');
+    fab.setAttribute('aria-expanded', 'true');
+    document.body.style.overflow = 'hidden'; // prevent background scroll
+  }
+
+  function closeTOC() {
+    sidebar.classList.remove('open');
+    backdrop.classList.remove('visible');
+    fab.setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = '';
+  }
+
+  fab.addEventListener('click', openTOC);
+  closeBtn.addEventListener('click', closeTOC);
+  backdrop.addEventListener('click', closeTOC);
+
+  // Close sidebar when a TOC link is tapped (mobile)
+  sidebar.querySelectorAll('a').forEach(function(link) {
+    link.addEventListener('click', function() {
+      if (window.innerWidth <= 700) closeTOC();
+    });
+  });
+
+  // Escape key closes
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeTOC();
+  });
+
+  // ── Wrap all tables for horizontal scroll ──
+  document.querySelectorAll('#main table').forEach(function(t) {
+    if (t.parentNode.classList.contains('table-wrap')) return;
+    var wrap = document.createElement('div');
+    wrap.className = 'table-wrap';
+    t.parentNode.insertBefore(wrap, t);
+    wrap.appendChild(t);
+  });
+
+  // ── Highlight active TOC link on scroll ──
+  var headings = Array.from(document.querySelectorAll('#main h1,#main h2,#main h3,#main h4'))
+                      .filter(function(h) { return h.id; });
+
+  function getActiveHeading() {
+    var scrollY = window.scrollY + window.innerHeight * 0.18;
+    var active = headings[0];
+    for (var i = 0; i < headings.length; i++) {
+      if (headings[i].getBoundingClientRect().top + window.scrollY <= scrollY) {
+        active = headings[i];
+      } else {
+        break;
+      }
+    }
+    return active;
+  }
+
+  var lastActive = null;
+  function updateActive() {
+    var h = getActiveHeading();
+    if (!h || h === lastActive) return;
+    lastActive = h;
+    var allLinks = sidebar.querySelectorAll('a');
+    allLinks.forEach(function(l) { l.classList.remove('active'); });
+    var link = sidebar.querySelector('a[href="#' + h.id + '"]');
+    if (link) {
+      link.classList.add('active');
+      // Scroll the TOC to show the active link (desktop always-visible sidebar)
+      link.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }
+
+  var ticking = false;
+  window.addEventListener('scroll', function() {
+    if (!ticking) {
+      requestAnimationFrame(function() { updateActive(); ticking = false; });
+      ticking = true;
+    }
+  }, { passive: true });
+
+  updateActive(); // run once on load
+})();
+</script>
+
+</body>
+</html>

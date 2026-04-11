@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Convert all fitness-kb markdown files into a single styled HTML page."""
+"""Convert all fitness-kb markdown files into a single styled HTML page,
+plus standalone him.html and her.html for the monthly plans."""
 
 import re
 import os
@@ -51,7 +52,7 @@ def extract_headings(md_text):
     return headings
 
 # ── Convert markdown to HTML, injecting id anchors on headings ───────────────
-def md_to_html(md_text, section_slug):
+def md_to_html(md_text, section_slug, base_url=""):
     """Convert markdown to HTML. Patch heading ids to be unique per section.
     Also rewrites internal anchor hrefs to use the prefixed ids."""
     seen = {}
@@ -127,7 +128,7 @@ def md_to_html(md_text, section_slug):
     def fix_file_link(m):
         href = m.group(1)
         fname = re.sub(r'^\./|\.md$', '', href)  # strip ./ and .md
-        return f'href="#{fname}-top"'
+        return f'href="{base_url}#{fname}-top"'
 
     html = re.sub(r'href="\./([^"]+\.md)"', fix_file_link, html)
 
@@ -174,7 +175,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#8b5e3c">
-<title>Fitness &amp; Nutrition Knowledgebase — Singapore 40–50</title>
+<title>{title}</title>
 <style>
   /* ── Reset ────────────────────────────────────────────── */
   *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
@@ -768,6 +769,38 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 </html>
 """
 
+# ── Standalone plan page builder ──────────────────────────────────────────────
+def build_plan_page(label, filename, out_filename):
+    """Build a standalone HTML page for a single markdown file."""
+    path = os.path.join(BASE_DIR, filename)
+    with open(path, 'r', encoding='utf-8') as f:
+        md_text = f.read()
+
+    slug = slugify(label)
+    headings = extract_headings(md_text)
+    all_sections = [(slug, label, headings)]
+
+    body_html = md_to_html(md_text, slug, base_url="./")
+    section_html = f'<section class="kb-section" id="{slug}-top">\n<span class="section-label">{label}</span>\n{body_html}\n</section>'
+
+    toc_html = build_toc(all_sections)
+    back_link = '<p style="margin-bottom:2rem"><a href="./" style="font-family:var(--sans);font-size:0.85rem">&#8592; Back to Knowledgebase</a></p>'
+    sections_html = back_link + '\n\n' + section_html
+
+    output = HTML_TEMPLATE.format(
+        title=f"{label} — Singapore 40–50",
+        toc_html=toc_html,
+        sections_html=sections_html,
+    )
+
+    out_path = os.path.join(BASE_DIR, out_filename)
+    with open(out_path, 'w', encoding='utf-8') as f:
+        f.write(output)
+
+    size_kb = os.path.getsize(out_path) // 1024
+    print(f"Written: {out_path} ({size_kb} KB)")
+
+
 # ── Main builder ──────────────────────────────────────────────────────────────
 def build():
     all_sections = []  # (slug, label, headings_list)
@@ -794,6 +827,7 @@ def build():
     sections_html = '\n\n'.join(section_htmls)
 
     output = HTML_TEMPLATE.format(
+        title="Fitness &amp; Nutrition Knowledgebase — Singapore 40–50",
         toc_html=toc_html,
         sections_html=sections_html,
     )
@@ -804,6 +838,9 @@ def build():
 
     size_kb = os.path.getsize(out_path) // 1024
     print(f"Written: {out_path} ({size_kb} KB)")
+
+    build_plan_page("Monthly Plan \u2014 Male",   "monthly-plan-male.md",   "him.html")
+    build_plan_page("Monthly Plan \u2014 Female", "monthly-plan-female.md", "her.html")
 
 if __name__ == '__main__':
     build()
