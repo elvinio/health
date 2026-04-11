@@ -21,8 +21,6 @@ FILES = [
     ("Recovery", "recovery.md"),
     ("Hormones & Stress", "hormones-stress.md"),
     ("Grooming & Personal Care", "grooming-personal-care.md"),
-    ("Monthly Plan \u2014 Male", "monthly-plan-male.md"),
-    ("Monthly Plan \u2014 Female", "monthly-plan-female.md"),
 ]
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
