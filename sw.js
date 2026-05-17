@@ -1,6 +1,7 @@
-const CACHE = 'finance-v1';
+const CACHE = 'finance-v2';
 const ASSETS = [
   '/finance.html',
+  '/themes.css',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
 ];
