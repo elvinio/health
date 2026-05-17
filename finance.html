@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="theme-earth">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -10,21 +10,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Finance">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="themes.css">
 <style>
   :root {
-    --bg: #faf6ee;
-    --paper: #fdf9f2;
-    --card: #ffffff;
-    --primary: #8b5e3c;
-    --primary-light: #c49a6c;
-    --green: #5a7c5e;
-    --green-light: #d4e8d5;
-    --red: #c0392b;
-    --red-light: #fde8e6;
-    --text: #2c2416;
-    --muted: #7a6a52;
-    --border: #e8dece;
-    --shadow: 0 1px 3px rgba(44,36,22,.08);
     --radius: 12px;
     --tab-h: 48px;
     --header-h: 56px;
@@ -187,7 +175,7 @@
     right: 20px; z-index: 90;
     width: 56px; height: 56px; border-radius: 28px;
     background: var(--primary); color: #fff; border: none;
-    font-size: 1.6rem; cursor: pointer; box-shadow: 0 4px 16px rgba(139,94,60,.35);
+    font-size: 1.6rem; cursor: pointer; box-shadow: 0 4px 16px var(--fab-shadow);
     display: flex; align-items: center; justify-content: center;
     transition: transform .15s, opacity .15s;
   }
@@ -196,7 +184,7 @@
   /* ── Bottom Sheet ── */
   .backdrop {
     position: fixed; inset: 0; z-index: 200;
-    background: rgba(44,36,22,.4); opacity: 0;
+    background: var(--backdrop); opacity: 0;
     transition: opacity .25s; pointer-events: none;
   }
   .backdrop.open { opacity: 1; pointer-events: auto; }
@@ -246,7 +234,7 @@
   /* ── Modal ── */
   .modal-overlay {
     position: fixed; inset: 0; z-index: 300;
-    background: rgba(44,36,22,.5);
+    background: var(--modal-bg);
     display: flex; align-items: center; justify-content: center;
     padding: 16px; opacity: 0; pointer-events: none;
     transition: opacity .2s;
@@ -276,7 +264,7 @@
   .dropdown {
     position: absolute; right: 0; top: calc(100% + 4px); z-index: 500;
     background: var(--card); border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(44,36,22,.18);
+    box-shadow: var(--shadow-heavy);
     min-width: 200px; overflow: hidden;
     display: none;
   }
@@ -328,6 +316,22 @@
   .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
   .over-budget { color: var(--red); font-weight: 700; font-size: .8rem; }
   .under-budget { color: var(--green); font-weight: 700; font-size: .8rem; }
+
+  /* ── Theme picker ── */
+  .theme-option {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    padding: 12px 14px; border: 2px solid var(--border);
+    border-radius: 12px; background: var(--card);
+    cursor: pointer; font-family: inherit; font-size: .95rem;
+    font-weight: 600; color: var(--text); margin-bottom: 10px;
+    transition: border-color .15s;
+  }
+  .theme-option.active { border-color: var(--primary); }
+  .theme-swatch {
+    width: 40px; height: 40px; border-radius: 8px; flex-shrink: 0;
+    border: 1px solid rgba(0,0,0,.08);
+  }
+  .theme-check { margin-left: auto; color: var(--primary); font-weight: 800; }
 </style>
 </head>
 <body>
@@ -347,6 +351,8 @@
         <button class="dropdown-item" onclick="triggerImport()">⬆ Import JSON</button>
         <div class="dropdown-sep"></div>
         <button class="dropdown-item" onclick="openDriveMenu()">☁ Google Drive</button>
+        <div class="dropdown-sep"></div>
+        <button class="dropdown-item" onclick="openThemePicker()">🎨 Theme</button>
         <div class="dropdown-sep"></div>
         <button class="dropdown-item danger" onclick="confirmClearData()">🗑 Clear all data</button>
       </div>
@@ -392,6 +398,13 @@
 
 <!-- Backdrop -->
 <div class="backdrop" id="backdrop"></div>
+
+<!-- Theme Picker Sheet -->
+<div class="sheet" id="themeSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Theme</div>
+  <div id="themeList"></div>
+</div>
 
 <!-- Expense Sheet -->
 <div class="sheet" id="expenseSheet">
@@ -532,6 +545,49 @@
 <div class="toast" id="toast"></div>
 
 <script>
+// ── Theme ─────────────────────────────────────────────────────────────────────
+const THEMES = [
+  { id: 'earth',  label: 'Earth',  bg: '#faf6ee', primary: '#8b5e3c' },
+  { id: 'navy',   label: 'Navy',   bg: '#f0f4f8', primary: '#1b3a6b' },
+  { id: 'pastel', label: 'Pastel', bg: '#fff5f7', primary: '#d4729a' },
+];
+
+function applyTheme(id) {
+  document.documentElement.className = 'theme-' + id;
+  localStorage.setItem('finance:theme', id);
+  document.querySelector('meta[name="theme-color"]').content =
+    (THEMES.find(t => t.id === id) || THEMES[0]).primary;
+  renderThemePicker();
+}
+
+function openThemePicker() {
+  document.getElementById('mainMenu').classList.remove('open');
+  renderThemePicker();
+  openSheet('themeSheet');
+}
+
+function renderThemePicker() {
+  const el = document.getElementById('themeList');
+  if (!el) return;
+  const current = localStorage.getItem('finance:theme') || 'earth';
+  el.innerHTML = THEMES.map(t => `
+    <button class="theme-option${t.id === current ? ' active' : ''}"
+            onclick="applyTheme('${t.id}')">
+      <div class="theme-swatch"
+           style="background:linear-gradient(135deg,${t.bg} 50%,${t.primary} 50%)"></div>
+      <span>${t.label}</span>
+      ${t.id === current ? '<span class="theme-check">✓</span>' : ''}
+    </button>
+  `).join('');
+}
+
+(function() {
+  const saved = localStorage.getItem('finance:theme') || 'earth';
+  document.documentElement.className = 'theme-' + saved;
+  document.querySelector('meta[name="theme-color"]').content =
+    (THEMES.find(t => t.id === saved) || THEMES[0]).primary;
+})();
+
 // ── Storage ──────────────────────────────────────────────────────────────────
 const STORAGE_KEY = 'finance:v1';
 const DRIVE_FILE_KEY = 'finance:driveFileId';
