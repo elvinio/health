@@ -318,6 +318,7 @@
 <div class="tabs">
   <button class="tab active" data-tab="expenses">Expenses</button>
   <button class="tab" data-tab="investments">Investments</button>
+  <button class="tab" data-tab="analysis">Analysis</button>
 </div>
 
 <!-- Expenses Page -->
@@ -325,6 +326,11 @@
   <div class="account-cards" id="accountCards"></div>
   <div class="section-heading">Recent Expenses</div>
   <div id="expenseList"></div>
+</div>
+
+<!-- Analysis Page -->
+<div class="page" id="page-analysis">
+  <div id="analysisList"></div>
 </div>
 
 <!-- Investments Page -->
@@ -369,15 +375,7 @@
     </div>
     <div class="field">
       <label>Category</label>
-      <select id="expCat">
-        <option>Food</option>
-        <option>Transport</option>
-        <option>Shopping</option>
-        <option>Health</option>
-        <option>Entertainment</option>
-        <option>Bills</option>
-        <option>Other</option>
-      </select>
+      <select id="expCat"></select>
     </div>
     <div class="btn-row">
       <button type="submit" class="btn btn-primary btn-block">Save</button>
@@ -527,10 +525,10 @@ function saveData(d) {
 
 function recalcBalances(d) {
   d.accounts.forEach(acc => {
-    const spent = d.expenses
+    const net = d.expenses
       .filter(e => e.ac === acc.id)
-      .reduce((s, e) => s + e.amount, 0);
-    acc.balance = acc.startingBalance - spent;
+      .reduce((s, e) => s + (e.cat === 'TopUp' ? -e.amount : e.amount), 0);
+    acc.balance = acc.startingBalance - net;
   });
 }
 
@@ -645,7 +643,7 @@ function renderExpenseList() {
                 <span class="cat-chip">${esc(e.cat)}</span>
               </div>
             </div>
-            <div class="expense-amount">-${fmtCurrency(e.amount)}</div>
+            <div class="expense-amount" style="color:${e.cat === 'TopUp' ? 'var(--green)' : 'var(--red)'}">${e.cat === 'TopUp' ? '+' : '-'}${fmtCurrency(e.amount)}</div>
           </div>`;
       }).join('')}
     </div>
@@ -668,6 +666,11 @@ function openExpenseSheet(id, preAcct) {
   // Populate account select
   const sel = document.getElementById('expAcct');
   sel.innerHTML = data.accounts.map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join('');
+
+  // Populate category select from existing data, TopUp first then alphabetical
+  const cats = [...new Set(data.expenses.map(e => e.cat))].sort();
+  if (!cats.includes('TopUp')) cats.unshift('TopUp'); else { cats.splice(cats.indexOf('TopUp'), 1); cats.unshift('TopUp'); }
+  document.getElementById('expCat').innerHTML = cats.map(c => `<option>${esc(c)}</option>`).join('');
 
   if (id) {
     const exp = data.expenses.find(e => e.id === id);
@@ -1203,11 +1206,50 @@ async function uploadToDrive(token, fileId, payload) {
   return payload;
 }
 
+// ── Render: Analysis ─────────────────────────────────────────────────────────
+function renderAnalysis() {
+  const el = document.getElementById('analysisList');
+  const expenses = data.expenses.filter(e => e.cat !== 'TopUp');
+  if (!expenses.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">📊</div>No expense data yet.</div>';
+    return;
+  }
+
+  const byMonth = {};
+  expenses.forEach(e => {
+    const month = e.date.slice(0, 7);
+    if (!byMonth[month]) byMonth[month] = {};
+    byMonth[month][e.cat] = (byMonth[month][e.cat] || 0) + e.amount;
+  });
+
+  const months = Object.keys(byMonth).sort().reverse();
+  el.innerHTML = months.map(month => {
+    const cats = byMonth[month];
+    const total = Object.values(cats).reduce((s, v) => s + v, 0);
+    const label = new Date(month + '-01T00:00:00').toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    const rows = Object.entries(cats).sort((a, b) => b[1] - a[1]);
+    return `
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
+          <div style="font-weight:700;font-size:1rem">${label}</div>
+          <div style="font-weight:800;font-size:1.05rem;color:var(--primary)">${fmtCurrency(total)}</div>
+        </div>
+        ${rows.map(([cat, amt]) => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--border)">
+            <span class="cat-chip">${esc(cat)}</span>
+            <span style="font-weight:600;font-size:.9rem">${fmtCurrency(amt)}</span>
+          </div>`).join('')}
+      </div>`;
+  }).join('');
+}
+
 // ── Render all ────────────────────────────────────────────────────────────────
 function renderAll() {
   renderAccountCards();
   renderExpenseList();
   renderInvestments();
+  renderAnalysis();
+  document.getElementById('fabBtn').style.display = currentTab === 'analysis' ? 'none' : '';
 }
 
 // ── XSS-safe escape ───────────────────────────────────────────────────────────
