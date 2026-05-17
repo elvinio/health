@@ -648,6 +648,8 @@ function loadHistory() {
 }
 
 function saveHistory(h) {
+  h._updatedAt = Date.now();
+  data.historyUpdatedAt = h._updatedAt;
   localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
 }
 
@@ -1519,6 +1521,10 @@ async function driveFirstSave() {
   try {
     const token = await getAccessToken(clientId);
     setDriveStatus('Creating files on Drive…');
+    if (historyData.expenses.length && !historyData._updatedAt) {
+      historyData._updatedAt = Date.now();
+      data.historyUpdatedAt = historyData._updatedAt;
+    }
     await uploadToDrive(token, null, data);
     await uploadHistoryToDrive(token, null, historyData);
     localStorage.setItem('finance:lastSync', new Date().toISOString());
@@ -1549,31 +1555,52 @@ async function driveSync() {
       throw new Error('Invalid backup format');
     }
 
-    // Download history file if connected; tolerate missing file
-    const historyFileId = localStorage.getItem(DRIVE_HISTORY_FILE_KEY);
-    let remoteHistory = { expenses: [] };
-    if (historyFileId) {
-      try { remoteHistory = await downloadFromDrive(token, historyFileId); } catch {}
-      if (!Array.isArray(remoteHistory.expenses)) remoteHistory = { expenses: [] };
-    }
-
-    // Handle old-format remote where all years are in remote.expenses
+    // Split off any past-year entries that landed in remote.expenses (old format)
     const curYear = String(new Date().getFullYear());
     const remoteHistFromMain = (remote.expenses || []).filter(e => !e.date.startsWith(curYear + '-'));
     remote.expenses = (remote.expenses || []).filter(e => e.date.startsWith(curYear + '-'));
-    const combinedRemoteHistory = mergeHistoryData(remoteHistory, { expenses: remoteHistFromMain });
+
+    // Decide whether to download history based on the timestamp embedded in the main file
+    const remoteHistTs = remote.historyUpdatedAt || 0;
+    const localHistTs = historyData._updatedAt || 0;
+    const historyFileId = localStorage.getItem(DRIVE_HISTORY_FILE_KEY);
+
+    let mergedHistory = historyData;
+    let uploadHistory = localHistTs > remoteHistTs; // local has changes remote hasn't seen
+
+    if (remoteHistTs > localHistTs) {
+      // Remote history is newer — download and merge
+      let remoteHistory = { expenses: remoteHistFromMain };
+      if (historyFileId) {
+        try {
+          const dl = await downloadFromDrive(token, historyFileId);
+          if (Array.isArray(dl.expenses)) remoteHistory = mergeHistoryData(dl, { expenses: remoteHistFromMain });
+        } catch {}
+      }
+      mergedHistory = mergeHistoryData(historyData, remoteHistory);
+      uploadHistory = true;
+    } else if (remoteHistFromMain.length) {
+      // Old-format migration: past-year entries found in remote main file
+      mergedHistory = mergeHistoryData(historyData, { expenses: remoteHistFromMain });
+      uploadHistory = true;
+    }
 
     setDriveStatus('Merging…');
     const merged = mergeData(data, remote);
-    const mergedHistory = mergeHistoryData(historyData, combinedRemoteHistory);
 
     // Apply deletedIds to history
     const deletedSet = new Set(merged._deletedIds);
     mergedHistory.expenses = mergedHistory.expenses.filter(e => !deletedSet.has(e.id));
 
     setDriveStatus('Uploading…');
+    if (uploadHistory) {
+      mergedHistory._updatedAt = Date.now();
+      merged.historyUpdatedAt = mergedHistory._updatedAt;
+      await uploadHistoryToDrive(token, historyFileId || null, mergedHistory);
+    } else {
+      merged.historyUpdatedAt = remoteHistTs || localHistTs;
+    }
     await uploadToDrive(token, fileId, merged);
-    await uploadHistoryToDrive(token, historyFileId || null, mergedHistory);
 
     const now = new Date().toISOString();
     localStorage.setItem('finance:lastSync', now);
@@ -1582,7 +1609,7 @@ async function driveSync() {
     recalcBalances(data, allExpenses());
     recalcMonthlyAgg(data, allExpenses());
     saveData(data);
-    saveHistory(historyData);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(historyData));
     renderAll();
 
     // Refresh share code in case history file ID was just created
