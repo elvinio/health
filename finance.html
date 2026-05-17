@@ -435,17 +435,50 @@
   <div class="modal">
     <button class="modal-close" onclick="closeDriveModal()">✕</button>
     <div class="modal-title">Google Drive Sync</div>
-    <p style="font-size:.88rem;color:var(--muted);margin-bottom:14px">
-      Enter your Google OAuth Client ID. Data is saved directly to your Drive — nothing goes to any server.
-    </p>
-    <div class="field">
-      <label>Google Client ID</label>
-      <input type="text" id="driveClientId" placeholder="xxxxxxxx.apps.googleusercontent.com">
+
+    <!-- Setup state -->
+    <div id="driveSetup">
+      <p style="font-size:.88rem;color:var(--muted);margin-bottom:14px">
+        Set up sync so you and your partner share the same data in real time.
+      </p>
+      <div style="background:var(--bg);border-radius:10px;padding:14px;margin-bottom:14px">
+        <div style="font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Connect with partner's code</div>
+        <div class="field" style="margin-bottom:8px">
+          <input type="text" id="driveConnectCode" placeholder="Paste connect code here…" style="font-family:monospace;font-size:.85rem">
+        </div>
+        <button class="btn btn-secondary btn-block" onclick="applyConnectCode()" style="font-size:.88rem;padding:10px">Connect</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <span style="font-size:.8rem;color:var(--muted)">or set up as owner</span>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+      </div>
+      <div class="field">
+        <label>Google Client ID</label>
+        <input type="text" id="driveClientId" placeholder="xxxxxxxx.apps.googleusercontent.com">
+      </div>
+      <button class="btn btn-primary btn-block" onclick="driveFirstSave()">Create & Save to Drive</button>
     </div>
-    <div class="btn-row">
-      <button class="btn btn-primary" onclick="driveSave()">⬆ Save to Drive</button>
-      <button class="btn btn-secondary" onclick="driveLoad()">⬇ Load from Drive</button>
+
+    <!-- Connected state -->
+    <div id="driveConnected" style="display:none">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:10px 12px;background:var(--green-light);border-radius:10px">
+        <span style="color:var(--green);font-size:1.1rem">✓</span>
+        <span style="font-size:.9rem;font-weight:600;color:var(--green)">Connected to shared file</span>
+      </div>
+      <div style="margin-bottom:14px">
+        <div style="font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Share this code with your partner</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div id="shareCodeDisplay" style="flex:1;padding:9px 10px;background:var(--bg);border-radius:8px;font-family:monospace;font-size:.78rem;word-break:break-all;color:var(--text)"></div>
+          <button class="btn btn-secondary" style="padding:9px 14px;font-size:.85rem;white-space:nowrap" onclick="copyShareCode()">Copy</button>
+        </div>
+        <p style="font-size:.75rem;color:var(--muted);margin-top:6px">Also share the Drive file with their Google account so they can write to it.</p>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="driveSync()" id="driveSyncBtn">↕ Sync Now</button>
+      <div id="driveLastSync" style="text-align:center;font-size:.78rem;color:var(--muted);margin-top:8px"></div>
+      <button onclick="driveDisconnect()" style="display:block;margin:12px auto 0;background:none;border:none;font-size:.82rem;color:var(--muted);cursor:pointer;text-decoration:underline">Disconnect</button>
     </div>
+
     <div id="driveStatus" style="margin-top:12px;font-size:.85rem;color:var(--muted)"></div>
   </div>
 </div>
@@ -465,11 +498,12 @@ const DRIVE_CLIENT_KEY = 'finance:googleClientId';
 function defaultData() {
   return {
     accounts: [
-      { id: 'acc1', name: 'Account 1', startingBalance: 0, balance: 0 },
-      { id: 'acc2', name: 'Account 2', startingBalance: 0, balance: 0 }
+      { id: 'acc1', name: 'Account 1', startingBalance: 0, balance: 0, _updatedAt: 0 },
+      { id: 'acc2', name: 'Account 2', startingBalance: 0, balance: 0, _updatedAt: 0 }
     ],
     expenses: [],
-    assets: []
+    assets: [],
+    _deletedIds: []
   };
 }
 
@@ -478,10 +512,11 @@ function loadData() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultData();
     const d = JSON.parse(raw);
-    // migrate / ensure shape
     if (!d.accounts) d.accounts = defaultData().accounts;
     if (!d.expenses) d.expenses = [];
     if (!d.assets) d.assets = [];
+    if (!d._deletedIds) d._deletedIds = [];
+    d.accounts.forEach(a => { if (!a._updatedAt) a._updatedAt = 0; });
     return d;
   } catch { return defaultData(); }
 }
@@ -682,6 +717,7 @@ function deleteExpense() {
   const id = document.getElementById('expenseId').value;
   if (!id) return;
   if (!confirm('Delete this expense?')) return;
+  data._deletedIds.push(id);
   data.expenses = data.expenses.filter(e => e.id !== id);
   recalcBalances(data);
   saveData(data);
@@ -713,6 +749,7 @@ function saveAccountSettings() {
     const start = parseFloat(document.getElementById('accStart' + i).value) || 0;
     acc.name = name || acc.name;
     acc.startingBalance = start;
+    acc._updatedAt = Date.now();
   });
   recalcBalances(data);
   saveData(data);
@@ -825,6 +862,7 @@ function deleteAsset() {
   const id = document.getElementById('assetId').value;
   if (!id) return;
   if (!confirm('Delete this asset and all its history?')) return;
+  data._deletedIds.push(id);
   data.assets = data.assets.filter(a => a.id !== id);
   saveData(data);
   closeSheet();
@@ -930,12 +968,26 @@ function confirmClearData() {
 }
 
 // ── Google Drive ──────────────────────────────────────────────────────────────
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
 let driveToken = null;
 
 function openDriveMenu() {
   document.getElementById('mainMenu').classList.remove('open');
-  document.getElementById('driveClientId').value = localStorage.getItem(DRIVE_CLIENT_KEY) || '';
   document.getElementById('driveStatus').textContent = '';
+  const fileId = localStorage.getItem(DRIVE_FILE_KEY);
+  const clientId = localStorage.getItem(DRIVE_CLIENT_KEY);
+  if (fileId && clientId) {
+    document.getElementById('driveSetup').style.display = 'none';
+    document.getElementById('driveConnected').style.display = '';
+    document.getElementById('shareCodeDisplay').textContent = makeShareCode(clientId, fileId);
+    const lastSync = localStorage.getItem('finance:lastSync');
+    document.getElementById('driveLastSync').textContent = lastSync
+      ? 'Last synced ' + new Date(lastSync).toLocaleString() : '';
+  } else {
+    document.getElementById('driveSetup').style.display = '';
+    document.getElementById('driveConnected').style.display = 'none';
+    document.getElementById('driveClientId').value = clientId || '';
+  }
   document.getElementById('driveOverlay').classList.add('open');
 }
 
@@ -947,15 +999,46 @@ document.getElementById('driveOverlay').addEventListener('click', e => {
   if (e.target === document.getElementById('driveOverlay')) closeDriveModal();
 });
 
-function getDriveClientId() {
-  const id = document.getElementById('driveClientId').value.trim();
-  if (!id) { showToast('Enter your Google Client ID'); return null; }
-  localStorage.setItem(DRIVE_CLIENT_KEY, id);
-  return id;
-}
-
 function setDriveStatus(msg) {
   document.getElementById('driveStatus').textContent = msg;
+}
+
+// Share code = base64(clientId + "||" + fileId)
+function makeShareCode(clientId, fileId) {
+  return btoa(clientId + '||' + fileId);
+}
+
+function applyConnectCode() {
+  const raw = document.getElementById('driveConnectCode').value.trim();
+  if (!raw) { showToast('Paste a connect code first'); return; }
+  try {
+    const decoded = atob(raw);
+    const sep = decoded.indexOf('||');
+    if (sep < 0) throw new Error('bad format');
+    const clientId = decoded.slice(0, sep);
+    const fileId = decoded.slice(sep + 2);
+    if (!clientId || !fileId) throw new Error('bad format');
+    localStorage.setItem(DRIVE_CLIENT_KEY, clientId);
+    localStorage.setItem(DRIVE_FILE_KEY, fileId);
+    driveToken = null;
+    openDriveMenu();
+    showToast('Connected — tap Sync Now');
+  } catch { showToast('Invalid connect code'); }
+}
+
+function copyShareCode() {
+  const code = document.getElementById('shareCodeDisplay').textContent;
+  navigator.clipboard.writeText(code).then(() => showToast('Code copied')).catch(() => showToast('Copy failed'));
+}
+
+function driveDisconnect() {
+  if (!confirm('Disconnect from Drive? Local data is kept.')) return;
+  localStorage.removeItem(DRIVE_FILE_KEY);
+  localStorage.removeItem(DRIVE_CLIENT_KEY);
+  localStorage.removeItem('finance:lastSync');
+  driveToken = null;
+  openDriveMenu();
+  showToast('Disconnected');
 }
 
 function ensureGsiLoaded() {
@@ -976,96 +1059,148 @@ async function getAccessToken(clientId) {
   return new Promise((resolve, reject) => {
     const client = google.accounts.oauth2.initTokenClient({
       client_id: clientId,
-      scope: 'https://www.googleapis.com/auth/drive.file',
+      scope: DRIVE_SCOPE,
       callback: resp => {
         if (resp.error) { reject(new Error(resp.error)); return; }
         driveToken = { token: resp.access_token, expiry: Date.now() + (resp.expires_in - 30) * 1000 };
         resolve(resp.access_token);
       }
     });
-    client.requestAccessToken({ prompt: 'consent' });
+    client.requestAccessToken({ prompt: '' });
   });
 }
 
-async function driveSave() {
-  const clientId = getDriveClientId();
-  if (!clientId) return;
+// ── Merge logic ───────────────────────────────────────────────────────────────
+function mergeData(local, remote) {
+  const deletedIds = new Set([...(local._deletedIds || []), ...(remote._deletedIds || [])]);
+
+  // Expenses: union by id, prefer higher _ts for same id, exclude deleted
+  const expMap = new Map();
+  [...(remote.expenses || []), ...(local.expenses || [])].forEach(e => {
+    if (deletedIds.has(e.id)) return;
+    const existing = expMap.get(e.id);
+    if (!existing || (e._ts || 0) > (existing._ts || 0)) expMap.set(e.id, e);
+  });
+
+  // Assets: union by id, merge history by _ts, exclude deleted
+  const assetMap = new Map();
+  [...(remote.assets || []), ...(local.assets || [])].forEach(a => {
+    if (deletedIds.has(a.id)) return;
+    if (!assetMap.has(a.id)) {
+      assetMap.set(a.id, { ...a, history: [] });
+    }
+    assetMap.get(a.id).history.push(...(a.history || []));
+    // keep latest name
+    const existing = assetMap.get(a.id);
+    const localAsset = local.assets && local.assets.find(x => x.id === a.id);
+    const remoteAsset = remote.assets && remote.assets.find(x => x.id === a.id);
+    const latestName = (localAsset && remoteAsset)
+      ? (localAsset._nameTs || 0) >= (remoteAsset._nameTs || 0) ? localAsset.name : remoteAsset.name
+      : (localAsset || remoteAsset || a).name;
+    existing.name = latestName;
+  });
+  // Deduplicate history by _ts within each asset, sort ascending
+  assetMap.forEach(a => {
+    const seen = new Set();
+    a.history = a.history
+      .filter(h => { const k = h._ts || h.date + h.value; if (seen.has(k)) return false; seen.add(k); return true; })
+      .sort((a, b) => (a._ts || 0) - (b._ts || 0));
+  });
+
+  // Accounts: by id, prefer higher _updatedAt
+  const accMap = new Map();
+  [...(remote.accounts || []), ...(local.accounts || [])].forEach(a => {
+    const existing = accMap.get(a.id);
+    if (!existing || (a._updatedAt || 0) >= (existing._updatedAt || 0)) accMap.set(a.id, a);
+  });
+
+  const merged = {
+    accounts: [...accMap.values()],
+    expenses: [...expMap.values()],
+    assets: [...assetMap.values()],
+    _deletedIds: [...deletedIds]
+  };
+  recalcBalances(merged);
+  return merged;
+}
+
+// ── Bidirectional sync ────────────────────────────────────────────────────────
+async function driveFirstSave() {
+  const clientId = document.getElementById('driveClientId').value.trim();
+  if (!clientId) { showToast('Enter your Google Client ID'); return; }
+  localStorage.setItem(DRIVE_CLIENT_KEY, clientId);
   setDriveStatus('Authenticating…');
   try {
     const token = await getAccessToken(clientId);
-    setDriveStatus('Saving…');
-    const content = JSON.stringify(data, null, 2);
-    const fileId = localStorage.getItem(DRIVE_FILE_KEY);
-
-    const metadata = { name: 'finance-backup.json', mimeType: 'application/json' };
-    const form = new FormData();
-    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-    form.append('file', new Blob([content], { type: 'application/json' }));
-
-    let url, method;
-    if (fileId) {
-      url = `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`;
-      method = 'PATCH';
-    } else {
-      url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-      method = 'POST';
-    }
-
-    const resp = await fetch(url, { method, headers: { Authorization: 'Bearer ' + token }, body: form });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const json = await resp.json();
-    localStorage.setItem(DRIVE_FILE_KEY, json.id);
-    setDriveStatus('Saved to Google Drive ✓');
-    showToast('Saved to Drive');
+    setDriveStatus('Creating file on Drive…');
+    const merged = await uploadToDrive(token, null, data);
+    localStorage.setItem('finance:lastSync', new Date().toISOString());
+    data = merged;
+    saveData(data);
+    renderAll();
+    openDriveMenu();
+    setDriveStatus('');
+    showToast('Saved — share the connect code with your partner');
   } catch (err) {
     setDriveStatus('Error: ' + err.message);
-    showToast('Drive save failed');
   }
 }
 
-async function driveLoad() {
-  const clientId = getDriveClientId();
-  if (!clientId) return;
+async function driveSync() {
+  const clientId = localStorage.getItem(DRIVE_CLIENT_KEY);
+  const fileId = localStorage.getItem(DRIVE_FILE_KEY);
+  if (!clientId || !fileId) { showToast('Not connected to Drive'); return; }
+  const btn = document.getElementById('driveSyncBtn');
+  btn.disabled = true;
+  btn.textContent = 'Syncing…';
   setDriveStatus('Authenticating…');
   try {
     const token = await getAccessToken(clientId);
-    setDriveStatus('Looking for backup file…');
-
-    // Find file by name
-    const q = encodeURIComponent("name='finance-backup.json' and trashed=false");
-    const listResp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name,modifiedTime)&orderBy=modifiedTime+desc`, {
-      headers: { Authorization: 'Bearer ' + token }
-    });
-    if (!listResp.ok) throw new Error('HTTP ' + listResp.status);
-    const list = await listResp.json();
-    if (!list.files || !list.files.length) { setDriveStatus('No backup found on Drive'); return; }
-
-    const fileId = list.files[0].id;
-    localStorage.setItem(DRIVE_FILE_KEY, fileId);
     setDriveStatus('Downloading…');
-
     const fileResp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
       headers: { Authorization: 'Bearer ' + token }
     });
     if (!fileResp.ok) throw new Error('HTTP ' + fileResp.status);
-    const parsed = await fileResp.json();
-
-    if (!parsed.accounts || !Array.isArray(parsed.expenses) || !Array.isArray(parsed.assets)) {
+    const remote = await fileResp.json();
+    if (!remote.accounts || !Array.isArray(remote.expenses) || !Array.isArray(remote.assets)) {
       throw new Error('Invalid backup format');
     }
-    if (!confirm('Replace local data with Drive backup from ' + list.files[0].modifiedTime + '?')) {
-      setDriveStatus('Cancelled'); return;
-    }
-    data = parsed;
-    recalcBalances(data);
+    setDriveStatus('Merging…');
+    const merged = mergeData(data, remote);
+    setDriveStatus('Uploading…');
+    await uploadToDrive(token, fileId, merged);
+    const now = new Date().toISOString();
+    localStorage.setItem('finance:lastSync', now);
+    data = merged;
     saveData(data);
     renderAll();
-    setDriveStatus('Loaded from Google Drive ✓');
-    showToast('Loaded from Drive');
+    document.getElementById('driveLastSync').textContent = 'Last synced ' + new Date(now).toLocaleString();
+    setDriveStatus('Sync complete ✓');
+    showToast('Sync complete');
   } catch (err) {
     setDriveStatus('Error: ' + err.message);
-    showToast('Drive load failed');
+    showToast('Sync failed');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↕ Sync Now';
   }
+}
+
+async function uploadToDrive(token, fileId, payload) {
+  const content = JSON.stringify(payload, null, 2);
+  const metadata = { name: 'finance-backup.json', mimeType: 'application/json' };
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+  form.append('file', new Blob([content], { type: 'application/json' }));
+  const url = fileId
+    ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart&supportsAllDrives=true`
+    : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true';
+  const method = fileId ? 'PATCH' : 'POST';
+  const resp = await fetch(url, { method, headers: { Authorization: 'Bearer ' + token }, body: form });
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  const json = await resp.json();
+  localStorage.setItem(DRIVE_FILE_KEY, json.id);
+  return payload;
 }
 
 // ── Render all ────────────────────────────────────────────────────────────────
