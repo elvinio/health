@@ -594,7 +594,8 @@
   .text-muted { color: var(--muted); }
   .text-sm { font-size: 0.85rem; }
   .text-xs { font-size: 0.75rem; }
-  .mt-1 { margin-top: 6px; } .mt-2 { margin-top: 12px; } .mb-1 { margin-bottom: 6px; }
+  .mt-1 { margin-top: 6px; } .mt-2 { margin-top: 12px; } .mb-1 { margin-bottom: 6px; } .mb-2 { margin-bottom: 12px; }
+  .drive-status { font-size: 0.78rem; color: var(--muted); min-height: 1.2em; margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -972,6 +973,191 @@ function getLastSessionWeight(exId, beforeDateISO) {
 }
 
 /* ════════════════════════════════════════════════════════════════
+   EXPORT / IMPORT
+   ════════════════════════════════════════════════════════════════ */
+function exportData() {
+  const data = localStorage.getItem('tracker:v1') || '{}';
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `tracker-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(fileInput) {
+  const file = fileInput.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (!parsed.config && !parsed.sessions && !parsed.baselines) {
+        alert('This file does not look like a valid tracker backup.');
+        return;
+      }
+      if (!confirm('This will replace all current workout data. Continue?')) return;
+      localStorage.setItem('tracker:v1', e.target.result);
+      location.reload();
+    } catch {
+      alert('Could not read the file — make sure it is a valid JSON backup.');
+    }
+    fileInput.value = '';
+  };
+  reader.readAsText(file);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   GOOGLE DRIVE SYNC
+   ════════════════════════════════════════════════════════════════ */
+const DriveSync = (() => {
+  const CFG_KEY = 'tracker:drive-config';
+
+  function loadConfig() {
+    try { return JSON.parse(localStorage.getItem(CFG_KEY) || '{}'); }
+    catch { return {}; }
+  }
+  function saveConfig(updates) {
+    localStorage.setItem(CFG_KEY, JSON.stringify({ ...loadConfig(), ...updates }));
+  }
+
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+      const s = document.createElement('script');
+      s.src = src; s.onload = resolve;
+      s.onerror = () => reject(new Error('Failed to load: ' + src));
+      document.head.appendChild(s);
+    });
+  }
+
+  let _token = null;
+
+  async function authorize() {
+    const cfg = loadConfig();
+    if (!cfg.clientId) throw new Error('No Client ID configured.');
+    await loadScript('https://accounts.google.com/gsi/client');
+    return new Promise((resolve, reject) => {
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: cfg.clientId,
+        scope: 'https://www.googleapis.com/auth/drive.file',
+        callback: r => {
+          if (r.error) { reject(new Error(r.error)); return; }
+          _token = r.access_token;
+          resolve(_token);
+        }
+      });
+      client.requestAccessToken({ prompt: _token ? '' : 'select_account' });
+    });
+  }
+
+  async function uploadFile(token, fileId, content) {
+    const meta = { name: 'tracker-backup.json', mimeType: 'application/json' };
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+    form.append('file', new Blob([content], { type: 'application/json' }));
+    const url = fileId
+      ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
+      : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+    const res = await fetch(url, {
+      method: fileId ? 'PATCH' : 'POST',
+      headers: { Authorization: 'Bearer ' + token },
+      body: form
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error((err.error && err.error.message) || 'Upload failed (' + res.status + ')');
+    }
+    return res.json();
+  }
+
+  async function fetchFile(token, fileId) {
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+      { headers: { Authorization: 'Bearer ' + token } }
+    );
+    if (!res.ok) throw new Error('Download failed (' + res.status + ')');
+    return res.text();
+  }
+
+  async function save(onStatus) {
+    try {
+      onStatus('Authorizing…');
+      const token = await authorize();
+      onStatus('Saving…');
+      const cfg = loadConfig();
+      const content = localStorage.getItem('tracker:v1') || '{}';
+      const result = await uploadFile(token, cfg.fileId || null, content);
+      const now = new Date().toLocaleString();
+      saveConfig({ fileId: result.id, lastSaved: now });
+      onStatus('Saved ' + now);
+    } catch (e) {
+      onStatus('Error: ' + e.message);
+    }
+  }
+
+  async function load(onStatus) {
+    try {
+      onStatus('Authorizing…');
+      const token = await authorize();
+      const cfg = loadConfig();
+      if (cfg.fileId) {
+        onStatus('Downloading…');
+        const content = await fetchFile(token, cfg.fileId);
+        const parsed = JSON.parse(content);
+        if (!parsed.config && !parsed.sessions && !parsed.baselines) throw new Error('Not a valid backup');
+        if (!confirm('Replace all local data with Drive backup?')) { onStatus('Cancelled.'); return; }
+        localStorage.setItem('tracker:v1', content);
+        onStatus('Loaded — reloading…');
+        setTimeout(() => location.reload(), 800);
+      } else {
+        onStatus('Opening file picker…');
+        await openPicker(token, onStatus);
+      }
+    } catch (e) {
+      onStatus('Error: ' + e.message);
+    }
+  }
+
+  async function openPicker(token, onStatus) {
+    const cfg = loadConfig();
+    if (!cfg.apiKey) {
+      onStatus('');
+      alert('Enter an API Key to use the file picker, or "Save to Drive" first (which stores the file ID for future loads).');
+      return;
+    }
+    await loadScript('https://apis.google.com/js/api.js');
+    await new Promise(r => gapi.load('picker', r));
+    const picker = new google.picker.PickerBuilder()
+      .addView(google.picker.ViewId.DOCS)
+      .setOAuthToken(token)
+      .setDeveloperKey(cfg.apiKey)
+      .setCallback(async data => {
+        if (data.action !== google.picker.Action.PICKED) { onStatus(''); return; }
+        const fileId = data.docs[0].id;
+        try {
+          onStatus('Downloading…');
+          const content = await fetchFile(token, fileId);
+          const parsed = JSON.parse(content);
+          if (!parsed.config && !parsed.sessions && !parsed.baselines) throw new Error('Not a valid backup');
+          if (!confirm('Replace all local data with Drive backup?')) { onStatus('Cancelled.'); return; }
+          saveConfig({ fileId });
+          localStorage.setItem('tracker:v1', content);
+          onStatus('Loaded — reloading…');
+          setTimeout(() => location.reload(), 800);
+        } catch (e) {
+          onStatus('Error: ' + e.message);
+        }
+      })
+      .build();
+    picker.setVisible(true);
+  }
+
+  return { loadConfig, saveConfig, save, load };
+})();
+
+/* ════════════════════════════════════════════════════════════════
    DATE / SCHEDULE HELPERS
    ════════════════════════════════════════════════════════════════ */
 function fmtISO(d) {
@@ -1297,6 +1483,7 @@ function renderSetup(isFirstRun) {
   document.getElementById('topbar-title').textContent = isFirstRun ? 'Welcome' : 'Setup';
   document.getElementById('topbar-sub').textContent  = isFirstRun ? 'Set start date + Week-1 weights' : `Cycle ${cycle}`;
 
+  const driveCfg = DriveSync.loadConfig();
   const view = document.getElementById('view');
   view.innerHTML = `
     ${isFirstRun ? `
@@ -1327,6 +1514,46 @@ function renderSetup(isFirstRun) {
         Leave blank if you'll decide on the day.
       </div>
       <div id="exercise-list"></div>
+    </div>
+
+    <div class="card">
+      <h2>Data backup</h2>
+      <div class="row mb-2">
+        <button class="btn secondary" id="export-btn">Export JSON</button>
+        <button class="btn secondary" id="import-btn">Import JSON</button>
+        <input type="file" id="import-file" accept=".json" style="display:none">
+      </div>
+      <div class="text-xs text-muted">Download a backup of all workout data, or restore from a previous export.</div>
+    </div>
+
+    <div class="card">
+      <h2>Google Drive sync</h2>
+      <details class="mb-2">
+        <summary class="text-xs text-muted" style="cursor:pointer;user-select:none;padding:4px 0;">Setup instructions ▾</summary>
+        <ol class="note mt-1" style="padding-left:1.4em;line-height:1.9;font-size:0.8rem;">
+          <li>Go to <strong>console.cloud.google.com</strong> → create a project</li>
+          <li>Enable the <em>Google Drive API</em></li>
+          <li>Create an <em>OAuth 2.0 Client ID</em> (Web application) — add this page's URL as an authorised JavaScript origin</li>
+          <li>Create an <em>API Key</em> (restrict to Drive API) — needed for the file picker</li>
+          <li>Paste both values below and tap Save credentials</li>
+        </ol>
+      </details>
+      <div class="field">
+        <label for="drive-client-id">OAuth Client ID</label>
+        <input type="text" id="drive-client-id" placeholder="xxxx.apps.googleusercontent.com" value="${escapeHtml(driveCfg.clientId || '')}">
+      </div>
+      <div class="field">
+        <label for="drive-api-key">API Key <span class="text-muted">(for file picker)</span></label>
+        <input type="text" id="drive-api-key" placeholder="AIza…" value="${escapeHtml(driveCfg.apiKey || '')}">
+      </div>
+      <button class="btn secondary sm" id="drive-cred-btn">Save credentials</button>
+      <div id="drive-controls" ${driveCfg.clientId ? '' : 'hidden'} style="margin-top:14px;">
+        <div class="row">
+          <button class="btn secondary" id="drive-save-btn">Save to Drive</button>
+          <button class="btn secondary" id="drive-load-btn">Load from Drive</button>
+        </div>
+        <div class="drive-status" id="drive-status">${driveCfg.lastSaved ? 'Last saved: ' + escapeHtml(driveCfg.lastSaved) : ''}</div>
+      </div>
     </div>
 
     <div class="card">
@@ -1402,6 +1629,28 @@ function renderSetup(isFirstRun) {
       location.reload();
     }
   };
+
+  document.getElementById('export-btn').onclick = exportData;
+
+  const importFile = document.getElementById('import-file');
+  document.getElementById('import-btn').onclick = () => importFile.click();
+  importFile.onchange = () => importData(importFile);
+
+  document.getElementById('drive-cred-btn').onclick = () => {
+    const clientId = document.getElementById('drive-client-id').value.trim();
+    const apiKey   = document.getElementById('drive-api-key').value.trim();
+    DriveSync.saveConfig({ clientId, apiKey });
+    document.getElementById('drive-controls').hidden = !clientId;
+    alert('Credentials saved.');
+  };
+
+  if (driveCfg.clientId) {
+    const driveStatus = document.getElementById('drive-status');
+    document.getElementById('drive-save-btn').onclick = () =>
+      DriveSync.save(msg => { driveStatus.textContent = msg; });
+    document.getElementById('drive-load-btn').onclick = () =>
+      DriveSync.load(msg => { driveStatus.textContent = msg; });
+  }
 }
 
 /* ════════════════════════════════════════════════════════════════
