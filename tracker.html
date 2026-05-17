@@ -596,6 +596,45 @@
   .text-xs { font-size: 0.75rem; }
   .mt-1 { margin-top: 6px; } .mt-2 { margin-top: 12px; } .mb-1 { margin-bottom: 6px; } .mb-2 { margin-bottom: 12px; }
   .drive-status { font-size: 0.78rem; color: var(--muted); min-height: 1.2em; margin-top: 8px; }
+
+  /* ── Heart-rate ──────────────────────────────────────────── */
+  .hr-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 4px 9px;
+    border-radius: 999px;
+    letter-spacing: 0.01em;
+  }
+  .hr-badge.resting { background: var(--green); }
+  .hr-connect-btn {
+    font-size: 0.75rem;
+    color: var(--muted);
+    padding: 4px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border-h);
+    background: var(--paper);
+    font-weight: 600;
+  }
+  .hr-connect-btn:active { background: var(--border); }
+  .hr-connect-btn.connected { color: var(--accent); border-color: var(--accent); }
+  .hr-inline {
+    font-size: 0.8rem;
+    color: var(--muted);
+    font-weight: 600;
+    min-width: 48px;
+    text-align: right;
+  }
+  .h-hr {
+    font-size: 0.75rem;
+    color: var(--green-d);
+    margin-top: 2px;
+    font-weight: 600;
+  }
 </style>
 </head>
 <body>
@@ -606,6 +645,8 @@
     </div>
     <div class="topbar-actions">
       <button class="iconbtn" id="today-btn" title="Jump to today" hidden>Today</button>
+      <span id="hr-badge" class="hr-badge" hidden>♥ <span id="hr-bpm">--</span></span>
+      <button id="hr-connect-btn" class="hr-connect-btn">♥ Connect HR</button>
     </div>
   </header>
 
@@ -1158,6 +1199,82 @@ const DriveSync = (() => {
 })();
 
 /* ════════════════════════════════════════════════════════════════
+   HEART RATE MONITOR  (Web Bluetooth — requires secure context)
+   ════════════════════════════════════════════════════════════════ */
+const HeartRate = (() => {
+  let _char   = null;
+  let _device = null;
+  let _bpm    = null;
+  let _buffer = []; // { ts, bpm }[]
+
+  function _parseBpm(value) {
+    const flags = value.getUint8(0);
+    return (flags & 1) ? value.getUint16(1, true) : value.getUint8(1);
+  }
+
+  function _onNotification(e) {
+    const bpm = _parseBpm(e.target.value);
+    _bpm = bpm;
+    const ts = Date.now();
+    _buffer.push({ ts, bpm });
+    const cutoff = ts - 30 * 60 * 1000;
+    if (_buffer.length > 0 && _buffer[0].ts < cutoff) {
+      _buffer = _buffer.filter(p => p.ts >= cutoff);
+    }
+    window.dispatchEvent(new CustomEvent('hr:reading', { detail: { bpm } }));
+  }
+
+  function _onDisconnect() {
+    _char = null; _bpm = null;
+    window.dispatchEvent(new CustomEvent('hr:disconnected'));
+  }
+
+  async function connect() {
+    if (!navigator.bluetooth) {
+      alert('Web Bluetooth is not supported in this browser, or the page is not served over HTTPS / localhost.');
+      return;
+    }
+    try {
+      _device = await navigator.bluetooth.requestDevice({
+        filters: [{ services: ['heart_rate'] }]
+      });
+      _device.addEventListener('gattserverdisconnected', _onDisconnect);
+      const server  = await _device.gatt.connect();
+      const service = await server.getPrimaryService('heart_rate');
+      _char = await service.getCharacteristic('heart_rate_measurement');
+      _char.addEventListener('characteristicvaluechanged', _onNotification);
+      await _char.startNotifications();
+      window.dispatchEvent(new CustomEvent('hr:connected'));
+    } catch (e) {
+      _char = null;
+      if (e.name !== 'NotFoundError') alert('HR connect failed: ' + e.message);
+    }
+  }
+
+  function disconnect() {
+    if (_device && _device.gatt.connected) _device.gatt.disconnect();
+    _char = null; _bpm = null;
+    window.dispatchEvent(new CustomEvent('hr:disconnected'));
+  }
+
+  function isConnected() { return _char !== null; }
+  function latest()      { return _bpm; }
+
+  function extractWindow(startTs, endTs) {
+    const samples = _buffer
+      .filter(p => p.ts >= startTs && p.ts <= endTs)
+      .map(p => p.bpm);
+    if (!samples.length) return { samples: [], avg: null, max: null, min: null };
+    const avg = Math.round(samples.reduce((a, b) => a + b, 0) / samples.length);
+    const max = Math.max(...samples);
+    const min = Math.min(...samples);
+    return { samples, avg, max, min };
+  }
+
+  return { connect, disconnect, isConnected, latest, extractWindow };
+})();
+
+/* ════════════════════════════════════════════════════════════════
    DATE / SCHEDULE HELPERS
    ════════════════════════════════════════════════════════════════ */
 function fmtISO(d) {
@@ -1320,6 +1437,7 @@ const Timer = {
             <div class="ex" id="tm-ex"></div>
           </div>
           <div class="digits" id="tm-digits">00:00</div>
+          <span class="hr-inline" id="tm-hr"></span>
         </div>
         <div class="controls">
           <button class="btn block" id="timer-end-set">End set &amp; rest</button>
@@ -1335,6 +1453,7 @@ const Timer = {
             <div class="ex">All warm-up exercises (no rest tracked)</div>
           </div>
           <div class="digits" id="tm-digits">00:00</div>
+          <span class="hr-inline" id="tm-hr"></span>
         </div>
         <div class="controls">
           <button class="btn block" id="timer-end-warmup">End warm-up</button>
@@ -1350,6 +1469,7 @@ const Timer = {
             <div class="planned" id="tm-planned"></div>
           </div>
           <div class="digits" id="tm-digits">00:00</div>
+          <span class="hr-inline" id="tm-hr"></span>
         </div>
         <div class="controls">
           <button class="btn secondary sm" id="timer-add-rest">+30 s</button>
@@ -1384,10 +1504,14 @@ const Timer = {
       const txt = `${s.meta.exerciseName} · Set ${s.meta.setIndex}/${s.meta.totalSets}`;
       if (exEl.textContent !== txt) exEl.textContent = txt;
       document.getElementById('tm-digits').textContent = fmtTime(elapsed);
+      const hrEl = document.getElementById('tm-hr');
+      if (hrEl) hrEl.textContent = HeartRate.isConnected() && HeartRate.latest() ? '♥ ' + HeartRate.latest() : '';
     } else if (s.kind === 'warmup-active') {
       const elapsed = Math.floor((Date.now() - s.startedAt) / 1000);
       if (el.className !== 'timer-bar set-active') el.className = 'timer-bar set-active';
       document.getElementById('tm-digits').textContent = fmtTime(elapsed);
+      const hrEl = document.getElementById('tm-hr');
+      if (hrEl) hrEl.textContent = HeartRate.isConnected() && HeartRate.latest() ? '♥ ' + HeartRate.latest() : '';
     } else if (s.kind === 'resting') {
       const elapsed = Math.floor((Date.now() - s.restStartedAt) / 1000);
       const planned = s.plannedRest;
@@ -1405,6 +1529,8 @@ const Timer = {
         : `+${fmtTime(-remaining)} over ${fmtTime(planned)} plan`;
       document.getElementById('tm-planned').textContent = remTxt;
       document.getElementById('tm-digits').textContent = fmtTime(elapsed);
+      const hrEl = document.getElementById('tm-hr');
+      if (hrEl) hrEl.textContent = HeartRate.isConnected() && HeartRate.latest() ? '♥ ' + HeartRate.latest() : '';
     }
   },
 };
@@ -2122,6 +2248,12 @@ function onTimerEndWarmup() {
   const r = Timer.endWarmup();
   if (!r || !activeDayState.warmup) return;
   activeDayState.warmup.endedAt = r.endedAt;
+  if (HeartRate.isConnected()) {
+    const hr = HeartRate.extractWindow(r.startedAt, r.endedAt);
+    activeDayState.warmup.hrSamples = hr.samples;
+    activeDayState.warmup.hrAvg     = hr.avg;
+    activeDayState.warmup.hrMax     = hr.max;
+  }
   persistDayState();
   rerenderActiveSetButton();
 }
@@ -2134,7 +2266,13 @@ function onTimerEndSet() {
   const setEntry = exState.sets.find(s => s.setIndex === ps.setIndex);
   if (setEntry) {
     setEntry.startedAt = r.startedAt;
-    setEntry.endedAt = r.endedAt;
+    setEntry.endedAt   = r.endedAt;
+    if (HeartRate.isConnected()) {
+      const hr = HeartRate.extractWindow(r.startedAt, r.endedAt);
+      setEntry.hrSamples = hr.samples;
+      setEntry.hrAvg     = hr.avg;
+      setEntry.hrMax     = hr.max;
+    }
   }
   persistDayState();
   rerenderActiveSetButton(ps.exKey, ps.setIndex);
@@ -2148,6 +2286,14 @@ function onTimerSkipRest() {
     const prevSet = exState.sets.find(s => s.setIndex === ps.setIndex);
     if (prevSet) {
       prevSet.restSeconds = rs;
+      if (HeartRate.isConnected()) {
+        const restEnd   = Date.now();
+        const restStart = restEnd - rs * 1000;
+        const hr = HeartRate.extractWindow(restStart, restEnd);
+        prevSet.restHrSamples = hr.samples;
+        prevSet.restHrAvg     = hr.avg;
+        prevSet.restHrMax     = hr.max;
+      }
       persistDayState();
       rerenderActiveSetButton(ps.exKey, ps.setIndex);
     }
@@ -2246,7 +2392,9 @@ function renderHistoryDetail(s) {
   let warmupHtml = '';
   if (s.warmup && s.warmup.startedAt && s.warmup.endedAt) {
     const dur = Math.round((s.warmup.endedAt - s.warmup.startedAt) / 1000);
-    warmupHtml = `<div class="h-ex"><span class="h-ex-name">Warm-up</span> <span class="h-sets">${fmtTime(dur)}</span></div>`;
+    const wHr = s.warmup.hrAvg != null
+      ? `<div class="h-hr">♥ avg ${s.warmup.hrAvg} max ${s.warmup.hrMax}</div>` : '';
+    warmupHtml = `<div class="h-ex"><span class="h-ex-name">Warm-up</span> <span class="h-sets">${fmtTime(dur)}</span>${wHr}</div>`;
   }
   if (!entries.length && !warmupHtml) return '<div class="text-xs text-muted">No exercises logged.</div>';
   return warmupHtml + entries.map(([id, ex]) => {
@@ -2255,10 +2403,12 @@ function renderHistoryDetail(s) {
       .filter(x => x.endedAt)
       .sort((a, b) => a.setIndex - b.setIndex)
       .map(x => {
-        const dur = Math.round((x.endedAt - x.startedAt) / 1000);
+        const dur  = Math.round((x.endedAt - x.startedAt) / 1000);
         const rest = x.restSeconds != null ? ` r${x.restSeconds}s` : '';
-        const rpe = x.rpe != null ? ` @${x.rpe}` : '';
-        return `S${x.setIndex}:${fmtTime(dur)}${rest}${rpe}`;
+        const rpe  = x.rpe != null ? ` @${x.rpe}` : '';
+        const hr   = x.hrAvg != null ? ` ♥${x.hrAvg}↑${x.hrMax}` : '';
+        const rhr  = x.restHrAvg != null ? ` rest♥${x.restHrAvg}` : '';
+        return `S${x.setIndex}:${fmtTime(dur)}${rest}${rpe}${hr}${rhr}`;
       }).join('  ');
     return `<div class="h-ex">
       <span class="h-ex-name">${escapeHtml(name)}</span>
@@ -2271,16 +2421,42 @@ function renderHistoryDetail(s) {
 /* ════════════════════════════════════════════════════════════════
    INIT
    ════════════════════════════════════════════════════════════════ */
-window.go = go; // expose for inline onclick
-window.Tracker = { Timer, Storage }; // surfaced for advanced users / debugging via DevTools
+window.go = go;
+window.Tracker = { Timer, Storage, HeartRate };
 Timer.init(document.getElementById('timer-bar'));
 if (!location.hash) location.hash = '/today';
 route();
 
-// Keep timer accurate when tab returns from background
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) Timer.render();
 });
+
+// ── Heart-rate UI wiring ──────────────────────────────────────
+(function () {
+  const badge      = document.getElementById('hr-badge');
+  const bpmSpan    = document.getElementById('hr-bpm');
+  const connectBtn = document.getElementById('hr-connect-btn');
+
+  function setConnected(on) {
+    badge.hidden = !on;
+    connectBtn.textContent = on ? '♥ Disconnect' : '♥ Connect HR';
+    connectBtn.classList.toggle('connected', on);
+  }
+
+  window.addEventListener('hr:reading', e => {
+    bpmSpan.textContent = e.detail.bpm;
+  });
+  window.addEventListener('hr:connected',    () => setConnected(true));
+  window.addEventListener('hr:disconnected', () => setConnected(false));
+
+  connectBtn.addEventListener('click', () => {
+    if (HeartRate.isConnected()) {
+      HeartRate.disconnect();
+    } else {
+      HeartRate.connect();
+    }
+  });
+})();
 </script>
 </body>
 </html>
