@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en" class="theme-earth">
+<html lang="en" class="theme-navy">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Finance</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#8b5e3c">
+<meta name="theme-color" content="#1b3a6b">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Finance">
@@ -56,7 +56,7 @@
   .tab {
     flex: 1; height: var(--tab-h);
     background: none; border: none; color: rgba(255,255,255,.65);
-    font-size: .9rem; font-weight: 600; cursor: pointer;
+    font-size: 1.35rem; cursor: pointer;
     border-bottom: 3px solid transparent;
     transition: color .15s, border-color .15s;
   }
@@ -98,7 +98,7 @@
   .section-heading {
     font-size: .75rem; font-weight: 700; color: var(--muted);
     text-transform: uppercase; letter-spacing: .08em;
-    margin: 20px 0 8px;
+    margin: 32px 0 12px;
   }
 
   /* ── Filter bar ── */
@@ -340,7 +340,7 @@
 <div class="header">
   <h1>Finance</h1>
   <div class="header-actions">
-    <button class="iconbtn" id="driveSyncHeaderBtn" title="Sync Google Drive" aria-label="Sync Google Drive" onclick="driveSyncHeader()" style="display:none">↕</button>
+    <button class="iconbtn" id="driveSyncHeaderBtn" title="Sync Google Drive" aria-label="Sync Google Drive" onclick="driveSyncHeader()" style="display:none">🔄</button>
     <div class="menu-wrap">
       <button class="iconbtn" id="menuBtn" title="More options" aria-label="More options">⋯</button>
       <div class="dropdown" id="mainMenu">
@@ -362,9 +362,9 @@
 
 <!-- Tabs -->
 <div class="tabs">
-  <button class="tab active" data-tab="expenses">Expenses</button>
-  <button class="tab" data-tab="investments">Investments</button>
-  <button class="tab" data-tab="analysis">Analysis</button>
+  <button class="tab active" data-tab="expenses">💳</button>
+  <button class="tab" data-tab="investments">📈</button>
+  <button class="tab" data-tab="analysis">📊</button>
 </div>
 
 <!-- Expenses Page -->
@@ -569,7 +569,7 @@ function openThemePicker() {
 function renderThemePicker() {
   const el = document.getElementById('themeList');
   if (!el) return;
-  const current = localStorage.getItem('finance:theme') || 'earth';
+  const current = localStorage.getItem('finance:theme') || 'navy';
   el.innerHTML = THEMES.map(t => `
     <button class="theme-option${t.id === current ? ' active' : ''}"
             onclick="applyTheme('${t.id}')">
@@ -582,7 +582,7 @@ function renderThemePicker() {
 }
 
 (function() {
-  const saved = localStorage.getItem('finance:theme') || 'earth';
+  const saved = localStorage.getItem('finance:theme') || 'navy';
   document.documentElement.className = 'theme-' + saved;
   document.querySelector('meta[name="theme-color"]').content =
     (THEMES.find(t => t.id === saved) || THEMES[0]).primary;
@@ -652,6 +652,11 @@ function fmt(n) {
 
 function fmtCurrency(n) {
   return (n < 0 ? '-' : '') + '$' + fmt(Math.abs(n));
+}
+
+function fmtDollar(n) {
+  const r = Math.round(n);
+  return (r < 0 ? '-' : '') + '$' + new Intl.NumberFormat(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.abs(r));
 }
 
 function showToast(msg, dur = 2500) {
@@ -1194,7 +1199,7 @@ async function driveSyncHeader() {
   try {
     await driveSync();
   } finally {
-    btn.textContent = '↕';
+    btn.textContent = '🔄';
     btn.disabled = false;
   }
 }
@@ -1470,16 +1475,21 @@ function renderCategoryChart(byMonth, months, allCats) {
   if (!months.length) return '';
   const budgets = data.budgets || {};
   const visibleCats = allCats.filter(c => !_hiddenCats.has(c));
+  const TOTAL_COLOR = '#2c3e50';
+  const totalHidden = _hiddenCats.has('Total');
 
   const COL_W = 64, H = 160, PAD_L = 44, PAD_B = 28, PAD_T = 8, PAD_R = 12;
   const svgW = PAD_L + months.length * COL_W + PAD_R;
   const svgH = H + PAD_T + PAD_B;
+
+  const monthlyTotals = months.map(m => allCats.reduce((s, cat) => s + ((byMonth[m] && byMonth[m][cat]) || 0), 0));
 
   let maxVal = 0;
   visibleCats.forEach(cat => months.forEach(m => {
     maxVal = Math.max(maxVal, (byMonth[m] && byMonth[m][cat]) || 0);
   }));
   visibleCats.forEach(cat => { const b = budgets[cat]; if (b > 0) maxVal = Math.max(maxVal, b); });
+  if (!totalHidden) monthlyTotals.forEach(v => { maxVal = Math.max(maxVal, v); });
   if (maxVal === 0) maxVal = 100;
   const scale = Math.pow(10, Math.floor(Math.log10(maxVal)));
   maxVal = Math.ceil(maxVal / scale) * scale;
@@ -1519,6 +1529,16 @@ function renderCategoryChart(byMonth, months, allCats) {
     return `<path d="${path}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>${dots}`;
   }).join('');
 
+  const totalLine = (() => {
+    if (totalHidden) return '';
+    const pts = monthlyTotals.map((v, i) => [xPos(i), yPos(v)]);
+    const path = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+    const dots = pts.map(([cx, cy]) =>
+      `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.5" fill="${TOTAL_COLOR}" stroke="#fff" stroke-width="1.5"/>`
+    ).join('');
+    return `<path d="${path}" fill="none" stroke="${TOTAL_COLOR}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${dots}`;
+  })();
+
   const legend = allCats.map((cat, ci) => {
     const b = budgets[cat];
     const budgetTag = b > 0 ? ` <span style="color:var(--muted);font-weight:400">(${fmtCurrency(b)})</span>` : '';
@@ -1528,19 +1548,26 @@ function renderCategoryChart(byMonth, months, allCats) {
     return `<div class="legend-item" style="${itemStyle}" onclick='toggleChartCat(${JSON.stringify(cat)})'><div class="legend-dot" style="background:${catColor(cat, ci)}"></div><span style="${nameStyle}">${esc(cat)}${budgetTag}</span></div>`;
   }).join('');
 
+  const totalLegendItem = (() => {
+    const hidden = _hiddenCats.has('Total');
+    const itemStyle = `cursor:pointer;user-select:none;${hidden ? 'opacity:0.35;' : ''}`;
+    const nameStyle = hidden ? 'text-decoration:line-through' : '';
+    return `<div class="legend-item" style="${itemStyle}" onclick='toggleChartCat("Total")'><div class="legend-dot" style="background:${TOTAL_COLOR}"></div><span style="${nameStyle}">Total</span></div>`;
+  })();
+
   return `<div class="chart-wrap">
     <div class="chart-title">Monthly Trend by Category</div>
     <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-      <svg width="${svgW}" height="${svgH}" style="display:block">${grid}${budgetLines}${catLines}${xLabels}</svg>
+      <svg width="${svgW}" height="${svgH}" style="display:block">${grid}${budgetLines}${catLines}${totalLine}${xLabels}</svg>
     </div>
-    <div class="chart-legend">${legend}</div>
+    <div class="chart-legend">${legend}${totalLegendItem}</div>
   </div>`;
 }
 
 // ── Render: Analysis ─────────────────────────────────────────────────────────
 function renderAnalysis() {
   const el = document.getElementById('analysisList');
-  const expenses = data.expenses.filter(e => e.cat !== 'TopUp');
+  const expenses = data.expenses.filter(e => e.cat !== 'TopUp' && e.cat !== 'Other');
   if (!expenses.length) {
     el.innerHTML = '<div class="empty-state"><div class="icon">📊</div>No expense data yet.</div>';
     return;
@@ -1556,6 +1583,7 @@ function renderAnalysis() {
   const months = Object.keys(byMonth).sort();
   const allCats = [...new Set(expenses.map(e => e.cat))].sort();
   const budgets = data.budgets || {};
+  const totalBudget = Object.values(budgets).reduce((s, v) => s + v, 0);
 
   _chartData = { byMonth, months, allCats };
   const chart = `<div id="categoryChart">${renderCategoryChart(byMonth, months, allCats)}</div>`;
@@ -1565,29 +1593,28 @@ function renderAnalysis() {
     const total = Object.values(cats).reduce((s, v) => s + v, 0);
     const label = new Date(month + '-01T00:00:00').toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
     const rows = Object.entries(cats).sort((a, b) => b[1] - a[1]);
+
+    let budgetBadge = '';
+    if (totalBudget > 0) {
+      const diff = Math.round(total - totalBudget);
+      const over = diff > 0;
+      budgetBadge = `<span class="${over ? 'over-budget' : 'under-budget'}">${diff >= 0 ? '+' : ''}${fmtDollar(diff)}</span>`;
+    }
+
     return `
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
           <div style="font-weight:700;font-size:1rem">${label}</div>
-          <div style="font-weight:800;font-size:1.05rem;color:var(--primary)">${fmtCurrency(total)}</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            ${budgetBadge}
+            <div style="font-weight:800;font-size:1.05rem;color:var(--primary)">${fmtDollar(total)}</div>
+          </div>
         </div>
-        ${rows.map(([cat, amt]) => {
-          const budget = budgets[cat];
-          let budgetBadge = '';
-          if (budget > 0) {
-            const pct = (amt - budget) / budget * 100;
-            const over = pct > 0;
-            budgetBadge = `<span class="${over ? 'over-budget' : 'under-budget'}">${over ? '+' : ''}${pct.toFixed(0)}%</span>`;
-          }
-          return `
+        ${rows.map(([cat, amt]) => `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--border)">
             <span style="font-size:.9rem">${esc(cat)}</span>
-            <div style="display:flex;align-items:center;gap:8px">
-              ${budgetBadge}
-              <span style="font-weight:600;font-size:.9rem">${fmtCurrency(amt)}</span>
-            </div>
-          </div>`;
-        }).join('')}
+            <span style="font-weight:600;font-size:.9rem">${fmtDollar(amt)}</span>
+          </div>`).join('')}
       </div>`;
   }).join('');
 

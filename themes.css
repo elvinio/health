@@ -1,4 +1,25 @@
-html, html.theme-earth {
+html {
+  --bg: #f0f4f8;
+  --paper: #f8fafc;
+  --card: #ffffff;
+  --primary: #1b3a6b;
+  --primary-light: #2e6da4;
+  --green: #1e6f50;
+  --green-light: #d0f0e0;
+  --red: #c0392b;
+  --red-light: #fde8e6;
+  --text: #0f1e32;
+  --muted: #4a6282;
+  --border: #ccd8e8;
+  --shadow: 0 1px 3px rgba(15,30,50,.08);
+  --shadow-heavy: 0 8px 32px rgba(15,30,50,.18);
+  --backdrop: rgba(15,30,50,.4);
+  --modal-bg: rgba(15,30,50,.5);
+  --fab-shadow: rgba(27,58,107,.35);
+  --theme-color: #1b3a6b;
+}
+
+html.theme-earth {
   --bg: #faf6ee;
   --paper: #fdf9f2;
   --card: #ffffff;
