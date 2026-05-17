@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en" class="theme-earth">
+<html lang="en" class="theme-navy">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Finance</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#8b5e3c">
+<meta name="theme-color" content="#1b3a6b">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Finance">
@@ -56,7 +56,7 @@
   .tab {
     flex: 1; height: var(--tab-h);
     background: none; border: none; color: rgba(255,255,255,.65);
-    font-size: .9rem; font-weight: 600; cursor: pointer;
+    font-size: 1.35rem; cursor: pointer;
     border-bottom: 3px solid transparent;
     transition: color .15s, border-color .15s;
   }
@@ -98,7 +98,7 @@
   .section-heading {
     font-size: .75rem; font-weight: 700; color: var(--muted);
     text-transform: uppercase; letter-spacing: .08em;
-    margin: 20px 0 8px;
+    margin: 32px 0 12px;
   }
 
   /* ── Filter bar ── */
@@ -340,7 +340,7 @@
 <div class="header">
   <h1>Finance</h1>
   <div class="header-actions">
-    <button class="iconbtn" id="driveSyncHeaderBtn" title="Sync Google Drive" aria-label="Sync Google Drive" onclick="driveSyncHeader()" style="display:none">↕</button>
+    <button class="iconbtn" id="driveSyncHeaderBtn" title="Sync Google Drive" aria-label="Sync Google Drive" onclick="driveSyncHeader()" style="display:none">🔄</button>
     <div class="menu-wrap">
       <button class="iconbtn" id="menuBtn" title="More options" aria-label="More options">⋯</button>
       <div class="dropdown" id="mainMenu">
@@ -362,9 +362,9 @@
 
 <!-- Tabs -->
 <div class="tabs">
-  <button class="tab active" data-tab="expenses">Expenses</button>
-  <button class="tab" data-tab="investments">Investments</button>
-  <button class="tab" data-tab="analysis">Analysis</button>
+  <button class="tab active" data-tab="expenses">💳</button>
+  <button class="tab" data-tab="investments">📈</button>
+  <button class="tab" data-tab="analysis">📊</button>
 </div>
 
 <!-- Expenses Page -->
@@ -569,7 +569,7 @@ function openThemePicker() {
 function renderThemePicker() {
   const el = document.getElementById('themeList');
   if (!el) return;
-  const current = localStorage.getItem('finance:theme') || 'earth';
+  const current = localStorage.getItem('finance:theme') || 'navy';
   el.innerHTML = THEMES.map(t => `
     <button class="theme-option${t.id === current ? ' active' : ''}"
             onclick="applyTheme('${t.id}')">
@@ -582,7 +582,7 @@ function renderThemePicker() {
 }
 
 (function() {
-  const saved = localStorage.getItem('finance:theme') || 'earth';
+  const saved = localStorage.getItem('finance:theme') || 'navy';
   document.documentElement.className = 'theme-' + saved;
   document.querySelector('meta[name="theme-color"]').content =
     (THEMES.find(t => t.id === saved) || THEMES[0]).primary;
@@ -1199,7 +1199,7 @@ async function driveSyncHeader() {
   try {
     await driveSync();
   } finally {
-    btn.textContent = '↕';
+    btn.textContent = '🔄';
     btn.disabled = false;
   }
 }
