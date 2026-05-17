@@ -600,6 +600,8 @@ function renderThemePicker() {
 const STORAGE_KEY = 'finance:v1';
 const DRIVE_FILE_KEY = 'finance:driveFileId';
 const DRIVE_CLIENT_KEY = 'finance:googleClientId';
+const HISTORY_KEY = 'finance:v1:history';
+const DRIVE_HISTORY_FILE_KEY = 'finance:driveHistoryFileId';
 
 function defaultData() {
   return {
@@ -635,18 +637,34 @@ function saveData(d) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
 }
 
-function recalcBalances(d) {
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    if (!raw) return { expenses: [] };
+    const d = JSON.parse(raw);
+    if (!Array.isArray(d.expenses)) d.expenses = [];
+    return d;
+  } catch { return { expenses: [] }; }
+}
+
+function saveHistory(h) {
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
+}
+
+function recalcBalances(d, expenses) {
+  const exps = expenses !== undefined ? expenses : d.expenses;
   d.accounts.forEach(acc => {
-    const net = d.expenses
+    const net = exps
       .filter(e => e.ac === acc.id)
       .reduce((s, e) => s + (e.cat === 'TopUp' ? -e.amount : e.amount), 0);
     acc.balance = acc.startingBalance - net;
   });
 }
 
-function recalcMonthlyAgg(d) {
+function recalcMonthlyAgg(d, expenses) {
+  const exps = expenses !== undefined ? expenses : d.expenses;
   d.monthlyAgg = {};
-  d.expenses.forEach(e => {
+  exps.forEach(e => {
     if (e.cat === 'TopUp') return;
     const m = e.date.slice(0, 7);
     if (!d.monthlyAgg[m]) d.monthlyAgg[m] = {};
@@ -655,8 +673,26 @@ function recalcMonthlyAgg(d) {
 }
 
 let data = loadData();
-recalcBalances(data);
-recalcMonthlyAgg(data);
+let historyData = loadHistory();
+
+function allExpenses() {
+  return [...historyData.expenses, ...data.expenses];
+}
+
+function migrateExpenses() {
+  const curYear = String(new Date().getFullYear());
+  const past = data.expenses.filter(e => !e.date.startsWith(curYear + '-'));
+  if (!past.length) return;
+  const existingIds = new Set(historyData.expenses.map(e => e.id));
+  past.forEach(e => { if (!existingIds.has(e.id)) historyData.expenses.push(e); });
+  data.expenses = data.expenses.filter(e => e.date.startsWith(curYear + '-'));
+  saveHistory(historyData);
+  saveData(data);
+}
+
+migrateExpenses();
+recalcBalances(data, allExpenses());
+recalcMonthlyAgg(data, allExpenses());
 
 // ── Utilities ────────────────────────────────────────────────────────────────
 function uid() {
@@ -748,26 +784,27 @@ function renderAccountCards() {
 
 function balanceAtMonthStart(accountId, monthStr) {
   const acc = data.accounts.find(a => a.id === accountId);
-  return data.expenses
+  return allExpenses()
     .filter(e => e.ac === accountId && e.date.slice(0, 7) < monthStr)
     .reduce((s, e) => s + (e.cat === 'TopUp' ? e.amount : -e.amount), acc.startingBalance);
 }
 
 function balanceAtMonthEnd(accountId, monthStr) {
   const acc = data.accounts.find(a => a.id === accountId);
-  return data.expenses
+  return allExpenses()
     .filter(e => e.ac === accountId && e.date.slice(0, 7) <= monthStr)
     .reduce((s, e) => s + (e.cat === 'TopUp' ? e.amount : -e.amount), acc.startingBalance);
 }
 
 function renderExpenseList() {
   const el = document.getElementById('expenseList');
-  if (!data.expenses.length) {
+  if (!allExpenses().length) {
     el.innerHTML = `<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">payments</span></div>No expenses yet.<br>Tap + to add one.</div>`;
     return;
   }
-  let sorted = [...data.expenses].sort((a, b) => b.date.localeCompare(a.date) || b._ts - a._ts);
-  sorted = sorted.filter(e => e.date.startsWith(filterYear + '-'));
+  const curYear = String(new Date().getFullYear());
+  const source = filterYear === curYear ? data.expenses : historyData.expenses.filter(e => e.date.startsWith(filterYear + '-'));
+  let sorted = [...source].sort((a, b) => b.date.localeCompare(a.date) || b._ts - a._ts);
   if (filterAccount) sorted = sorted.filter(e => e.ac === filterAccount);
   if (filterSearch) sorted = sorted.filter(e => e.desc.toLowerCase().includes(filterSearch));
   if (!sorted.length) {
@@ -839,12 +876,12 @@ function openExpenseSheet(id, preAcct) {
   sel.innerHTML = data.accounts.map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join('');
 
   // Populate category select from existing data, TopUp first then alphabetical
-  const cats = [...new Set(data.expenses.map(e => e.cat))].sort();
+  const cats = [...new Set(allExpenses().map(e => e.cat))].sort();
   if (!cats.includes('TopUp')) cats.unshift('TopUp'); else { cats.splice(cats.indexOf('TopUp'), 1); cats.unshift('TopUp'); }
   document.getElementById('expCat').innerHTML = cats.map(c => `<option>${esc(c)}</option>`).join('');
 
   if (id) {
-    const exp = data.expenses.find(e => e.id === id);
+    const exp = data.expenses.find(e => e.id === id) || historyData.expenses.find(e => e.id === id);
     if (!exp) return;
     document.getElementById('expenseSheetTitle').textContent = 'Edit Expense';
     document.getElementById('expenseId').value = exp.id;
@@ -874,14 +911,37 @@ document.getElementById('expenseForm').addEventListener('submit', e => {
     cat: document.getElementById('expCat').value,
     _ts: Date.now()
   };
+  const curYear = String(new Date().getFullYear());
+  const toHistory = !entry.date.startsWith(curYear + '-');
+
   if (id) {
-    const idx = data.expenses.findIndex(e => e.id === id);
-    if (idx >= 0) data.expenses[idx] = entry;
+    const inCurrent = data.expenses.some(e => e.id === id);
+    if (inCurrent && !toHistory) {
+      const idx = data.expenses.findIndex(e => e.id === id);
+      if (idx >= 0) data.expenses[idx] = entry;
+    } else if (!inCurrent && toHistory) {
+      const idx = historyData.expenses.findIndex(e => e.id === id);
+      if (idx >= 0) historyData.expenses[idx] = entry;
+      saveHistory(historyData);
+    } else if (inCurrent && toHistory) {
+      data.expenses = data.expenses.filter(e => e.id !== id);
+      historyData.expenses.push(entry);
+      saveHistory(historyData);
+    } else {
+      historyData.expenses = historyData.expenses.filter(e => e.id !== id);
+      data.expenses.push(entry);
+      saveHistory(historyData);
+    }
   } else {
-    data.expenses.push(entry);
+    if (toHistory) {
+      historyData.expenses.push(entry);
+      saveHistory(historyData);
+    } else {
+      data.expenses.push(entry);
+    }
   }
-  recalcBalances(data);
-  recalcMonthlyAgg(data);
+  recalcBalances(data, allExpenses());
+  recalcMonthlyAgg(data, allExpenses());
   saveData(data);
   closeSheet();
   renderAll();
@@ -893,9 +953,15 @@ function deleteExpense() {
   if (!id) return;
   if (!confirm('Delete this expense?')) return;
   data._deletedIds.push(id);
-  data.expenses = data.expenses.filter(e => e.id !== id);
-  recalcBalances(data);
-  recalcMonthlyAgg(data);
+  const inCurrent = data.expenses.some(e => e.id === id);
+  if (inCurrent) {
+    data.expenses = data.expenses.filter(e => e.id !== id);
+  } else {
+    historyData.expenses = historyData.expenses.filter(e => e.id !== id);
+    saveHistory(historyData);
+  }
+  recalcBalances(data, allExpenses());
+  recalcMonthlyAgg(data, allExpenses());
   saveData(data);
   closeSheet();
   renderAll();
@@ -909,7 +975,10 @@ let filterYear = String(new Date().getFullYear());
 let analysisYears = new Set([String(new Date().getFullYear())]);
 
 function getExpenseYears() {
-  const years = new Set(data.expenses.map(e => e.date.slice(0, 4)));
+  const years = new Set([
+    ...data.expenses.map(e => e.date.slice(0, 4)),
+    ...historyData.expenses.map(e => e.date.slice(0, 4))
+  ]);
   years.add(String(new Date().getFullYear()));
   return [...years].sort((a, b) => Number(b) - Number(a));
 }
@@ -976,7 +1045,7 @@ function openAccountSettings() {
   document.getElementById('mainMenu').classList.remove('open');
   const body = document.getElementById('accountSettingsBody');
   const allCats = [...new Set([
-    ...data.expenses.filter(e => e.cat !== 'TopUp').map(e => e.cat),
+    ...allExpenses().filter(e => e.cat !== 'TopUp').map(e => e.cat),
     ...Object.keys(data.budgets || {})
   ])].sort();
   const budgets = data.budgets || {};
@@ -1016,7 +1085,7 @@ function saveAccountSettings() {
   });
 
   const allCats = [...new Set([
-    ...data.expenses.filter(e => e.cat !== 'TopUp').map(e => e.cat),
+    ...allExpenses().filter(e => e.cat !== 'TopUp').map(e => e.cat),
     ...Object.keys(data.budgets || {})
   ])].sort();
   if (!data.budgets) data.budgets = {};
@@ -1028,7 +1097,7 @@ function saveAccountSettings() {
     else delete data.budgets[cat];
   });
 
-  recalcBalances(data);
+  recalcBalances(data, allExpenses());
   saveData(data);
   closeSheet();
   renderAll();
@@ -1197,7 +1266,8 @@ document.getElementById('historyOverlay').addEventListener('click', e => {
 // ── Import / Export ───────────────────────────────────────────────────────────
 function exportData() {
   document.getElementById('mainMenu').classList.remove('open');
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const exportObj = { ...data, expenses: allExpenses() };
+  const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -1223,10 +1293,14 @@ document.getElementById('importFile').addEventListener('change', e => {
         showToast('Invalid file format'); return;
       }
       if (!confirm('Replace all current data with imported file?')) return;
-      data = parsed;
-      recalcBalances(data);
-      recalcMonthlyAgg(data);
+      const curYear = String(new Date().getFullYear());
+      data = { ...parsed };
+      data.expenses = (parsed.expenses || []).filter(e => e.date.startsWith(curYear + '-'));
+      historyData = { expenses: (parsed.expenses || []).filter(e => !e.date.startsWith(curYear + '-')) };
+      recalcBalances(data, allExpenses());
+      recalcMonthlyAgg(data, allExpenses());
       saveData(data);
+      saveHistory(historyData);
       renderAll();
       showToast('Imported successfully');
     } catch { showToast('Could not read file'); }
@@ -1239,8 +1313,11 @@ function confirmClearData() {
   document.getElementById('mainMenu').classList.remove('open');
   if (!confirm('Delete ALL data? This cannot be undone.')) return;
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(HISTORY_KEY);
   data = defaultData();
+  historyData = { expenses: [] };
   saveData(data);
+  saveHistory(historyData);
   renderAll();
   showToast('All data cleared');
 }
@@ -1275,7 +1352,7 @@ function openDriveMenu() {
   if (fileId && clientId) {
     document.getElementById('driveSetup').style.display = 'none';
     document.getElementById('driveConnected').style.display = '';
-    document.getElementById('shareCodeDisplay').textContent = makeShareCode(clientId, fileId);
+    document.getElementById('shareCodeDisplay').textContent = makeShareCode(clientId, fileId, localStorage.getItem(DRIVE_HISTORY_FILE_KEY) || '');
     const lastSync = localStorage.getItem('finance:lastSync');
     document.getElementById('driveLastSync').textContent = lastSync
       ? 'Last synced ' + new Date(lastSync).toLocaleString() : '';
@@ -1299,9 +1376,9 @@ function setDriveStatus(msg) {
   document.getElementById('driveStatus').textContent = msg;
 }
 
-// Share code = base64(clientId + "||" + fileId)
-function makeShareCode(clientId, fileId) {
-  return btoa(clientId + '||' + fileId);
+// Share code = base64(clientId + "||" + fileId + "||" + historyFileId)
+function makeShareCode(clientId, fileId, historyFileId) {
+  return btoa(clientId + '||' + fileId + '||' + (historyFileId || ''));
 }
 
 function applyConnectCode() {
@@ -1309,13 +1386,13 @@ function applyConnectCode() {
   if (!raw) { showToast('Paste a connect code first'); return; }
   try {
     const decoded = atob(raw);
-    const sep = decoded.indexOf('||');
-    if (sep < 0) throw new Error('bad format');
-    const clientId = decoded.slice(0, sep);
-    const fileId = decoded.slice(sep + 2);
+    const parts = decoded.split('||');
+    if (parts.length < 2) throw new Error('bad format');
+    const [clientId, fileId, historyFileId] = parts;
     if (!clientId || !fileId) throw new Error('bad format');
     localStorage.setItem(DRIVE_CLIENT_KEY, clientId);
     localStorage.setItem(DRIVE_FILE_KEY, fileId);
+    if (historyFileId) localStorage.setItem(DRIVE_HISTORY_FILE_KEY, historyFileId);
     driveToken = null;
     updateDriveSyncBtn();
     openDriveMenu();
@@ -1369,6 +1446,15 @@ async function getAccessToken(clientId) {
 }
 
 // ── Merge logic ───────────────────────────────────────────────────────────────
+function mergeHistoryData(localH, remoteH) {
+  const expMap = new Map();
+  [...(remoteH.expenses || []), ...(localH.expenses || [])].forEach(e => {
+    const existing = expMap.get(e.id);
+    if (!existing || (e._ts || 0) > (existing._ts || 0)) expMap.set(e.id, e);
+  });
+  return { expenses: [...expMap.values()] };
+}
+
 function mergeData(local, remote) {
   const deletedIds = new Set([...(local._deletedIds || []), ...(remote._deletedIds || [])]);
 
@@ -1419,8 +1505,8 @@ function mergeData(local, remote) {
     _deletedIds: [...deletedIds],
     budgets: { ...(remote.budgets || {}), ...(local.budgets || {}) }
   };
-  recalcBalances(merged);
-  recalcMonthlyAgg(merged);
+  recalcBalances(merged, merged.expenses);
+  recalcMonthlyAgg(merged, merged.expenses);
   return merged;
 }
 
@@ -1432,11 +1518,10 @@ async function driveFirstSave() {
   setDriveStatus('Authenticating…');
   try {
     const token = await getAccessToken(clientId);
-    setDriveStatus('Creating file on Drive…');
-    const merged = await uploadToDrive(token, null, data);
+    setDriveStatus('Creating files on Drive…');
+    await uploadToDrive(token, null, data);
+    await uploadHistoryToDrive(token, null, historyData);
     localStorage.setItem('finance:lastSync', new Date().toISOString());
-    data = merged;
-    saveData(data);
     renderAll();
     updateDriveSyncBtn();
     openDriveMenu();
@@ -1487,9 +1572,9 @@ async function driveSync() {
   }
 }
 
-async function uploadToDrive(token, fileId, payload) {
+async function uploadFileToDrive(token, fileId, payload, filename, storageKey) {
   const content = JSON.stringify(payload, null, 2);
-  const metadata = { name: 'finance-elvis.json', mimeType: 'application/json' };
+  const metadata = { name: filename, mimeType: 'application/json' };
   const form = new FormData();
   form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
   form.append('file', new Blob([content], { type: 'application/json' }));
@@ -1500,8 +1585,25 @@ async function uploadToDrive(token, fileId, payload) {
   const resp = await fetch(url, { method, headers: { Authorization: 'Bearer ' + token }, body: form });
   if (!resp.ok) throw new Error('HTTP ' + resp.status);
   const json = await resp.json();
-  localStorage.setItem(DRIVE_FILE_KEY, json.id);
+  if (storageKey) localStorage.setItem(storageKey, json.id);
+  return json.id;
+}
+
+async function uploadToDrive(token, fileId, payload) {
+  await uploadFileToDrive(token, fileId, payload, 'finance-elvis.json', DRIVE_FILE_KEY);
   return payload;
+}
+
+async function uploadHistoryToDrive(token, fileId, payload) {
+  return uploadFileToDrive(token, fileId, payload, 'finance-elvis-history.json', DRIVE_HISTORY_FILE_KEY);
+}
+
+async function downloadFromDrive(token, fileId) {
+  const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+    headers: { Authorization: 'Bearer ' + token }
+  });
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  return resp.json();
 }
 
 // ── Category chart helpers ────────────────────────────────────────────────────
