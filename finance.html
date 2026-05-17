@@ -549,6 +549,7 @@
 
 <!-- Hidden file input for import -->
 <input type="file" id="importFile" accept=".json" style="display:none">
+<input type="file" id="historyImportFile" accept=".json" style="display:none">
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
@@ -1325,24 +1326,31 @@ function confirmClearData() {
   showToast('All data cleared');
 }
 
-async function pullHistory() {
+function pullHistory() {
   document.getElementById('mainMenu').classList.remove('open');
-  try {
-    const res = await fetch('finance-elvis-history.json');
-    if (!res.ok) throw new Error('Not found');
-    const d = await res.json();
-    if (!Array.isArray(d.expenses)) throw new Error('Invalid format');
-    historyData = { expenses: d.expenses, _updatedAt: d._updatedAt || Date.now() };
-    data.historyUpdatedAt = historyData._updatedAt;
-    recalcMonthlyAgg(data, allExpenses());
-    saveData(data);
-    saveHistory(historyData);
-    renderAll();
-    showToast(`Loaded ${d.expenses.length} history expenses`);
-  } catch (e) {
-    showToast('Could not load history file');
-  }
+  document.getElementById('historyImportFile').click();
 }
+
+document.getElementById('historyImportFile').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const d = JSON.parse(ev.target.result);
+      if (!Array.isArray(d.expenses)) { showToast('Invalid history file'); return; }
+      historyData = { expenses: d.expenses, _updatedAt: d._updatedAt || Date.now() };
+      data.historyUpdatedAt = historyData._updatedAt;
+      recalcMonthlyAgg(data, allExpenses());
+      saveData(data);
+      saveHistory(historyData);
+      renderAll();
+      showToast(`Loaded ${d.expenses.length} history expenses`);
+    } catch { showToast('Could not read history file'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
 
 // ── Drive header sync button ──────────────────────────────────────────────────
 function updateDriveSyncBtn() {
@@ -1590,15 +1598,16 @@ async function driveSync() {
 
     if (remoteHistTs > localHistTs) {
       // Remote history is newer — download and merge
-      let remoteHistory = { expenses: remoteHistFromMain };
       if (historyFileId) {
+        let remoteHistory = { expenses: remoteHistFromMain };
         try {
           const dl = await downloadFromDrive(token, historyFileId);
           if (Array.isArray(dl.expenses)) remoteHistory = mergeHistoryData(dl, { expenses: remoteHistFromMain });
         } catch {}
+        mergedHistory = mergeHistoryData(historyData, remoteHistory);
+        uploadHistory = true;
       }
-      mergedHistory = mergeHistoryData(historyData, remoteHistory);
-      uploadHistory = true;
+      // No historyFileId: can't download remote history, keep local as-is
     } else if (remoteHistFromMain.length) {
       // Old-format migration: past-year entries found in remote main file
       mergedHistory = mergeHistoryData(historyData, { expenses: remoteHistFromMain });
