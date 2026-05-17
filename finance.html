@@ -11,6 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Finance">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="themes.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0" />
 <style>
   :root {
     --radius: 12px;
@@ -47,6 +48,12 @@
     transition: background .15s;
   }
   .iconbtn:active { background: rgba(255,255,255,.15); }
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+    vertical-align: middle; user-select: none;
+  }
+  .dropdown-item .material-symbols-outlined { font-size: 1.1em; margin-right: 2px; }
+  .empty-state .icon .material-symbols-outlined { font-size: inherit; }
 
   /* ── Tabs ── */
   .tabs {
@@ -340,21 +347,21 @@
 <div class="header">
   <h1>Finance</h1>
   <div class="header-actions">
-    <button class="iconbtn" id="driveSyncHeaderBtn" title="Sync Google Drive" aria-label="Sync Google Drive" onclick="driveSyncHeader()" style="display:none">🔄</button>
+    <button class="iconbtn" id="driveSyncHeaderBtn" title="Sync Google Drive" aria-label="Sync Google Drive" onclick="driveSyncHeader()" style="display:none"><span class="material-symbols-outlined">sync</span></button>
     <div class="menu-wrap">
       <button class="iconbtn" id="menuBtn" title="More options" aria-label="More options">⋯</button>
       <div class="dropdown" id="mainMenu">
         <button class="dropdown-item" onclick="openAccountSettings()">⚙️ Account Settings</button>
-        <button class="dropdown-item" id="balanceToggleBtn" onclick="toggleBalanceVisibility()">👁 Hide Balances</button>
+        <button class="dropdown-item" id="balanceToggleBtn" onclick="toggleBalanceVisibility()"><span class="material-symbols-outlined">visibility_off</span> Hide Balances</button>
         <div class="dropdown-sep"></div>
         <button class="dropdown-item" onclick="exportData()">⬇ Export JSON</button>
         <button class="dropdown-item" onclick="triggerImport()">⬆ Import JSON</button>
         <div class="dropdown-sep"></div>
         <button class="dropdown-item" onclick="openDriveMenu()">☁ Google Drive</button>
         <div class="dropdown-sep"></div>
-        <button class="dropdown-item" onclick="openThemePicker()">🎨 Theme</button>
+        <button class="dropdown-item" onclick="openThemePicker()"><span class="material-symbols-outlined">palette</span> Theme</button>
         <div class="dropdown-sep"></div>
-        <button class="dropdown-item danger" onclick="confirmClearData()">🗑 Clear all data</button>
+        <button class="dropdown-item danger" onclick="confirmClearData()"><span class="material-symbols-outlined">delete</span> Clear all data</button>
       </div>
     </div>
   </div>
@@ -362,9 +369,9 @@
 
 <!-- Tabs -->
 <div class="tabs">
-  <button class="tab active" data-tab="expenses">💳</button>
-  <button class="tab" data-tab="investments">📈</button>
-  <button class="tab" data-tab="analysis">📊</button>
+  <button class="tab active" data-tab="expenses"><span class="material-symbols-outlined">credit_card</span></button>
+  <button class="tab" data-tab="investments"><span class="material-symbols-outlined">trending_up</span></button>
+  <button class="tab" data-tab="analysis"><span class="material-symbols-outlined">bar_chart</span></button>
 </div>
 
 <!-- Expenses Page -->
@@ -742,14 +749,14 @@ function balanceAtMonthEnd(accountId, monthStr) {
 function renderExpenseList() {
   const el = document.getElementById('expenseList');
   if (!data.expenses.length) {
-    el.innerHTML = `<div class="empty-state"><div class="icon">💸</div>No expenses yet.<br>Tap + to add one.</div>`;
+    el.innerHTML = `<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">payments</span></div>No expenses yet.<br>Tap + to add one.</div>`;
     return;
   }
   let sorted = [...data.expenses].sort((a, b) => b.date.localeCompare(a.date) || b._ts - a._ts);
   if (filterAccount) sorted = sorted.filter(e => e.ac === filterAccount);
   if (filterSearch) sorted = sorted.filter(e => e.desc.toLowerCase().includes(filterSearch));
   if (!sorted.length) {
-    el.innerHTML = `<div class="empty-state"><div class="icon">🔍</div>No matching expenses.</div>`;
+    el.innerHTML = `<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">search</span></div>No matching expenses.</div>`;
     return;
   }
 
@@ -907,7 +914,9 @@ let balanceHidden = false;
 
 function toggleBalanceVisibility() {
   balanceHidden = !balanceHidden;
-  document.getElementById('balanceToggleBtn').textContent = balanceHidden ? '👁 Show Balances' : '👁 Hide Balances';
+  document.getElementById('balanceToggleBtn').innerHTML = balanceHidden
+    ? '<span class="material-symbols-outlined">visibility</span> Show Balances'
+    : '<span class="material-symbols-outlined">visibility_off</span> Hide Balances';
   document.getElementById('mainMenu').classList.remove('open');
   renderAccountCards();
   renderExpenseList();
@@ -994,7 +1003,7 @@ function renderInvestments() {
 
   const el = document.getElementById('assetList');
   if (!data.assets.length) {
-    el.innerHTML = `<div class="empty-state"><div class="icon">📈</div>No assets yet.<br>Tap + to add one.</div>`;
+    el.innerHTML = `<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">trending_up</span></div>No assets yet.<br>Tap + to add one.</div>`;
     return;
   }
   el.innerHTML = data.assets.map(a => {
@@ -1016,7 +1025,7 @@ function renderInvestments() {
             <div class="asset-delta ${deltaClass}">${deltaText}</div>
             <div class="asset-date">${lastDate ? 'Updated ' + formatDate(lastDate) : ''}</div>
           </div>
-          <button class="iconbtn" style="font-size:1rem;color:var(--muted)" onclick="event.stopPropagation();openHistory('${a.id}')">📋</button>
+          <button class="iconbtn" style="font-size:1rem;color:var(--muted)" onclick="event.stopPropagation();openHistory('${a.id}')"><span class="material-symbols-outlined">history</span></button>
         </div>
       </div>`;
   }).join('');
@@ -1194,12 +1203,12 @@ function updateDriveSyncBtn() {
 
 async function driveSyncHeader() {
   const btn = document.getElementById('driveSyncHeaderBtn');
-  btn.textContent = '⏳';
+  btn.innerHTML = '<span class="material-symbols-outlined">hourglass_empty</span>';
   btn.disabled = true;
   try {
     await driveSync();
   } finally {
-    btn.textContent = '🔄';
+    btn.innerHTML = '<span class="material-symbols-outlined">sync</span>';
     btn.disabled = false;
   }
 }
@@ -1569,7 +1578,7 @@ function renderAnalysis() {
   const el = document.getElementById('analysisList');
   const expenses = data.expenses.filter(e => e.cat !== 'TopUp' && e.cat !== 'Other');
   if (!expenses.length) {
-    el.innerHTML = '<div class="empty-state"><div class="icon">📊</div>No expense data yet.</div>';
+    el.innerHTML = '<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">bar_chart</span></div>No expense data yet.</div>';
     return;
   }
 
