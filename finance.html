@@ -113,6 +113,22 @@
     margin: 20px 0 8px;
   }
 
+  /* ── Filter bar ── */
+  .filter-bar { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+  .filter-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .filter-pill {
+    padding: 5px 14px; border-radius: 20px; font-size: .8rem; font-weight: 600;
+    border: 1.5px solid var(--border); background: var(--card); color: var(--muted);
+    cursor: pointer; transition: background .15s, color .15s, border-color .15s;
+  }
+  .filter-pill.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .filter-search {
+    width: 100%; padding: 8px 12px; border-radius: 10px;
+    border: 1.5px solid var(--border); background: var(--card);
+    font-size: .9rem; color: var(--text); outline: none; -webkit-appearance: none;
+  }
+  .filter-search:focus { border-color: var(--primary-light); }
+
   /* ── Expense list ── */
   .date-group { margin-bottom: 4px; }
   .date-label {
@@ -310,6 +326,7 @@
       <button class="iconbtn" id="menuBtn" title="More options" aria-label="More options">⋯</button>
       <div class="dropdown" id="mainMenu">
         <button class="dropdown-item" onclick="openAccountSettings()">⚙️ Account Settings</button>
+        <button class="dropdown-item" id="balanceToggleBtn" onclick="toggleBalanceVisibility()">👁 Hide Balances</button>
         <div class="dropdown-sep"></div>
         <button class="dropdown-item" onclick="exportData()">⬇ Export JSON</button>
         <button class="dropdown-item" onclick="triggerImport()">⬆ Import JSON</button>
@@ -333,6 +350,10 @@
 <div class="page active" id="page-expenses">
   <div class="account-cards" id="accountCards"></div>
   <div class="section-heading">Expense List</div>
+  <div class="filter-bar">
+    <div class="filter-pills" id="accountFilterPills"></div>
+    <input class="filter-search" id="expenseSearch" type="search" placeholder="Search by description…" oninput="onSearchInput()">
+  </div>
   <div id="expenseList"></div>
 </div>
 
@@ -639,7 +660,13 @@ function renderExpenseList() {
     el.innerHTML = `<div class="empty-state"><div class="icon">💸</div>No expenses yet.<br>Tap + to add one.</div>`;
     return;
   }
-  const sorted = [...data.expenses].sort((a, b) => b.date.localeCompare(a.date) || b._ts - a._ts);
+  let sorted = [...data.expenses].sort((a, b) => b.date.localeCompare(a.date) || b._ts - a._ts);
+  if (filterAccount) sorted = sorted.filter(e => e.ac === filterAccount);
+  if (filterSearch) sorted = sorted.filter(e => e.desc.toLowerCase().includes(filterSearch));
+  if (!sorted.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">🔍</div>No matching expenses.</div>`;
+    return;
+  }
 
   // Group by month, then by date within month
   const byMonth = {};
@@ -652,12 +679,13 @@ function renderExpenseList() {
   const hidden = balanceHidden;
   el.innerHTML = Object.entries(byMonth).map(([month, dateGroups]) => {
     const monthLabel = new Date(month + '-01T00:00:00').toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-    const balances = data.accounts.map(acc => {
+    const balanceAccounts = filterAccount ? data.accounts.filter(a => a.id === filterAccount) : data.accounts;
+    const balances = balanceAccounts.map(acc => {
       const bal = balanceAtMonthStart(acc.id, month);
-      return `<div><span style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase">${esc(acc.name)}</span><br><span style="font-weight:700;color:${bal >= 0 ? 'var(--green)' : 'var(--red)'}">${hidden ? '••••' : fmtCurrency(bal)}</span></div>`;
+      return `<div><span style="font-size:.7rem;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase">${esc(acc.name)}</span><br><span style="font-weight:700;color:${bal >= 0 ? 'var(--green)' : 'var(--red)'}">${hidden ? '••••' : fmtCurrency(bal)}</span></div>`;
     }).join('');
 
-    const dateRows = Object.entries(dateGroups).map(([date, exps]) => `
+    const dateRows = Object.entries(dateGroups).sort(([a], [b]) => a.localeCompare(b)).map(([date, exps]) => `
       <div class="date-group">
         <div class="date-label">${formatDate(date)}</div>
         ${exps.map(e => {
@@ -765,12 +793,37 @@ function deleteExpense() {
   showToast('Expense deleted');
 }
 
+// ── Expense filters ───────────────────────────────────────────────────────────
+let filterAccount = null;
+let filterSearch = '';
+
+function renderAccountFilterPills() {
+  const container = document.getElementById('accountFilterPills');
+  if (!container) return;
+  const pills = [{ id: null, name: 'All' }, ...data.accounts.map(a => ({ id: a.id, name: a.name }))];
+  container.innerHTML = pills.map(p =>
+    `<button class="filter-pill${filterAccount === p.id ? ' active' : ''}" onclick="setAccountFilter(${p.id === null ? 'null' : `'${p.id}'`})">${esc(p.name)}</button>`
+  ).join('');
+}
+
+function setAccountFilter(id) {
+  filterAccount = id;
+  renderAccountFilterPills();
+  renderExpenseList();
+}
+
+function onSearchInput() {
+  filterSearch = document.getElementById('expenseSearch').value.toLowerCase();
+  renderExpenseList();
+}
+
 // ── Balance visibility ────────────────────────────────────────────────────────
 let balanceHidden = false;
 
 function toggleBalanceVisibility() {
   balanceHidden = !balanceHidden;
-  document.getElementById('balanceToggleBtn').textContent = balanceHidden ? '🙈' : '👁';
+  document.getElementById('balanceToggleBtn').textContent = balanceHidden ? '👁 Show Balances' : '👁 Hide Balances';
+  document.getElementById('mainMenu').classList.remove('open');
   renderAccountCards();
   renderExpenseList();
 }
@@ -1314,6 +1367,7 @@ function renderAnalysis() {
 // ── Render all ────────────────────────────────────────────────────────────────
 function renderAll() {
   renderAccountCards();
+  renderAccountFilterPills();
   renderExpenseList();
   renderInvestments();
   renderAnalysis();
