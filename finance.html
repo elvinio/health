@@ -528,7 +528,7 @@ function saveData(d) {
 function recalcBalances(d) {
   d.accounts.forEach(acc => {
     const spent = d.expenses
-      .filter(e => e.accountId === acc.id)
+      .filter(e => e.ac === acc.id)
       .reduce((s, e) => s + e.amount, 0);
     acc.balance = acc.startingBalance - spent;
   });
@@ -634,15 +634,15 @@ function renderExpenseList() {
     <div class="date-group">
       <div class="date-label">${formatDate(date)}</div>
       ${exps.map(e => {
-        const acc = data.accounts.find(a => a.id === e.accountId);
-        const badgeClass = e.accountId === 'acc1' ? '' : ' acc2';
+        const acc = data.accounts.find(a => a.id === e.ac);
+        const badgeClass = e.ac === 'acc1' ? '' : ' acc2';
         return `
           <div class="expense-item" onclick="openExpenseSheet('${e.id}')">
             <div class="expense-left">
-              <div class="expense-desc">${esc(e.description)}</div>
+              <div class="expense-desc">${esc(e.desc)}</div>
               <div class="expense-meta">
                 <span class="acc-badge${badgeClass}">${esc(acc ? acc.name : '?')}</span>
-                <span class="cat-chip">${esc(e.category)}</span>
+                <span class="cat-chip">${esc(e.cat)}</span>
               </div>
             </div>
             <div class="expense-amount">-${fmtCurrency(e.amount)}</div>
@@ -674,11 +674,11 @@ function openExpenseSheet(id, preAcct) {
     if (!exp) return;
     document.getElementById('expenseSheetTitle').textContent = 'Edit Expense';
     document.getElementById('expenseId').value = exp.id;
-    sel.value = exp.accountId;
+    sel.value = exp.ac;
     document.getElementById('expDate').value = exp.date;
     document.getElementById('expAmount').value = exp.amount;
-    document.getElementById('expDesc').value = exp.description;
-    document.getElementById('expCat').value = exp.category;
+    document.getElementById('expDesc').value = exp.desc;
+    document.getElementById('expCat').value = exp.cat;
     document.getElementById('expDeleteBtn').style.display = '';
   } else {
     document.getElementById('expenseSheetTitle').textContent = 'Add Expense';
@@ -693,11 +693,11 @@ document.getElementById('expenseForm').addEventListener('submit', e => {
   const id = document.getElementById('expenseId').value;
   const entry = {
     id: id || uid(),
-    accountId: document.getElementById('expAcct').value,
+    ac: document.getElementById('expAcct').value,
     date: document.getElementById('expDate').value,
-    description: document.getElementById('expDesc').value.trim(),
+    desc: document.getElementById('expDesc').value.trim(),
     amount: parseFloat(document.getElementById('expAmount').value),
-    category: document.getElementById('expCat').value,
+    cat: document.getElementById('expCat').value,
     _ts: Date.now()
   };
   if (id) {
@@ -924,7 +924,7 @@ function exportData() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'finance-backup-' + today() + '.json';
+  a.download = 'finance-elvis-' + today() + '.json';
   a.click();
   URL.revokeObjectURL(url);
   showToast('Exported');
@@ -1188,7 +1188,7 @@ async function driveSync() {
 
 async function uploadToDrive(token, fileId, payload) {
   const content = JSON.stringify(payload, null, 2);
-  const metadata = { name: 'finance-backup.json', mimeType: 'application/json' };
+  const metadata = { name: 'finance-elvis.json', mimeType: 'application/json' };
   const form = new FormData();
   form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
   form.append('file', new Blob([content], { type: 'application/json' }));

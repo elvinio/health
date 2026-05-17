@@ -59,11 +59,11 @@ Each entry is one spending transaction.
 ```json
 {
   "id": "lf3k2abc9",
-  "accountId": "acc1",
+  "ac": "acc1",
   "date": "2026-05-15",
-  "description": "Grocery shopping",
+  "desc": "Grocery shopping",
   "amount": 87.40,
-  "category": "Food",
+  "cat": "Food",
   "_ts": 1747440000000
 }
 ```
@@ -71,11 +71,11 @@ Each entry is one spending transaction.
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `id` | string | yes | Unique identifier. Use any short random alphanumeric string. Must be unique across all expenses. |
-| `accountId` | string | yes | Must be `"acc1"` or `"acc2"` — which account this expense belongs to |
+| `ac` | string | yes | Must be `"acc1"` or `"acc2"` — which account this expense belongs to |
 | `date` | string | yes | Date in `YYYY-MM-DD` format |
-| `description` | string | yes | Free-text description of the expense |
+| `desc` | string | yes | Free-text description of the expense |
 | `amount` | number | yes | Amount as a positive number (expenses reduce the balance) |
-| `category` | string | yes | One of: `Food`, `Transport`, `Shopping`, `Health`, `Entertainment`, `Bills`, `Other` |
+| `cat` | string | yes | One of: `Food`, `Transport`, `Shopping`, `Health`, `Entertainment`, `Bills`, `Other` |
 | `_ts` | number | no | Unix timestamp in milliseconds when this record was created or last edited. Used for conflict resolution during sync. Set to `0` or omit if not known. |
 
 ---
@@ -150,38 +150,38 @@ The smallest valid file the app will accept:
   "expenses": [
     {
       "id": "exp001",
-      "accountId": "acc1",
+      "ac": "acc1",
       "date": "2026-05-10",
-      "description": "Supermarket",
+      "desc": "Supermarket",
       "amount": 123.90,
-      "category": "Food",
+      "cat": "Food",
       "_ts": 1746835200000
     },
     {
       "id": "exp002",
-      "accountId": "acc1",
+      "ac": "acc1",
       "date": "2026-05-12",
-      "description": "Electricity bill",
+      "desc": "Electricity bill",
       "amount": 124.00,
-      "category": "Bills",
+      "cat": "Bills",
       "_ts": 1747008000000
     },
     {
       "id": "exp003",
-      "accountId": "acc2",
+      "ac": "acc2",
       "date": "2026-05-14",
-      "description": "Petrol",
+      "desc": "Petrol",
       "amount": 80.00,
-      "category": "Transport",
+      "cat": "Transport",
       "_ts": 1747180800000
     },
     {
       "id": "exp004",
-      "accountId": "acc2",
+      "ac": "acc2",
       "date": "2026-05-15",
-      "description": "Pharmacy",
+      "desc": "Pharmacy",
       "amount": 78.50,
-      "category": "Health",
+      "cat": "Health",
       "_ts": 1747267200000
     }
   ],
@@ -220,7 +220,7 @@ When converting data from another format into this structure, follow these rules
 
 3. **Dates**: Always `YYYY-MM-DD`. Convert any other date format (DD/MM/YYYY, MM-DD-YYYY, natural language) to this format.
 
-4. **Category mapping**: Map source categories to the closest of: `Food`, `Transport`, `Shopping`, `Health`, `Entertainment`, `Bills`, `Other`. When in doubt, use `Other`.
+4. **Category mapping**: Map source categories to the closest of: `Food`, `Transport`, `Shopping`, `Health`, `Entertainment`, `Bills`, `Other`. When in doubt, use `Other`. Use `TopUp` for account top-ups/deposits.
 
 5. **Account assignment**: If the source data is already separated by person, map person 1 to `acc1` and person 2 to `acc2`. Update the `name` fields in `accounts` accordingly.
 
