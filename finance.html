@@ -313,6 +313,21 @@
     animation: spin .7s linear infinite; display: inline-block; vertical-align: middle;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Category chart ── */
+  .chart-wrap {
+    background: var(--card); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 16px; margin-bottom: 16px;
+  }
+  .chart-title {
+    font-size: .8rem; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .06em; margin-bottom: 12px;
+  }
+  .chart-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: .75rem; font-weight: 600; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .over-budget { color: var(--red); font-weight: 700; font-size: .8rem; }
+  .under-budget { color: var(--green); font-weight: 700; font-size: .8rem; }
 </style>
 </head>
 <body>
@@ -530,7 +545,8 @@ function defaultData() {
     ],
     expenses: [],
     assets: [],
-    _deletedIds: []
+    _deletedIds: [],
+    budgets: {}
   };
 }
 
@@ -543,6 +559,7 @@ function loadData() {
     if (!d.expenses) d.expenses = [];
     if (!d.assets) d.assets = [];
     if (!d._deletedIds) d._deletedIds = [];
+    if (!d.budgets) d.budgets = {};
     d.accounts.forEach(a => { if (!a._updatedAt) a._updatedAt = 0; });
     return d;
   } catch { return defaultData(); }
@@ -839,6 +856,23 @@ function toggleBalanceVisibility() {
 function openAccountSettings() {
   document.getElementById('mainMenu').classList.remove('open');
   const body = document.getElementById('accountSettingsBody');
+  const allCats = [...new Set([
+    ...data.expenses.filter(e => e.cat !== 'TopUp').map(e => e.cat),
+    ...Object.keys(data.budgets || {})
+  ])].sort();
+  const budgets = data.budgets || {};
+
+  const budgetSection = allCats.length ? `
+    <div style="padding-top:4px">
+      <div class="section-heading">Monthly Budget by Category</div>
+      <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Leave blank for no budget limit.</p>
+      ${allCats.map((cat, ci) => `
+        <div class="field">
+          <label><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${catColor(cat, ci)};margin-right:6px;vertical-align:middle"></span>${esc(cat)}</label>
+          <input type="number" id="budgetCat${ci}" value="${budgets[cat] || ''}" step="0.01" min="0" placeholder="No limit">
+        </div>`).join('')}
+    </div>` : '';
+
   body.innerHTML = data.accounts.map((acc, i) => `
     <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)">
       <div class="section-heading">Account ${i + 1}</div>
@@ -849,7 +883,7 @@ function openAccountSettings() {
         <input type="number" id="accStart${i}" value="${acc.startingBalance}" step="0.01" placeholder="0.00">
       </div>
     </div>
-  `).join('');
+  `).join('') + budgetSection;
   openSheet('settingsSheet');
 }
 
@@ -861,11 +895,25 @@ function saveAccountSettings() {
     acc.startingBalance = start;
     acc._updatedAt = Date.now();
   });
+
+  const allCats = [...new Set([
+    ...data.expenses.filter(e => e.cat !== 'TopUp').map(e => e.cat),
+    ...Object.keys(data.budgets || {})
+  ])].sort();
+  if (!data.budgets) data.budgets = {};
+  allCats.forEach((cat, ci) => {
+    const input = document.getElementById('budgetCat' + ci);
+    if (!input) return;
+    const val = parseFloat(input.value);
+    if (val > 0) data.budgets[cat] = val;
+    else delete data.budgets[cat];
+  });
+
   recalcBalances(data);
   saveData(data);
   closeSheet();
   renderAll();
-  showToast('Accounts saved');
+  showToast('Settings saved');
 }
 
 // ── Render: Investments ───────────────────────────────────────────────────────
@@ -1248,7 +1296,8 @@ function mergeData(local, remote) {
     accounts: [...accMap.values()],
     expenses: [...expMap.values()],
     assets: [...assetMap.values()],
-    _deletedIds: [...deletedIds]
+    _deletedIds: [...deletedIds],
+    budgets: { ...(remote.budgets || {}), ...(local.budgets || {}) }
   };
   recalcBalances(merged);
   return merged;
@@ -1334,6 +1383,87 @@ async function uploadToDrive(token, fileId, payload) {
   return payload;
 }
 
+// ── Category chart helpers ────────────────────────────────────────────────────
+const CAT_COLORS = {
+  Food: '#e67e22', Transport: '#3498db', Shopping: '#9b59b6',
+  Health: '#27ae60', Entertainment: '#e74c3c', Bills: '#f39c12', Other: '#7f8c8d'
+};
+const EXTRA_COLORS = ['#1abc9c','#e91e63','#607d8b','#ff5722','#795548','#673ab7'];
+
+function catColor(cat, idx) {
+  return CAT_COLORS[cat] || EXTRA_COLORS[idx % EXTRA_COLORS.length];
+}
+
+function fmtShort(n) {
+  if (n >= 10000) return '$' + (n / 1000).toFixed(0) + 'k';
+  if (n >= 1000) return '$' + (n / 1000).toFixed(1) + 'k';
+  return '$' + Math.round(n);
+}
+
+function renderCategoryChart(byMonth, months, allCats) {
+  if (!months.length) return '';
+  const budgets = data.budgets || {};
+  const COL_W = 64, H = 160, PAD_L = 44, PAD_B = 28, PAD_T = 8, PAD_R = 12;
+  const svgW = PAD_L + months.length * COL_W + PAD_R;
+  const svgH = H + PAD_T + PAD_B;
+
+  let maxVal = 0;
+  allCats.forEach(cat => months.forEach(m => {
+    maxVal = Math.max(maxVal, (byMonth[m] && byMonth[m][cat]) || 0);
+  }));
+  Object.values(budgets).forEach(b => { if (b > 0) maxVal = Math.max(maxVal, b); });
+  if (maxVal === 0) maxVal = 100;
+  const scale = Math.pow(10, Math.floor(Math.log10(maxVal)));
+  maxVal = Math.ceil(maxVal / scale) * scale;
+
+  const xPos = i => PAD_L + i * COL_W + COL_W / 2;
+  const yPos = v => PAD_T + H - Math.min(1, v / maxVal) * H;
+
+  const ticks = [0, .25, .5, .75, 1].map(f => ({ v: maxVal * f, y: yPos(maxVal * f) }));
+
+  const grid = ticks.map(({ v, y }) =>
+    `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${(svgW - PAD_R).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#e8dece" stroke-width="1"/>` +
+    `<text x="${(PAD_L - 4).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="#7a6a52">${fmtShort(v)}</text>`
+  ).join('');
+
+  const xLabels = months.map((m, i) => {
+    const lbl = new Date(m + '-01T00:00:00').toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
+    return `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="8" fill="#7a6a52">${lbl}</text>`;
+  }).join('');
+
+  const budgetLines = allCats.map((cat, ci) => {
+    const b = budgets[cat];
+    if (!b || b <= 0) return '';
+    const y = yPos(b);
+    if (y < PAD_T - 2 || y > PAD_T + H + 2) return '';
+    return `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${(svgW - PAD_R).toFixed(1)}" y2="${y.toFixed(1)}" stroke="${catColor(cat, ci)}" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.5"/>`;
+  }).join('');
+
+  const catLines = allCats.map((cat, ci) => {
+    const color = catColor(cat, ci);
+    const pts = months.map((m, i) => [xPos(i), yPos((byMonth[m] && byMonth[m][cat]) || 0)]);
+    const path = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+    const dots = pts.map(([cx, cy]) =>
+      `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.5" fill="${color}" stroke="#fff" stroke-width="1.5"/>`
+    ).join('');
+    return `<path d="${path}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>${dots}`;
+  }).join('');
+
+  const legend = allCats.map((cat, ci) => {
+    const b = budgets[cat];
+    const budgetTag = b > 0 ? ` <span style="color:var(--muted);font-weight:400">(${fmtCurrency(b)}/mo)</span>` : '';
+    return `<div class="legend-item"><div class="legend-dot" style="background:${catColor(cat, ci)}"></div><span>${esc(cat)}${budgetTag}</span></div>`;
+  }).join('');
+
+  return `<div class="chart-wrap">
+    <div class="chart-title">Monthly Trend by Category</div>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+      <svg width="${svgW}" height="${svgH}" style="display:block">${grid}${budgetLines}${catLines}${xLabels}</svg>
+    </div>
+    <div class="chart-legend">${legend}</div>
+  </div>`;
+}
+
 // ── Render: Analysis ─────────────────────────────────────────────────────────
 function renderAnalysis() {
   const el = document.getElementById('analysisList');
@@ -1350,8 +1480,13 @@ function renderAnalysis() {
     byMonth[month][e.cat] = (byMonth[month][e.cat] || 0) + e.amount;
   });
 
-  const months = Object.keys(byMonth).sort().reverse();
-  el.innerHTML = months.map(month => {
+  const months = Object.keys(byMonth).sort();
+  const allCats = [...new Set(expenses.map(e => e.cat))].sort();
+  const budgets = data.budgets || {};
+
+  const chart = renderCategoryChart(byMonth, months, allCats);
+
+  const cards = [...months].reverse().map(month => {
     const cats = byMonth[month];
     const total = Object.values(cats).reduce((s, v) => s + v, 0);
     const label = new Date(month + '-01T00:00:00').toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
@@ -1362,13 +1497,27 @@ function renderAnalysis() {
           <div style="font-weight:700;font-size:1rem">${label}</div>
           <div style="font-weight:800;font-size:1.05rem;color:var(--primary)">${fmtCurrency(total)}</div>
         </div>
-        ${rows.map(([cat, amt]) => `
+        ${rows.map(([cat, amt]) => {
+          const budget = budgets[cat];
+          let budgetBadge = '';
+          if (budget > 0) {
+            const pct = (amt - budget) / budget * 100;
+            const over = pct > 0;
+            budgetBadge = `<span class="${over ? 'over-budget' : 'under-budget'}">${over ? '+' : ''}${pct.toFixed(0)}%</span>`;
+          }
+          return `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--border)">
             <span class="cat-chip">${esc(cat)}</span>
-            <span style="font-weight:600;font-size:.9rem">${fmtCurrency(amt)}</span>
-          </div>`).join('')}
+            <div style="display:flex;align-items:center;gap:8px">
+              ${budgetBadge}
+              <span style="font-weight:600;font-size:.9rem">${fmtCurrency(amt)}</span>
+            </div>
+          </div>`;
+        }).join('')}
       </div>`;
   }).join('');
+
+  el.innerHTML = chart + cards;
 }
 
 // ── Render all ────────────────────────────────────────────────────────────────
