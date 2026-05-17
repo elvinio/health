@@ -1390,6 +1390,16 @@ const CAT_COLORS = {
 };
 const EXTRA_COLORS = ['#1abc9c','#e91e63','#607d8b','#ff5722','#795548','#673ab7'];
 
+const _hiddenCats = new Set();
+let _chartData = null;
+
+function toggleChartCat(cat) {
+  if (_hiddenCats.has(cat)) _hiddenCats.delete(cat);
+  else _hiddenCats.add(cat);
+  const el = document.getElementById('categoryChart');
+  if (el && _chartData) el.innerHTML = renderCategoryChart(_chartData.byMonth, _chartData.months, _chartData.allCats);
+}
+
 function catColor(cat, idx) {
   return CAT_COLORS[cat] || EXTRA_COLORS[idx % EXTRA_COLORS.length];
 }
@@ -1403,15 +1413,17 @@ function fmtShort(n) {
 function renderCategoryChart(byMonth, months, allCats) {
   if (!months.length) return '';
   const budgets = data.budgets || {};
+  const visibleCats = allCats.filter(c => !_hiddenCats.has(c));
+
   const COL_W = 64, H = 160, PAD_L = 44, PAD_B = 28, PAD_T = 8, PAD_R = 12;
   const svgW = PAD_L + months.length * COL_W + PAD_R;
   const svgH = H + PAD_T + PAD_B;
 
   let maxVal = 0;
-  allCats.forEach(cat => months.forEach(m => {
+  visibleCats.forEach(cat => months.forEach(m => {
     maxVal = Math.max(maxVal, (byMonth[m] && byMonth[m][cat]) || 0);
   }));
-  Object.values(budgets).forEach(b => { if (b > 0) maxVal = Math.max(maxVal, b); });
+  visibleCats.forEach(cat => { const b = budgets[cat]; if (b > 0) maxVal = Math.max(maxVal, b); });
   if (maxVal === 0) maxVal = 100;
   const scale = Math.pow(10, Math.floor(Math.log10(maxVal)));
   maxVal = Math.ceil(maxVal / scale) * scale;
@@ -1432,6 +1444,7 @@ function renderCategoryChart(byMonth, months, allCats) {
   }).join('');
 
   const budgetLines = allCats.map((cat, ci) => {
+    if (_hiddenCats.has(cat)) return '';
     const b = budgets[cat];
     if (!b || b <= 0) return '';
     const y = yPos(b);
@@ -1440,6 +1453,7 @@ function renderCategoryChart(byMonth, months, allCats) {
   }).join('');
 
   const catLines = allCats.map((cat, ci) => {
+    if (_hiddenCats.has(cat)) return '';
     const color = catColor(cat, ci);
     const pts = months.map((m, i) => [xPos(i), yPos((byMonth[m] && byMonth[m][cat]) || 0)]);
     const path = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
@@ -1452,7 +1466,10 @@ function renderCategoryChart(byMonth, months, allCats) {
   const legend = allCats.map((cat, ci) => {
     const b = budgets[cat];
     const budgetTag = b > 0 ? ` <span style="color:var(--muted);font-weight:400">(${fmtCurrency(b)}/mo)</span>` : '';
-    return `<div class="legend-item"><div class="legend-dot" style="background:${catColor(cat, ci)}"></div><span>${esc(cat)}${budgetTag}</span></div>`;
+    const hidden = _hiddenCats.has(cat);
+    const itemStyle = `cursor:pointer;user-select:none;${hidden ? 'opacity:0.35;' : ''}`;
+    const nameStyle = hidden ? 'text-decoration:line-through' : '';
+    return `<div class="legend-item" style="${itemStyle}" onclick="toggleChartCat(${JSON.stringify(cat)})"><div class="legend-dot" style="background:${catColor(cat, ci)}"></div><span style="${nameStyle}">${esc(cat)}${budgetTag}</span></div>`;
   }).join('');
 
   return `<div class="chart-wrap">
@@ -1484,7 +1501,8 @@ function renderAnalysis() {
   const allCats = [...new Set(expenses.map(e => e.cat))].sort();
   const budgets = data.budgets || {};
 
-  const chart = renderCategoryChart(byMonth, months, allCats);
+  _chartData = { byMonth, months, allCats };
+  const chart = `<div id="categoryChart">${renderCategoryChart(byMonth, months, allCats)}</div>`;
 
   const cards = [...months].reverse().map(month => {
     const cats = byMonth[month];
