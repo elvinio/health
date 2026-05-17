@@ -311,7 +311,7 @@
     font-size: .8rem; font-weight: 700; color: var(--muted);
     text-transform: uppercase; letter-spacing: .06em; margin-bottom: 12px;
   }
-  .chart-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 10px; }
+  .chart-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; margin-top: 10px; }
   .legend-item { display: flex; align-items: center; gap: 5px; font-size: .75rem; font-weight: 600; }
   .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
   .over-budget { color: var(--red); font-weight: 700; font-size: .8rem; }
@@ -1521,11 +1521,11 @@ function renderCategoryChart(byMonth, months, allCats) {
 
   const legend = allCats.map((cat, ci) => {
     const b = budgets[cat];
-    const budgetTag = b > 0 ? ` <span style="color:var(--muted);font-weight:400">(${fmtCurrency(b)}/mo)</span>` : '';
+    const budgetTag = b > 0 ? ` <span style="color:var(--muted);font-weight:400">(${fmtCurrency(b)})</span>` : '';
     const hidden = _hiddenCats.has(cat);
     const itemStyle = `cursor:pointer;user-select:none;${hidden ? 'opacity:0.35;' : ''}`;
     const nameStyle = hidden ? 'text-decoration:line-through' : '';
-    return `<div class="legend-item" style="${itemStyle}" onclick="toggleChartCat(${JSON.stringify(cat)})"><div class="legend-dot" style="background:${catColor(cat, ci)}"></div><span style="${nameStyle}">${esc(cat)}${budgetTag}</span></div>`;
+    return `<div class="legend-item" style="${itemStyle}" onclick='toggleChartCat(${JSON.stringify(cat)})'><div class="legend-dot" style="background:${catColor(cat, ci)}"></div><span style="${nameStyle}">${esc(cat)}${budgetTag}</span></div>`;
   }).join('');
 
   return `<div class="chart-wrap">
@@ -1581,7 +1581,7 @@ function renderAnalysis() {
           }
           return `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--border)">
-            <span class="cat-chip">${esc(cat)}</span>
+            <span style="font-size:.9rem">${esc(cat)}</span>
             <div style="display:flex;align-items:center;gap:8px">
               ${budgetBadge}
               <span style="font-weight:600;font-size:.9rem">${fmtCurrency(amt)}</span>
