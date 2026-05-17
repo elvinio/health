@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Finance</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#8b5e3c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Finance">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
 <style>
   :root {
     --bg: #faf6ee;
@@ -299,10 +305,12 @@
 <div class="header">
   <h1>Finance</h1>
   <div class="header-actions">
-    <button class="iconbtn" id="settingsBtn" title="Account settings" aria-label="Account settings">⚙️</button>
+    <button class="iconbtn" id="driveSyncHeaderBtn" title="Sync Google Drive" aria-label="Sync Google Drive" onclick="driveSyncHeader()" style="display:none">↕</button>
     <div class="menu-wrap">
       <button class="iconbtn" id="menuBtn" title="More options" aria-label="More options">⋯</button>
       <div class="dropdown" id="mainMenu">
+        <button class="dropdown-item" onclick="openAccountSettings()">⚙️ Account Settings</button>
+        <div class="dropdown-sep"></div>
         <button class="dropdown-item" onclick="exportData()">⬇ Export JSON</button>
         <button class="dropdown-item" onclick="triggerImport()">⬆ Import JSON</button>
         <div class="dropdown-sep"></div>
@@ -324,7 +332,7 @@
 <!-- Expenses Page -->
 <div class="page active" id="page-expenses">
   <div class="account-cards" id="accountCards"></div>
-  <div class="section-heading">Recent Expenses</div>
+  <div class="section-heading">Expense List</div>
   <div id="expenseList"></div>
 </div>
 
@@ -608,14 +616,21 @@ document.getElementById('fabBtn').addEventListener('click', () => {
 // ── Render: Expenses ─────────────────────────────────────────────────────────
 function renderAccountCards() {
   const el = document.getElementById('accountCards');
-  el.innerHTML = data.accounts.map((acc, i) => `
+  const hidden = balanceHidden;
+  el.innerHTML = data.accounts.map((acc) => `
     <div class="account-card">
       <div class="acc-name">${esc(acc.name)}</div>
-      <div class="acc-balance ${acc.balance >= 0 ? 'positive' : 'negative'}">${fmtCurrency(acc.balance)}</div>
-      <div class="acc-sub">Start: ${fmtCurrency(acc.startingBalance)}</div>
+      <div class="acc-balance ${acc.balance >= 0 ? 'positive' : 'negative'}">${hidden ? '••••' : fmtCurrency(acc.balance)}</div>
       <button class="btn-add" onclick="openExpenseSheet(null, '${acc.id}')">+ Add</button>
     </div>
   `).join('');
+}
+
+function balanceAtMonthStart(accountId, monthStr) {
+  const acc = data.accounts.find(a => a.id === accountId);
+  return data.expenses
+    .filter(e => e.ac === accountId && e.date.slice(0, 7) < monthStr)
+    .reduce((s, e) => s + (e.cat === 'TopUp' ? e.amount : -e.amount), acc.startingBalance);
 }
 
 function renderExpenseList() {
@@ -625,29 +640,50 @@ function renderExpenseList() {
     return;
   }
   const sorted = [...data.expenses].sort((a, b) => b.date.localeCompare(a.date) || b._ts - a._ts);
-  const groups = {};
-  sorted.forEach(e => { (groups[e.date] = groups[e.date] || []).push(e); });
 
-  el.innerHTML = Object.entries(groups).map(([date, exps]) => `
-    <div class="date-group">
-      <div class="date-label">${formatDate(date)}</div>
-      ${exps.map(e => {
-        const acc = data.accounts.find(a => a.id === e.ac);
-        const badgeClass = e.ac === 'acc1' ? '' : ' acc2';
-        return `
-          <div class="expense-item" onclick="openExpenseSheet('${e.id}')">
-            <div class="expense-left">
-              <div class="expense-desc">${esc(e.desc)}</div>
-              <div class="expense-meta">
-                <span class="acc-badge${badgeClass}">${esc(acc ? acc.name : '?')}</span>
-                <span class="cat-chip">${esc(e.cat)}</span>
+  // Group by month, then by date within month
+  const byMonth = {};
+  sorted.forEach(e => {
+    const m = e.date.slice(0, 7);
+    if (!byMonth[m]) byMonth[m] = {};
+    (byMonth[m][e.date] = byMonth[m][e.date] || []).push(e);
+  });
+
+  const hidden = balanceHidden;
+  el.innerHTML = Object.entries(byMonth).map(([month, dateGroups]) => {
+    const monthLabel = new Date(month + '-01T00:00:00').toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    const balances = data.accounts.map(acc => {
+      const bal = balanceAtMonthStart(acc.id, month);
+      return `<div><span style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase">${esc(acc.name)}</span><br><span style="font-weight:700;color:${bal >= 0 ? 'var(--green)' : 'var(--red)'}">${hidden ? '••••' : fmtCurrency(bal)}</span></div>`;
+    }).join('');
+
+    const dateRows = Object.entries(dateGroups).map(([date, exps]) => `
+      <div class="date-group">
+        <div class="date-label">${formatDate(date)}</div>
+        ${exps.map(e => {
+          const acc = data.accounts.find(a => a.id === e.ac);
+          const badgeClass = e.ac === 'acc1' ? '' : ' acc2';
+          return `
+            <div class="expense-item" onclick="openExpenseSheet('${e.id}')">
+              <div class="expense-left">
+                <div class="expense-desc">${esc(e.desc)}</div>
+                <div class="expense-meta">
+                  <span class="acc-badge${badgeClass}">${esc(acc ? acc.name : '?')}</span>
+                  <span class="cat-chip">${esc(e.cat)}</span>
+                </div>
               </div>
-            </div>
-            <div class="expense-amount" style="color:${e.cat === 'TopUp' ? 'var(--green)' : 'var(--red)'}">${e.cat === 'TopUp' ? '+' : '-'}${fmtCurrency(e.amount)}</div>
-          </div>`;
-      }).join('')}
-    </div>
-  `).join('');
+              <div class="expense-amount" style="color:${e.cat === 'TopUp' ? 'var(--green)' : 'var(--red)'}">${e.cat === 'TopUp' ? '+' : '-'}${fmtCurrency(e.amount)}</div>
+            </div>`;
+        }).join('')}
+      </div>`).join('');
+
+    return `
+      <div style="background:var(--primary);color:#fff;border-radius:var(--radius);padding:12px 16px;margin:16px 0 8px;display:flex;justify-content:space-between;align-items:center">
+        <div style="font-weight:700;font-size:.95rem">${monthLabel}</div>
+        <div style="display:flex;gap:20px;text-align:right">${balances}</div>
+      </div>
+      ${dateRows}`;
+  }).join('');
 }
 
 function formatDate(d) {
@@ -729,8 +765,19 @@ function deleteExpense() {
   showToast('Expense deleted');
 }
 
+// ── Balance visibility ────────────────────────────────────────────────────────
+let balanceHidden = false;
+
+function toggleBalanceVisibility() {
+  balanceHidden = !balanceHidden;
+  document.getElementById('balanceToggleBtn').textContent = balanceHidden ? '🙈' : '👁';
+  renderAccountCards();
+  renderExpenseList();
+}
+
 // ── Account Settings ──────────────────────────────────────────────────────────
-document.getElementById('settingsBtn').addEventListener('click', () => {
+function openAccountSettings() {
+  document.getElementById('mainMenu').classList.remove('open');
   const body = document.getElementById('accountSettingsBody');
   body.innerHTML = data.accounts.map((acc, i) => `
     <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)">
@@ -744,7 +791,7 @@ document.getElementById('settingsBtn').addEventListener('click', () => {
     </div>
   `).join('');
   openSheet('settingsSheet');
-});
+}
 
 function saveAccountSettings() {
   data.accounts.forEach((acc, i) => {
@@ -970,6 +1017,24 @@ function confirmClearData() {
   showToast('All data cleared');
 }
 
+// ── Drive header sync button ──────────────────────────────────────────────────
+function updateDriveSyncBtn() {
+  const connected = !!(localStorage.getItem(DRIVE_FILE_KEY) && localStorage.getItem(DRIVE_CLIENT_KEY));
+  document.getElementById('driveSyncHeaderBtn').style.display = connected ? '' : 'none';
+}
+
+async function driveSyncHeader() {
+  const btn = document.getElementById('driveSyncHeaderBtn');
+  btn.textContent = '⏳';
+  btn.disabled = true;
+  try {
+    await driveSync();
+  } finally {
+    btn.textContent = '↕';
+    btn.disabled = false;
+  }
+}
+
 // ── Google Drive ──────────────────────────────────────────────────────────────
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
 let driveToken = null;
@@ -1024,6 +1089,7 @@ function applyConnectCode() {
     localStorage.setItem(DRIVE_CLIENT_KEY, clientId);
     localStorage.setItem(DRIVE_FILE_KEY, fileId);
     driveToken = null;
+    updateDriveSyncBtn();
     openDriveMenu();
     showToast('Connected — tap Sync Now');
   } catch { showToast('Invalid connect code'); }
@@ -1040,6 +1106,7 @@ function driveDisconnect() {
   localStorage.removeItem(DRIVE_CLIENT_KEY);
   localStorage.removeItem('finance:lastSync');
   driveToken = null;
+  updateDriveSyncBtn();
   openDriveMenu();
   showToast('Disconnected');
 }
@@ -1141,6 +1208,7 @@ async function driveFirstSave() {
     data = merged;
     saveData(data);
     renderAll();
+    updateDriveSyncBtn();
     openDriveMenu();
     setDriveStatus('');
     showToast('Saved — share the connect code with your partner');
@@ -1257,8 +1325,14 @@ function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// ── Service Worker ────────────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js');
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 renderAll();
+updateDriveSyncBtn();
 </script>
 </body>
 </html>
