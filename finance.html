@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Finance</title>
+<style>
+  :root {
+    --bg: #faf6ee;
+    --paper: #fdf9f2;
+    --card: #ffffff;
+    --primary: #8b5e3c;
+    --primary-light: #c49a6c;
+    --green: #5a7c5e;
+    --green-light: #d4e8d5;
+    --red: #c0392b;
+    --red-light: #fde8e6;
+    --text: #2c2416;
+    --muted: #7a6a52;
+    --border: #e8dece;
+    --shadow: 0 1px 3px rgba(44,36,22,.08);
+    --radius: 12px;
+    --tab-h: 48px;
+    --header-h: 56px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 16px; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* ── Header ── */
+  .header {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--primary);
+    color: #fff;
+    padding: 0 16px;
+    padding-top: env(safe-area-inset-top);
+    height: calc(var(--header-h) + env(safe-area-inset-top));
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header h1 { font-size: 1.1rem; font-weight: 700; letter-spacing: .02em; }
+  .header-actions { display: flex; gap: 4px; }
+  .iconbtn {
+    background: none; border: none; color: inherit;
+    width: 40px; height: 40px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.25rem; cursor: pointer;
+    transition: background .15s;
+  }
+  .iconbtn:active { background: rgba(255,255,255,.15); }
+
+  /* ── Tabs ── */
+  .tabs {
+    display: flex; background: var(--primary);
+    border-bottom: 1px solid rgba(255,255,255,.15);
+  }
+  .tab {
+    flex: 1; height: var(--tab-h);
+    background: none; border: none; color: rgba(255,255,255,.65);
+    font-size: .9rem; font-weight: 600; cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: color .15s, border-color .15s;
+  }
+  .tab.active { color: #fff; border-bottom-color: #fff; }
+
+  /* ── Content ── */
+  .page { display: none; padding: 16px; max-width: 640px; margin: 0 auto; }
+  .page.active { display: block; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--card); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 16px;
+    margin-bottom: 12px;
+  }
+  .card-row { display: flex; align-items: center; justify-content: space-between; }
+
+  /* ── Account cards ── */
+  .account-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  .account-card {
+    background: var(--card); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 14px 12px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .account-card .acc-name { font-size: .8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .account-card .acc-balance { font-size: 1.3rem; font-weight: 700; }
+  .account-card .acc-balance.positive { color: var(--green); }
+  .account-card .acc-balance.negative { color: var(--red); }
+  .account-card .acc-sub { font-size: .75rem; color: var(--muted); }
+  .account-card .btn-add {
+    margin-top: 4px; padding: 6px 10px; font-size: .8rem;
+    background: var(--primary); color: #fff; border: none;
+    border-radius: 8px; cursor: pointer; font-weight: 600;
+    transition: opacity .15s;
+  }
+  .account-card .btn-add:active { opacity: .75; }
+
+  /* ── Section headings ── */
+  .section-heading {
+    font-size: .75rem; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .08em;
+    margin: 20px 0 8px;
+  }
+
+  /* ── Expense list ── */
+  .date-group { margin-bottom: 4px; }
+  .date-label {
+    font-size: .75rem; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .06em;
+    padding: 8px 0 4px;
+  }
+  .expense-item {
+    background: var(--card); border-radius: 10px;
+    box-shadow: var(--shadow); padding: 12px 14px;
+    margin-bottom: 6px; display: flex; align-items: flex-start; gap: 10px;
+    cursor: pointer; transition: background .1s;
+  }
+  .expense-item:active { background: var(--bg); }
+  .expense-left { flex: 1; min-width: 0; }
+  .expense-desc { font-size: .95rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .expense-meta { display: flex; gap: 6px; margin-top: 3px; align-items: center; flex-wrap: wrap; }
+  .acc-badge {
+    font-size: .7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;
+    background: var(--primary); color: #fff;
+  }
+  .acc-badge.acc2 { background: var(--green); }
+  .cat-chip {
+    font-size: .7rem; padding: 2px 6px; border-radius: 4px;
+    background: var(--border); color: var(--muted); font-weight: 600;
+  }
+  .expense-amount { font-size: 1rem; font-weight: 700; color: var(--red); white-space: nowrap; }
+
+  /* ── Investment ── */
+  .portfolio-banner {
+    background: var(--primary); color: #fff;
+    border-radius: var(--radius); padding: 18px 20px; margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  .portfolio-label { font-size: .8rem; opacity: .75; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+  .portfolio-total { font-size: 2rem; font-weight: 800; margin-top: 2px; }
+  .portfolio-change { font-size: .85rem; margin-top: 4px; opacity: .85; }
+
+  .asset-card {
+    background: var(--card); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 14px 16px;
+    margin-bottom: 10px; cursor: pointer; transition: background .1s;
+  }
+  .asset-card:active { background: var(--bg); }
+  .asset-name { font-size: 1rem; font-weight: 700; }
+  .asset-value { font-size: 1.4rem; font-weight: 800; margin-top: 2px; }
+  .asset-delta { font-size: .82rem; font-weight: 600; margin-top: 2px; }
+  .asset-delta.up { color: var(--green); }
+  .asset-delta.down { color: var(--red); }
+  .asset-delta.flat { color: var(--muted); }
+  .asset-date { font-size: .75rem; color: var(--muted); margin-top: 2px; }
+
+  /* ── FAB ── */
+  .fab {
+    position: fixed; bottom: calc(24px + env(safe-area-inset-bottom));
+    right: 20px; z-index: 90;
+    width: 56px; height: 56px; border-radius: 28px;
+    background: var(--primary); color: #fff; border: none;
+    font-size: 1.6rem; cursor: pointer; box-shadow: 0 4px 16px rgba(139,94,60,.35);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .15s, opacity .15s;
+  }
+  .fab:active { transform: scale(.93); }
+
+  /* ── Bottom Sheet ── */
+  .backdrop {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(44,36,22,.4); opacity: 0;
+    transition: opacity .25s; pointer-events: none;
+  }
+  .backdrop.open { opacity: 1; pointer-events: auto; }
+  .sheet {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 201;
+    background: var(--paper); border-radius: 20px 20px 0 0;
+    padding: 0 16px calc(24px + env(safe-area-inset-bottom));
+    max-width: 640px; margin: 0 auto;
+    transform: translateY(100%);
+    transition: transform .3s cubic-bezier(.4,0,.2,1);
+    max-height: 92dvh; overflow-y: auto;
+  }
+  .sheet.open { transform: translateY(0); }
+  .sheet-handle {
+    width: 40px; height: 4px; border-radius: 2px;
+    background: var(--border); margin: 10px auto 16px;
+  }
+  .sheet-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 16px; }
+
+  /* ── Forms ── */
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: .8rem; font-weight: 700; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .05em; }
+  .field input, .field select, .field textarea {
+    width: 100%; padding: 11px 12px; font-size: 1rem;
+    border: 1.5px solid var(--border); border-radius: 10px;
+    background: var(--card); color: var(--text);
+    font-family: inherit; appearance: none; outline: none;
+    transition: border-color .15s;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--primary); }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 12px 20px; font-size: .95rem; font-weight: 700;
+    border: none; border-radius: 12px; cursor: pointer;
+    font-family: inherit; transition: opacity .15s, transform .1s;
+  }
+  .btn:active { opacity: .8; transform: scale(.97); }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-secondary { background: var(--border); color: var(--text); }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-block { width: 100%; }
+  .btn-row { display: flex; gap: 10px; margin-top: 6px; }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 300;
+    background: rgba(44,36,22,.5);
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px; opacity: 0; pointer-events: none;
+    transition: opacity .2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: auto; }
+  .modal {
+    background: var(--paper); border-radius: var(--radius);
+    padding: 20px; width: 100%; max-width: 500px;
+    max-height: 80dvh; overflow-y: auto;
+    transform: scale(.95); transition: transform .2s;
+  }
+  .modal-overlay.open .modal { transform: scale(1); }
+  .modal-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 14px; }
+  .modal-close {
+    float: right; background: none; border: none;
+    font-size: 1.3rem; color: var(--muted); cursor: pointer; margin-top: -4px;
+  }
+
+  /* ── History table ── */
+  .hist-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  .hist-table th { text-align: left; padding: 6px 4px; color: var(--muted); font-weight: 700; border-bottom: 1.5px solid var(--border); font-size: .75rem; text-transform: uppercase; }
+  .hist-table td { padding: 8px 4px; border-bottom: 1px solid var(--border); }
+  .hist-table tr:last-child td { border-bottom: none; }
+
+  /* ── Dropdown menu ── */
+  .menu-wrap { position: relative; }
+  .dropdown {
+    position: absolute; right: 0; top: calc(100% + 4px); z-index: 500;
+    background: var(--card); border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(44,36,22,.18);
+    min-width: 200px; overflow: hidden;
+    display: none;
+  }
+  .dropdown.open { display: block; }
+  .dropdown-item {
+    display: block; width: 100%; padding: 13px 16px;
+    background: none; border: none; text-align: left;
+    font-size: .95rem; font-family: inherit; color: var(--text);
+    cursor: pointer; transition: background .12s;
+  }
+  .dropdown-item:hover, .dropdown-item:active { background: var(--bg); }
+  .dropdown-item.danger { color: var(--red); }
+  .dropdown-sep { height: 1px; background: var(--border); }
+
+  /* ── Misc ── */
+  .empty-state {
+    text-align: center; padding: 40px 20px; color: var(--muted);
+    font-size: .95rem;
+  }
+  .empty-state .icon { font-size: 2.5rem; margin-bottom: 8px; }
+  .toast {
+    position: fixed; bottom: calc(90px + env(safe-area-inset-bottom));
+    left: 50%; transform: translateX(-50%);
+    background: var(--text); color: #fff;
+    padding: 10px 20px; border-radius: 99px;
+    font-size: .88rem; font-weight: 600; z-index: 999;
+    opacity: 0; transition: opacity .2s; pointer-events: none;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; }
+  .spinner {
+    width: 20px; height: 20px; border: 2.5px solid rgba(255,255,255,.4);
+    border-top-color: #fff; border-radius: 50%;
+    animation: spin .7s linear infinite; display: inline-block; vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <h1>Finance</h1>
+  <div class="header-actions">
+    <button class="iconbtn" id="settingsBtn" title="Account settings" aria-label="Account settings">⚙️</button>
+    <div class="menu-wrap">
+      <button class="iconbtn" id="menuBtn" title="More options" aria-label="More options">⋯</button>
+      <div class="dropdown" id="mainMenu">
+        <button class="dropdown-item" onclick="exportData()">⬇ Export JSON</button>
+        <button class="dropdown-item" onclick="triggerImport()">⬆ Import JSON</button>
+        <div class="dropdown-sep"></div>
+        <button class="dropdown-item" onclick="openDriveMenu()">☁ Google Drive</button>
+        <div class="dropdown-sep"></div>
+        <button class="dropdown-item danger" onclick="confirmClearData()">🗑 Clear all data</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab active" data-tab="expenses">Expenses</button>
+  <button class="tab" data-tab="investments">Investments</button>
+</div>
+
+<!-- Expenses Page -->
+<div class="page active" id="page-expenses">
+  <div class="account-cards" id="accountCards"></div>
+  <div class="section-heading">Recent Expenses</div>
+  <div id="expenseList"></div>
+</div>
+
+<!-- Investments Page -->
+<div class="page" id="page-investments">
+  <div class="portfolio-banner">
+    <div class="portfolio-label">Total Portfolio</div>
+    <div class="portfolio-total" id="portfolioTotal">—</div>
+    <div class="portfolio-change" id="portfolioChange"></div>
+  </div>
+  <div id="assetList"></div>
+</div>
+
+<!-- FAB -->
+<button class="fab" id="fabBtn" aria-label="Add">+</button>
+
+<!-- Backdrop -->
+<div class="backdrop" id="backdrop"></div>
+
+<!-- Expense Sheet -->
+<div class="sheet" id="expenseSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="expenseSheetTitle">Add Expense</div>
+  <form id="expenseForm">
+    <input type="hidden" id="expenseId">
+    <div class="field">
+      <label>Account</label>
+      <select id="expAcct"></select>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Date</label>
+        <input type="date" id="expDate" required>
+      </div>
+      <div class="field">
+        <label>Amount</label>
+        <input type="number" id="expAmount" min="0" step="0.01" placeholder="0.00" required>
+      </div>
+    </div>
+    <div class="field">
+      <label>Description</label>
+      <input type="text" id="expDesc" placeholder="What was this for?" required>
+    </div>
+    <div class="field">
+      <label>Category</label>
+      <select id="expCat">
+        <option>Food</option>
+        <option>Transport</option>
+        <option>Shopping</option>
+        <option>Health</option>
+        <option>Entertainment</option>
+        <option>Bills</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <div class="btn-row">
+      <button type="submit" class="btn btn-primary btn-block">Save</button>
+      <button type="button" class="btn btn-secondary" id="expDeleteBtn" style="display:none;min-width:60px" onclick="deleteExpense()">Delete</button>
+    </div>
+  </form>
+</div>
+
+<!-- Asset Sheet -->
+<div class="sheet" id="assetSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="assetSheetTitle">Add Asset</div>
+  <form id="assetForm">
+    <input type="hidden" id="assetId">
+    <div class="field">
+      <label>Asset Name</label>
+      <input type="text" id="assetName" placeholder="e.g. AAPL, Bitcoin, Property" required>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Current Value</label>
+        <input type="number" id="assetValue" min="0" step="0.01" placeholder="0.00" required>
+      </div>
+      <div class="field">
+        <label>Date</label>
+        <input type="date" id="assetDate" required>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button type="submit" class="btn btn-primary btn-block">Save</button>
+      <button type="button" class="btn btn-secondary" id="assetDeleteBtn" style="display:none;min-width:60px" onclick="deleteAsset()">Delete</button>
+    </div>
+  </form>
+</div>
+
+<!-- Account Settings Sheet -->
+<div class="sheet" id="settingsSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Account Settings</div>
+  <div id="accountSettingsBody"></div>
+  <button class="btn btn-primary btn-block" style="margin-top:8px" onclick="saveAccountSettings()">Save Accounts</button>
+</div>
+
+<!-- Asset History Modal -->
+<div class="modal-overlay" id="historyOverlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeHistory()">✕</button>
+    <div class="modal-title" id="historyTitle">History</div>
+    <div id="historyBody"></div>
+  </div>
+</div>
+
+<!-- Drive Modal -->
+<div class="modal-overlay" id="driveOverlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeDriveModal()">✕</button>
+    <div class="modal-title">Google Drive Sync</div>
+    <p style="font-size:.88rem;color:var(--muted);margin-bottom:14px">
+      Enter your Google OAuth Client ID. Data is saved directly to your Drive — nothing goes to any server.
+    </p>
+    <div class="field">
+      <label>Google Client ID</label>
+      <input type="text" id="driveClientId" placeholder="xxxxxxxx.apps.googleusercontent.com">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="driveSave()">⬆ Save to Drive</button>
+      <button class="btn btn-secondary" onclick="driveLoad()">⬇ Load from Drive</button>
+    </div>
+    <div id="driveStatus" style="margin-top:12px;font-size:.85rem;color:var(--muted)"></div>
+  </div>
+</div>
+
+<!-- Hidden file input for import -->
+<input type="file" id="importFile" accept=".json" style="display:none">
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Storage ──────────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'finance:v1';
+const DRIVE_FILE_KEY = 'finance:driveFileId';
+const DRIVE_CLIENT_KEY = 'finance:googleClientId';
+
+function defaultData() {
+  return {
+    accounts: [
+      { id: 'acc1', name: 'Account 1', startingBalance: 0, balance: 0 },
+      { id: 'acc2', name: 'Account 2', startingBalance: 0, balance: 0 }
+    ],
+    expenses: [],
+    assets: []
+  };
+}
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return defaultData();
+    const d = JSON.parse(raw);
+    // migrate / ensure shape
+    if (!d.accounts) d.accounts = defaultData().accounts;
+    if (!d.expenses) d.expenses = [];
+    if (!d.assets) d.assets = [];
+    return d;
+  } catch { return defaultData(); }
+}
+
+function saveData(d) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
+}
+
+function recalcBalances(d) {
+  d.accounts.forEach(acc => {
+    const spent = d.expenses
+      .filter(e => e.accountId === acc.id)
+      .reduce((s, e) => s + e.amount, 0);
+    acc.balance = acc.startingBalance - spent;
+  });
+}
+
+let data = loadData();
+recalcBalances(data);
+
+// ── Utilities ────────────────────────────────────────────────────────────────
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function fmt(n) {
+  return new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+}
+
+function fmtCurrency(n) {
+  return (n < 0 ? '-' : '') + '$' + fmt(Math.abs(n));
+}
+
+function showToast(msg, dur = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), dur);
+}
+
+// ── Tabs ─────────────────────────────────────────────────────────────────────
+let currentTab = 'expenses';
+
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentTab = btn.dataset.tab;
+    document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b === btn));
+    document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + currentTab));
+    renderAll();
+  });
+});
+
+// ── Menu ─────────────────────────────────────────────────────────────────────
+document.getElementById('menuBtn').addEventListener('click', e => {
+  e.stopPropagation();
+  document.getElementById('mainMenu').classList.toggle('open');
+});
+document.addEventListener('click', () => document.getElementById('mainMenu').classList.remove('open'));
+
+// ── Bottom Sheet helpers ──────────────────────────────────────────────────────
+let activeSheet = null;
+
+function openSheet(id) {
+  closeSheet();
+  activeSheet = document.getElementById(id);
+  document.getElementById('backdrop').classList.add('open');
+  activeSheet.classList.add('open');
+}
+
+function closeSheet() {
+  if (activeSheet) {
+    activeSheet.classList.remove('open');
+    activeSheet = null;
+  }
+  document.getElementById('backdrop').classList.remove('open');
+}
+
+document.getElementById('backdrop').addEventListener('click', closeSheet);
+
+// ── FAB ──────────────────────────────────────────────────────────────────────
+document.getElementById('fabBtn').addEventListener('click', () => {
+  if (currentTab === 'expenses') openExpenseSheet(null);
+  else openAssetSheet(null);
+});
+
+// ── Render: Expenses ─────────────────────────────────────────────────────────
+function renderAccountCards() {
+  const el = document.getElementById('accountCards');
+  el.innerHTML = data.accounts.map((acc, i) => `
+    <div class="account-card">
+      <div class="acc-name">${esc(acc.name)}</div>
+      <div class="acc-balance ${acc.balance >= 0 ? 'positive' : 'negative'}">${fmtCurrency(acc.balance)}</div>
+      <div class="acc-sub">Start: ${fmtCurrency(acc.startingBalance)}</div>
+      <button class="btn-add" onclick="openExpenseSheet(null, '${acc.id}')">+ Add</button>
+    </div>
+  `).join('');
+}
+
+function renderExpenseList() {
+  const el = document.getElementById('expenseList');
+  if (!data.expenses.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">💸</div>No expenses yet.<br>Tap + to add one.</div>`;
+    return;
+  }
+  const sorted = [...data.expenses].sort((a, b) => b.date.localeCompare(a.date) || b._ts - a._ts);
+  const groups = {};
+  sorted.forEach(e => { (groups[e.date] = groups[e.date] || []).push(e); });
+
+  el.innerHTML = Object.entries(groups).map(([date, exps]) => `
+    <div class="date-group">
+      <div class="date-label">${formatDate(date)}</div>
+      ${exps.map(e => {
+        const acc = data.accounts.find(a => a.id === e.accountId);
+        const badgeClass = e.accountId === 'acc1' ? '' : ' acc2';
+        return `
+          <div class="expense-item" onclick="openExpenseSheet('${e.id}')">
+            <div class="expense-left">
+              <div class="expense-desc">${esc(e.description)}</div>
+              <div class="expense-meta">
+                <span class="acc-badge${badgeClass}">${esc(acc ? acc.name : '?')}</span>
+                <span class="cat-chip">${esc(e.category)}</span>
+              </div>
+            </div>
+            <div class="expense-amount">-${fmtCurrency(e.amount)}</div>
+          </div>`;
+      }).join('')}
+    </div>
+  `).join('');
+}
+
+function formatDate(d) {
+  const dt = new Date(d + 'T00:00:00');
+  return dt.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+// ── Expense Sheet ─────────────────────────────────────────────────────────────
+function openExpenseSheet(id, preAcct) {
+  const form = document.getElementById('expenseForm');
+  form.reset();
+  document.getElementById('expenseId').value = '';
+  document.getElementById('expDate').value = today();
+  document.getElementById('expDeleteBtn').style.display = 'none';
+
+  // Populate account select
+  const sel = document.getElementById('expAcct');
+  sel.innerHTML = data.accounts.map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join('');
+
+  if (id) {
+    const exp = data.expenses.find(e => e.id === id);
+    if (!exp) return;
+    document.getElementById('expenseSheetTitle').textContent = 'Edit Expense';
+    document.getElementById('expenseId').value = exp.id;
+    sel.value = exp.accountId;
+    document.getElementById('expDate').value = exp.date;
+    document.getElementById('expAmount').value = exp.amount;
+    document.getElementById('expDesc').value = exp.description;
+    document.getElementById('expCat').value = exp.category;
+    document.getElementById('expDeleteBtn').style.display = '';
+  } else {
+    document.getElementById('expenseSheetTitle').textContent = 'Add Expense';
+    if (preAcct) sel.value = preAcct;
+  }
+  openSheet('expenseSheet');
+  setTimeout(() => document.getElementById('expAmount').focus(), 350);
+}
+
+document.getElementById('expenseForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const id = document.getElementById('expenseId').value;
+  const entry = {
+    id: id || uid(),
+    accountId: document.getElementById('expAcct').value,
+    date: document.getElementById('expDate').value,
+    description: document.getElementById('expDesc').value.trim(),
+    amount: parseFloat(document.getElementById('expAmount').value),
+    category: document.getElementById('expCat').value,
+    _ts: Date.now()
+  };
+  if (id) {
+    const idx = data.expenses.findIndex(e => e.id === id);
+    if (idx >= 0) data.expenses[idx] = entry;
+  } else {
+    data.expenses.push(entry);
+  }
+  recalcBalances(data);
+  saveData(data);
+  closeSheet();
+  renderAll();
+  showToast(id ? 'Expense updated' : 'Expense added');
+});
+
+function deleteExpense() {
+  const id = document.getElementById('expenseId').value;
+  if (!id) return;
+  if (!confirm('Delete this expense?')) return;
+  data.expenses = data.expenses.filter(e => e.id !== id);
+  recalcBalances(data);
+  saveData(data);
+  closeSheet();
+  renderAll();
+  showToast('Expense deleted');
+}
+
+// ── Account Settings ──────────────────────────────────────────────────────────
+document.getElementById('settingsBtn').addEventListener('click', () => {
+  const body = document.getElementById('accountSettingsBody');
+  body.innerHTML = data.accounts.map((acc, i) => `
+    <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+      <div class="section-heading">Account ${i + 1}</div>
+      <div class="field"><label>Name</label>
+        <input type="text" id="accName${i}" value="${esc(acc.name)}" placeholder="Account name">
+      </div>
+      <div class="field"><label>Starting Balance</label>
+        <input type="number" id="accStart${i}" value="${acc.startingBalance}" step="0.01" placeholder="0.00">
+      </div>
+    </div>
+  `).join('');
+  openSheet('settingsSheet');
+});
+
+function saveAccountSettings() {
+  data.accounts.forEach((acc, i) => {
+    const name = document.getElementById('accName' + i).value.trim();
+    const start = parseFloat(document.getElementById('accStart' + i).value) || 0;
+    acc.name = name || acc.name;
+    acc.startingBalance = start;
+  });
+  recalcBalances(data);
+  saveData(data);
+  closeSheet();
+  renderAll();
+  showToast('Accounts saved');
+}
+
+// ── Render: Investments ───────────────────────────────────────────────────────
+function renderInvestments() {
+  const total = data.assets.reduce((s, a) => s + currentValue(a), 0);
+  document.getElementById('portfolioTotal').textContent = fmtCurrency(total);
+
+  const prevTotal = data.assets.reduce((s, a) => s + prevValue(a), 0);
+  const diff = total - prevTotal;
+  const pct = prevTotal ? (diff / prevTotal * 100) : 0;
+  const changeEl = document.getElementById('portfolioChange');
+  if (data.assets.length && prevTotal !== total) {
+    changeEl.textContent = `${diff >= 0 ? '+' : ''}${fmtCurrency(diff)} (${diff >= 0 ? '+' : ''}${pct.toFixed(2)}%) from last update`;
+  } else {
+    changeEl.textContent = '';
+  }
+
+  const el = document.getElementById('assetList');
+  if (!data.assets.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">📈</div>No assets yet.<br>Tap + to add one.</div>`;
+    return;
+  }
+  el.innerHTML = data.assets.map(a => {
+    const cur = currentValue(a);
+    const prev = prevValue(a);
+    const diff = cur - prev;
+    const pct = prev ? (diff / prev * 100) : 0;
+    const deltaClass = diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat';
+    const deltaText = prev > 0
+      ? `${diff >= 0 ? '+' : ''}${fmtCurrency(diff)} (${diff >= 0 ? '+' : ''}${pct.toFixed(2)}%)`
+      : 'No prior value';
+    const lastDate = a.history.length ? a.history[a.history.length - 1].date : '';
+    return `
+      <div class="asset-card" onclick="openAssetSheet('${a.id}')">
+        <div class="card-row">
+          <div>
+            <div class="asset-name">${esc(a.name)}</div>
+            <div class="asset-value">${fmtCurrency(cur)}</div>
+            <div class="asset-delta ${deltaClass}">${deltaText}</div>
+            <div class="asset-date">${lastDate ? 'Updated ' + formatDate(lastDate) : ''}</div>
+          </div>
+          <button class="iconbtn" style="font-size:1rem;color:var(--muted)" onclick="event.stopPropagation();openHistory('${a.id}')">📋</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function currentValue(a) {
+  return a.history.length ? a.history[a.history.length - 1].value : 0;
+}
+
+function prevValue(a) {
+  return a.history.length > 1 ? a.history[a.history.length - 2].value : currentValue(a);
+}
+
+// ── Asset Sheet ───────────────────────────────────────────────────────────────
+function openAssetSheet(id) {
+  const form = document.getElementById('assetForm');
+  form.reset();
+  document.getElementById('assetId').value = '';
+  document.getElementById('assetDate').value = today();
+  document.getElementById('assetDeleteBtn').style.display = 'none';
+
+  if (id) {
+    const asset = data.assets.find(a => a.id === id);
+    if (!asset) return;
+    document.getElementById('assetSheetTitle').textContent = 'Update Asset';
+    document.getElementById('assetId').value = id;
+    document.getElementById('assetName').value = asset.name;
+    document.getElementById('assetValue').value = currentValue(asset) || '';
+    document.getElementById('assetDeleteBtn').style.display = '';
+  } else {
+    document.getElementById('assetSheetTitle').textContent = 'Add Asset';
+  }
+  openSheet('assetSheet');
+  setTimeout(() => document.getElementById('assetValue').focus(), 350);
+}
+
+document.getElementById('assetForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const id = document.getElementById('assetId').value;
+  const name = document.getElementById('assetName').value.trim();
+  const value = parseFloat(document.getElementById('assetValue').value);
+  const date = document.getElementById('assetDate').value;
+
+  if (id) {
+    const asset = data.assets.find(a => a.id === id);
+    if (!asset) return;
+    asset.name = name;
+    const last = asset.history[asset.history.length - 1];
+    if (!last || last.value !== value || last.date !== date) {
+      asset.history.push({ date, value, _ts: Date.now() });
+    }
+  } else {
+    data.assets.push({ id: uid(), name, history: [{ date, value, _ts: Date.now() }] });
+  }
+  saveData(data);
+  closeSheet();
+  renderAll();
+  showToast(id ? 'Asset updated' : 'Asset added');
+});
+
+function deleteAsset() {
+  const id = document.getElementById('assetId').value;
+  if (!id) return;
+  if (!confirm('Delete this asset and all its history?')) return;
+  data.assets = data.assets.filter(a => a.id !== id);
+  saveData(data);
+  closeSheet();
+  renderAll();
+  showToast('Asset deleted');
+}
+
+// ── History Modal ─────────────────────────────────────────────────────────────
+function openHistory(id) {
+  const asset = data.assets.find(a => a.id === id);
+  if (!asset) return;
+  document.getElementById('historyTitle').textContent = esc(asset.name) + ' — History';
+  const rows = [...asset.history].reverse();
+  document.getElementById('historyBody').innerHTML = `
+    <table class="hist-table">
+      <thead><tr><th>Date</th><th>Value</th><th>Change</th></tr></thead>
+      <tbody>${rows.map((h, i) => {
+        const prev = rows[i + 1];
+        const diff = prev ? h.value - prev.value : null;
+        const pct = prev && prev.value ? (diff / prev.value * 100) : null;
+        const changeStr = diff !== null
+          ? `<span style="color:${diff >= 0 ? 'var(--green)' : 'var(--red)'}">
+              ${diff >= 0 ? '+' : ''}${fmtCurrency(diff)}<br>
+              <small>${diff >= 0 ? '+' : ''}${pct.toFixed(2)}%</small>
+            </span>`
+          : '<span style="color:var(--muted)">—</span>';
+        return `<tr><td>${formatDate(h.date)}</td><td>${fmtCurrency(h.value)}</td><td>${changeStr}</td></tr>`;
+      }).join('')}</tbody>
+    </table>
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn btn-danger" style="font-size:.82rem;padding:8px 14px" onclick="deleteLatestHistory('${id}')">Remove Latest Entry</button>
+    </div>`;
+  document.getElementById('historyOverlay').classList.add('open');
+}
+
+function closeHistory() {
+  document.getElementById('historyOverlay').classList.remove('open');
+}
+
+function deleteLatestHistory(id) {
+  const asset = data.assets.find(a => a.id === id);
+  if (!asset || asset.history.length < 2) { showToast('Cannot remove only entry'); return; }
+  if (!confirm('Remove the latest value entry?')) return;
+  asset.history.pop();
+  saveData(data);
+  closeHistory();
+  renderAll();
+  showToast('Entry removed');
+}
+
+document.getElementById('historyOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('historyOverlay')) closeHistory();
+});
+
+// ── Import / Export ───────────────────────────────────────────────────────────
+function exportData() {
+  document.getElementById('mainMenu').classList.remove('open');
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'finance-backup-' + today() + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Exported');
+}
+
+function triggerImport() {
+  document.getElementById('mainMenu').classList.remove('open');
+  document.getElementById('importFile').click();
+}
+
+document.getElementById('importFile').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const parsed = JSON.parse(ev.target.result);
+      if (!parsed.accounts || !Array.isArray(parsed.expenses) || !Array.isArray(parsed.assets)) {
+        showToast('Invalid file format'); return;
+      }
+      if (!confirm('Replace all current data with imported file?')) return;
+      data = parsed;
+      recalcBalances(data);
+      saveData(data);
+      renderAll();
+      showToast('Imported successfully');
+    } catch { showToast('Could not read file'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+function confirmClearData() {
+  document.getElementById('mainMenu').classList.remove('open');
+  if (!confirm('Delete ALL data? This cannot be undone.')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  data = defaultData();
+  saveData(data);
+  renderAll();
+  showToast('All data cleared');
+}
+
+// ── Google Drive ──────────────────────────────────────────────────────────────
+let driveToken = null;
+
+function openDriveMenu() {
+  document.getElementById('mainMenu').classList.remove('open');
+  document.getElementById('driveClientId').value = localStorage.getItem(DRIVE_CLIENT_KEY) || '';
+  document.getElementById('driveStatus').textContent = '';
+  document.getElementById('driveOverlay').classList.add('open');
+}
+
+function closeDriveModal() {
+  document.getElementById('driveOverlay').classList.remove('open');
+}
+
+document.getElementById('driveOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('driveOverlay')) closeDriveModal();
+});
+
+function getDriveClientId() {
+  const id = document.getElementById('driveClientId').value.trim();
+  if (!id) { showToast('Enter your Google Client ID'); return null; }
+  localStorage.setItem(DRIVE_CLIENT_KEY, id);
+  return id;
+}
+
+function setDriveStatus(msg) {
+  document.getElementById('driveStatus').textContent = msg;
+}
+
+function ensureGsiLoaded() {
+  return new Promise((resolve, reject) => {
+    if (window.google && window.google.accounts) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client';
+    s.async = true;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('Failed to load Google Identity Services'));
+    document.head.appendChild(s);
+  });
+}
+
+async function getAccessToken(clientId) {
+  if (driveToken && driveToken.expiry > Date.now()) return driveToken.token;
+  await ensureGsiLoaded();
+  return new Promise((resolve, reject) => {
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: 'https://www.googleapis.com/auth/drive.file',
+      callback: resp => {
+        if (resp.error) { reject(new Error(resp.error)); return; }
+        driveToken = { token: resp.access_token, expiry: Date.now() + (resp.expires_in - 30) * 1000 };
+        resolve(resp.access_token);
+      }
+    });
+    client.requestAccessToken({ prompt: 'consent' });
+  });
+}
+
+async function driveSave() {
+  const clientId = getDriveClientId();
+  if (!clientId) return;
+  setDriveStatus('Authenticating…');
+  try {
+    const token = await getAccessToken(clientId);
+    setDriveStatus('Saving…');
+    const content = JSON.stringify(data, null, 2);
+    const fileId = localStorage.getItem(DRIVE_FILE_KEY);
+
+    const metadata = { name: 'finance-backup.json', mimeType: 'application/json' };
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+    form.append('file', new Blob([content], { type: 'application/json' }));
+
+    let url, method;
+    if (fileId) {
+      url = `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`;
+      method = 'PATCH';
+    } else {
+      url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+      method = 'POST';
+    }
+
+    const resp = await fetch(url, { method, headers: { Authorization: 'Bearer ' + token }, body: form });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const json = await resp.json();
+    localStorage.setItem(DRIVE_FILE_KEY, json.id);
+    setDriveStatus('Saved to Google Drive ✓');
+    showToast('Saved to Drive');
+  } catch (err) {
+    setDriveStatus('Error: ' + err.message);
+    showToast('Drive save failed');
+  }
+}
+
+async function driveLoad() {
+  const clientId = getDriveClientId();
+  if (!clientId) return;
+  setDriveStatus('Authenticating…');
+  try {
+    const token = await getAccessToken(clientId);
+    setDriveStatus('Looking for backup file…');
+
+    // Find file by name
+    const q = encodeURIComponent("name='finance-backup.json' and trashed=false");
+    const listResp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name,modifiedTime)&orderBy=modifiedTime+desc`, {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    if (!listResp.ok) throw new Error('HTTP ' + listResp.status);
+    const list = await listResp.json();
+    if (!list.files || !list.files.length) { setDriveStatus('No backup found on Drive'); return; }
+
+    const fileId = list.files[0].id;
+    localStorage.setItem(DRIVE_FILE_KEY, fileId);
+    setDriveStatus('Downloading…');
+
+    const fileResp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    if (!fileResp.ok) throw new Error('HTTP ' + fileResp.status);
+    const parsed = await fileResp.json();
+
+    if (!parsed.accounts || !Array.isArray(parsed.expenses) || !Array.isArray(parsed.assets)) {
+      throw new Error('Invalid backup format');
+    }
+    if (!confirm('Replace local data with Drive backup from ' + list.files[0].modifiedTime + '?')) {
+      setDriveStatus('Cancelled'); return;
+    }
+    data = parsed;
+    recalcBalances(data);
+    saveData(data);
+    renderAll();
+    setDriveStatus('Loaded from Google Drive ✓');
+    showToast('Loaded from Drive');
+  } catch (err) {
+    setDriveStatus('Error: ' + err.message);
+    showToast('Drive load failed');
+  }
+}
+
+// ── Render all ────────────────────────────────────────────────────────────────
+function renderAll() {
+  renderAccountCards();
+  renderExpenseList();
+  renderInvestments();
+}
+
+// ── XSS-safe escape ───────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+renderAll();
+</script>
+</body>
+</html>
