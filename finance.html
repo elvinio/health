@@ -356,6 +356,7 @@
         <div class="dropdown-sep"></div>
         <button class="dropdown-item" onclick="exportData()">⬇ Export JSON</button>
         <button class="dropdown-item" onclick="triggerImport()">⬆ Import JSON</button>
+        <button class="dropdown-item" onclick="pullHistory()">📥 Pull History</button>
         <div class="dropdown-sep"></div>
         <button class="dropdown-item" onclick="openDriveMenu()">☁ Google Drive</button>
         <div class="dropdown-sep"></div>
@@ -1322,6 +1323,25 @@ function confirmClearData() {
   saveHistory(historyData);
   renderAll();
   showToast('All data cleared');
+}
+
+async function pullHistory() {
+  document.getElementById('mainMenu').classList.remove('open');
+  try {
+    const res = await fetch('finance-elvis-history.json');
+    if (!res.ok) throw new Error('Not found');
+    const d = await res.json();
+    if (!Array.isArray(d.expenses)) throw new Error('Invalid format');
+    historyData = { expenses: d.expenses, _updatedAt: d._updatedAt || Date.now() };
+    data.historyUpdatedAt = historyData._updatedAt;
+    recalcMonthlyAgg(data, allExpenses());
+    saveData(data);
+    saveHistory(historyData);
+    renderAll();
+    showToast(`Loaded ${d.expenses.length} history expenses`);
+  } catch (e) {
+    showToast('Could not load history file');
+  }
 }
 
 // ── Drive header sync button ──────────────────────────────────────────────────
