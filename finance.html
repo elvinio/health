@@ -379,6 +379,7 @@
   <div class="account-cards" id="accountCards"></div>
   <div class="section-heading">Expense List</div>
   <div class="filter-bar">
+    <div class="filter-pills" id="yearFilterPills"></div>
     <div class="filter-pills" id="accountFilterPills"></div>
     <input class="filter-search" id="expenseSearch" type="search" placeholder="Search by description…" oninput="onSearchInput()">
   </div>
@@ -609,7 +610,8 @@ function defaultData() {
     expenses: [],
     assets: [],
     _deletedIds: [],
-    budgets: {}
+    budgets: {},
+    monthlyAgg: {}
   };
 }
 
@@ -623,6 +625,7 @@ function loadData() {
     if (!d.assets) d.assets = [];
     if (!d._deletedIds) d._deletedIds = [];
     if (!d.budgets) d.budgets = {};
+    if (!d.monthlyAgg) d.monthlyAgg = {};
     d.accounts.forEach(a => { if (!a._updatedAt) a._updatedAt = 0; });
     return d;
   } catch { return defaultData(); }
@@ -641,8 +644,19 @@ function recalcBalances(d) {
   });
 }
 
+function recalcMonthlyAgg(d) {
+  d.monthlyAgg = {};
+  d.expenses.forEach(e => {
+    if (e.cat === 'TopUp') return;
+    const m = e.date.slice(0, 7);
+    if (!d.monthlyAgg[m]) d.monthlyAgg[m] = {};
+    d.monthlyAgg[m][e.cat] = (d.monthlyAgg[m][e.cat] || 0) + e.amount;
+  });
+}
+
 let data = loadData();
 recalcBalances(data);
+recalcMonthlyAgg(data);
 
 // ── Utilities ────────────────────────────────────────────────────────────────
 function uid() {
@@ -753,6 +767,7 @@ function renderExpenseList() {
     return;
   }
   let sorted = [...data.expenses].sort((a, b) => b.date.localeCompare(a.date) || b._ts - a._ts);
+  sorted = sorted.filter(e => e.date.startsWith(filterYear + '-'));
   if (filterAccount) sorted = sorted.filter(e => e.ac === filterAccount);
   if (filterSearch) sorted = sorted.filter(e => e.desc.toLowerCase().includes(filterSearch));
   if (!sorted.length) {
@@ -866,6 +881,7 @@ document.getElementById('expenseForm').addEventListener('submit', e => {
     data.expenses.push(entry);
   }
   recalcBalances(data);
+  recalcMonthlyAgg(data);
   saveData(data);
   closeSheet();
   renderAll();
@@ -879,6 +895,7 @@ function deleteExpense() {
   data._deletedIds.push(id);
   data.expenses = data.expenses.filter(e => e.id !== id);
   recalcBalances(data);
+  recalcMonthlyAgg(data);
   saveData(data);
   closeSheet();
   renderAll();
@@ -888,6 +905,38 @@ function deleteExpense() {
 // ── Expense filters ───────────────────────────────────────────────────────────
 let filterAccount = null;
 let filterSearch = '';
+let filterYear = String(new Date().getFullYear());
+let analysisYears = new Set([String(new Date().getFullYear())]);
+
+function getExpenseYears() {
+  const years = new Set(data.expenses.map(e => e.date.slice(0, 4)));
+  years.add(String(new Date().getFullYear()));
+  return [...years].sort((a, b) => Number(b) - Number(a));
+}
+
+function renderYearFilterPills() {
+  const container = document.getElementById('yearFilterPills');
+  if (!container) return;
+  const years = getExpenseYears();
+  container.innerHTML = years.map(y =>
+    `<button class="filter-pill${filterYear === y ? ' active' : ''}" onclick="setYearFilter('${y}')">${y}</button>`
+  ).join('');
+}
+
+function setYearFilter(y) {
+  filterYear = y;
+  renderYearFilterPills();
+  renderExpenseList();
+}
+
+function toggleAnalysisYear(y) {
+  if (analysisYears.has(y)) {
+    if (analysisYears.size > 1) analysisYears.delete(y);
+  } else {
+    analysisYears.add(y);
+  }
+  renderAnalysis();
+}
 
 function renderAccountFilterPills() {
   const container = document.getElementById('accountFilterPills');
@@ -1176,6 +1225,7 @@ document.getElementById('importFile').addEventListener('change', e => {
       if (!confirm('Replace all current data with imported file?')) return;
       data = parsed;
       recalcBalances(data);
+      recalcMonthlyAgg(data);
       saveData(data);
       renderAll();
       showToast('Imported successfully');
@@ -1370,6 +1420,7 @@ function mergeData(local, remote) {
     budgets: { ...(remote.budgets || {}), ...(local.budgets || {}) }
   };
   recalcBalances(merged);
+  recalcMonthlyAgg(merged);
   return merged;
 }
 
@@ -1576,21 +1627,32 @@ function renderCategoryChart(byMonth, months, allCats) {
 // ── Render: Analysis ─────────────────────────────────────────────────────────
 function renderAnalysis() {
   const el = document.getElementById('analysisList');
-  const expenses = data.expenses.filter(e => e.cat !== 'TopUp' && e.cat !== 'Other');
-  if (!expenses.length) {
-    el.innerHTML = '<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">bar_chart</span></div>No expense data yet.</div>';
+  const allYears = getExpenseYears();
+
+  const yearPillsHtml = `<div class="filter-pills" style="margin-bottom:16px">${
+    allYears.map(y =>
+      `<button class="filter-pill${analysisYears.has(y) ? ' active' : ''}" onclick="toggleAnalysisYear('${y}')">${y}</button>`
+    ).join('')
+  }</div>`;
+
+  // Build byMonth from pre-computed monthlyAgg, filtered by selected years, excluding 'Other'
+  const byMonth = {};
+  Object.entries(data.monthlyAgg || {}).forEach(([month, cats]) => {
+    if (!analysisYears.has(month.slice(0, 4))) return;
+    const filtered = {};
+    Object.entries(cats).forEach(([cat, amt]) => {
+      if (cat !== 'Other') filtered[cat] = amt;
+    });
+    if (Object.keys(filtered).length) byMonth[month] = filtered;
+  });
+
+  if (!Object.keys(byMonth).length) {
+    el.innerHTML = yearPillsHtml + '<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">bar_chart</span></div>No expense data yet.</div>';
     return;
   }
 
-  const byMonth = {};
-  expenses.forEach(e => {
-    const month = e.date.slice(0, 7);
-    if (!byMonth[month]) byMonth[month] = {};
-    byMonth[month][e.cat] = (byMonth[month][e.cat] || 0) + e.amount;
-  });
-
   const months = Object.keys(byMonth).sort();
-  const allCats = [...new Set(expenses.map(e => e.cat))].sort();
+  const allCats = [...new Set(Object.values(byMonth).flatMap(cats => Object.keys(cats)))].sort();
   const budgets = data.budgets || {};
   const totalBudget = Object.values(budgets).reduce((s, v) => s + v, 0);
 
@@ -1627,13 +1689,14 @@ function renderAnalysis() {
       </div>`;
   }).join('');
 
-  el.innerHTML = chart + cards;
+  el.innerHTML = yearPillsHtml + chart + cards;
 }
 
 // ── Render all ────────────────────────────────────────────────────────────────
 function renderAll() {
   renderAccountCards();
   renderAccountFilterPills();
+  renderYearFilterPills();
   renderExpenseList();
   renderInvestments();
   renderAnalysis();
