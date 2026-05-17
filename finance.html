@@ -1542,24 +1542,52 @@ async function driveSync() {
   setDriveStatus('Authenticating…');
   try {
     const token = await getAccessToken(clientId);
+
     setDriveStatus('Downloading…');
-    const fileResp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-      headers: { Authorization: 'Bearer ' + token }
-    });
-    if (!fileResp.ok) throw new Error('HTTP ' + fileResp.status);
-    const remote = await fileResp.json();
+    const remote = await downloadFromDrive(token, fileId);
     if (!remote.accounts || !Array.isArray(remote.expenses) || !Array.isArray(remote.assets)) {
       throw new Error('Invalid backup format');
     }
+
+    // Download history file if connected; tolerate missing file
+    const historyFileId = localStorage.getItem(DRIVE_HISTORY_FILE_KEY);
+    let remoteHistory = { expenses: [] };
+    if (historyFileId) {
+      try { remoteHistory = await downloadFromDrive(token, historyFileId); } catch {}
+      if (!Array.isArray(remoteHistory.expenses)) remoteHistory = { expenses: [] };
+    }
+
+    // Handle old-format remote where all years are in remote.expenses
+    const curYear = String(new Date().getFullYear());
+    const remoteHistFromMain = (remote.expenses || []).filter(e => !e.date.startsWith(curYear + '-'));
+    remote.expenses = (remote.expenses || []).filter(e => e.date.startsWith(curYear + '-'));
+    const combinedRemoteHistory = mergeHistoryData(remoteHistory, { expenses: remoteHistFromMain });
+
     setDriveStatus('Merging…');
     const merged = mergeData(data, remote);
+    const mergedHistory = mergeHistoryData(historyData, combinedRemoteHistory);
+
+    // Apply deletedIds to history
+    const deletedSet = new Set(merged._deletedIds);
+    mergedHistory.expenses = mergedHistory.expenses.filter(e => !deletedSet.has(e.id));
+
     setDriveStatus('Uploading…');
     await uploadToDrive(token, fileId, merged);
+    await uploadHistoryToDrive(token, historyFileId || null, mergedHistory);
+
     const now = new Date().toISOString();
     localStorage.setItem('finance:lastSync', now);
     data = merged;
+    historyData = mergedHistory;
+    recalcBalances(data, allExpenses());
+    recalcMonthlyAgg(data, allExpenses());
     saveData(data);
+    saveHistory(historyData);
     renderAll();
+
+    // Refresh share code in case history file ID was just created
+    document.getElementById('shareCodeDisplay').textContent =
+      makeShareCode(clientId, fileId, localStorage.getItem(DRIVE_HISTORY_FILE_KEY) || '');
     document.getElementById('driveLastSync').textContent = 'Last synced ' + new Date(now).toLocaleString();
     setDriveStatus('Sync complete ✓');
     showToast('Sync complete');
