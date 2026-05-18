@@ -82,24 +82,6 @@
   .card-row { display: flex; align-items: center; justify-content: space-between; }
 
   /* ── Account cards ── */
-  .account-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
-  .account-card {
-    background: var(--card); border-radius: var(--radius);
-    box-shadow: var(--shadow); padding: 14px 12px;
-    display: flex; flex-direction: column; gap: 6px;
-  }
-  .account-card .acc-name { font-size: .8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
-  .account-card .acc-balance { font-size: 1.3rem; font-weight: 700; }
-  .account-card .acc-balance.positive { color: var(--green); }
-  .account-card .acc-balance.negative { color: var(--red); }
-  .account-card .acc-sub { font-size: .75rem; color: var(--muted); }
-  .account-card .btn-add {
-    margin-top: 4px; padding: 6px 10px; font-size: .8rem;
-    background: var(--primary); color: #fff; border: none;
-    border-radius: 8px; cursor: pointer; font-weight: 600;
-    transition: opacity .15s;
-  }
-  .account-card .btn-add:active { opacity: .75; }
 
   /* ── Section headings ── */
   .section-heading {
@@ -123,6 +105,14 @@
     font-size: .9rem; color: var(--text); outline: none; -webkit-appearance: none;
   }
   .filter-search:focus { border-color: var(--primary-light); }
+  .ytd-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ytd-chip {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 12px; border-radius: 20px; font-size: .8rem;
+    background: var(--card); border: 1.5px solid var(--border);
+  }
+  .ytd-chip .ytd-year { font-weight: 700; color: var(--muted); }
+  .ytd-chip .ytd-amt { font-weight: 700; color: var(--text); }
 
   /* ── Expense list ── */
   .date-group { margin-bottom: 4px; }
@@ -378,12 +368,12 @@
 
 <!-- Expenses Page -->
 <div class="page active" id="page-expenses">
-  <div class="account-cards" id="accountCards" style="display:none"></div>
   <div class="section-heading">Expense List</div>
   <div class="filter-bar">
     <div class="filter-pills" id="yearFilterPills"></div>
     <div class="filter-pills" id="accountFilterPills"></div>
     <input class="filter-search" id="expenseSearch" type="search" placeholder="Search by description…" oninput="onSearchInput()">
+    <div id="ytdSpending"></div>
   </div>
   <div id="expenseList"></div>
 </div>
@@ -775,18 +765,6 @@ document.getElementById('fabBtn').addEventListener('click', () => {
 });
 
 // ── Render: Expenses ─────────────────────────────────────────────────────────
-function renderAccountCards() {
-  const el = document.getElementById('accountCards');
-  const hidden = balanceHidden;
-  el.innerHTML = data.accounts.map((acc) => `
-    <div class="account-card">
-      <div class="acc-name">${esc(acc.name)}</div>
-      <div class="acc-balance ${acc.balance >= 0 ? 'positive' : 'negative'}">${hidden ? '••••' : fmtCurrency(acc.balance)}</div>
-      <button class="btn-add" onclick="openExpenseSheet(null, '${acc.id}')">+ Add</button>
-    </div>
-  `).join('');
-}
-
 function balanceAtMonthStart(accountId, monthStr) {
   const acc = data.accounts.find(a => a.id === accountId);
   return allExpenses()
@@ -1020,6 +998,22 @@ function renderYearFilterPills() {
   ).join('') + `<button class="filter-pill" onclick="toggleCollapseAll()">${collapseLabel}</button>`;
 }
 
+function renderYtdSpending() {
+  const el = document.getElementById('ytdSpending');
+  if (!el) return;
+  const years = getExpenseYears();
+  const today = new Date();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  const curYear = String(today.getFullYear());
+  el.innerHTML = `<div class="ytd-row">${years.map(y => {
+    const source = y === curYear ? data.expenses : historyData.expenses.filter(e => e.date.startsWith(y + '-'));
+    const cutoff = `${y}-${mm}-${dd}`;
+    const total = source.filter(e => e.cat !== 'TopUp' && e.date <= cutoff).reduce((s, e) => s + e.amount, 0);
+    return `<div class="ytd-chip"><span class="ytd-year">${y}</span><span class="ytd-amt">${balanceHidden ? '••••' : fmtDollar(total)}</span></div>`;
+  }).join('')}</div>`;
+}
+
 function toggleCollapseAll() {
   const source = filterYear === String(new Date().getFullYear()) ? data.expenses : historyData.expenses.filter(e => e.date.startsWith(filterYear + '-'));
   const months = [...new Set(source.map(e => e.date.slice(0, 7)))];
@@ -1083,8 +1077,8 @@ function recalcAll() {
   recalcMonthlyAgg(data, allExpenses());
   saveData(data);
   document.getElementById('mainMenu').classList.remove('open');
-  renderAccountCards();
   renderExpenseList();
+  renderYtdSpending();
 }
 
 function toggleBalanceVisibility() {
@@ -1093,8 +1087,8 @@ function toggleBalanceVisibility() {
     ? '<span class="material-symbols-outlined">visibility</span> Show Balances'
     : '<span class="material-symbols-outlined">visibility_off</span> Hide Balances';
   document.getElementById('mainMenu').classList.remove('open');
-  renderAccountCards();
   renderExpenseList();
+  renderYtdSpending();
 }
 
 // ── Account Settings ──────────────────────────────────────────────────────────
@@ -1933,10 +1927,10 @@ function renderAnalysis() {
 
 // ── Render all ────────────────────────────────────────────────────────────────
 function renderAll() {
-  renderAccountCards();
   renderAccountFilterPills();
   renderYearFilterPills();
   renderExpenseList();
+  renderYtdSpending();
   renderInvestments();
   renderAnalysis();
   document.getElementById('fabBtn').style.display = currentTab === 'analysis' ? 'none' : '';
