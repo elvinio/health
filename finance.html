@@ -357,6 +357,7 @@
         <button class="dropdown-item" onclick="exportData()">⬇ Export JSON</button>
         <button class="dropdown-item" onclick="triggerImport()">⬆ Import JSON</button>
         <button class="dropdown-item" onclick="pullHistory()">📥 Pull History</button>
+        <button class="dropdown-item" onclick="recalcAll()"><span class="material-symbols-outlined">calculate</span> Recalculate</button>
         <div class="dropdown-sep"></div>
         <button class="dropdown-item" onclick="openDriveMenu()">☁ Google Drive</button>
         <div class="dropdown-sep"></div>
@@ -1009,9 +1010,24 @@ function renderYearFilterPills() {
   const container = document.getElementById('yearFilterPills');
   if (!container) return;
   const years = getExpenseYears();
+  const allCollapsed = years.every(y => {
+    const source = y === String(new Date().getFullYear()) ? data.expenses : historyData.expenses.filter(e => e.date.startsWith(y + '-'));
+    return source.map(e => e.date.slice(0, 7)).filter((m, i, a) => a.indexOf(m) === i).every(m => collapsedMonths.has(m));
+  });
+  const collapseLabel = allCollapsed ? 'Expand All' : 'Collapse All';
   container.innerHTML = years.map(y =>
     `<button class="filter-pill${filterYear === y ? ' active' : ''}" onclick="setYearFilter('${y}')">${y}</button>`
-  ).join('');
+  ).join('') + `<button class="filter-pill" onclick="toggleCollapseAll()">${collapseLabel}</button>`;
+}
+
+function toggleCollapseAll() {
+  const source = filterYear === String(new Date().getFullYear()) ? data.expenses : historyData.expenses.filter(e => e.date.startsWith(filterYear + '-'));
+  const months = [...new Set(source.map(e => e.date.slice(0, 7)))];
+  const allCollapsed = months.every(m => collapsedMonths.has(m));
+  if (allCollapsed) months.forEach(m => collapsedMonths.delete(m));
+  else months.forEach(m => collapsedMonths.add(m));
+  renderExpenseList();
+  renderYearFilterPills();
 }
 
 function setYearFilter(y) {
@@ -1060,6 +1076,15 @@ function toggleMonth(month) {
   const chevron = document.getElementById('month-chevron-' + month);
   if (rows) rows.style.display = collapsedMonths.has(month) ? 'none' : '';
   if (chevron) chevron.style.transform = collapsedMonths.has(month) ? 'rotate(-90deg)' : '';
+}
+
+function recalcAll() {
+  recalcBalances(data, allExpenses());
+  recalcMonthlyAgg(data, allExpenses());
+  saveData(data);
+  document.getElementById('mainMenu').classList.remove('open');
+  renderAccountCards();
+  renderExpenseList();
 }
 
 function toggleBalanceVisibility() {
