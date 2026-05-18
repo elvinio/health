@@ -1003,13 +1003,17 @@ function renderYtdSpending() {
   if (!el) return;
   const years = getExpenseYears();
   const today = new Date();
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const dd = String(today.getDate()).padStart(2, '0');
   const curYear = String(today.getFullYear());
+  const cutoff = today.toISOString().slice(0, 10);
   el.innerHTML = `<div class="ytd-row">${years.map(y => {
-    const source = y === curYear ? data.expenses : historyData.expenses.filter(e => e.date.startsWith(y + '-'));
-    const cutoff = `${y}-${mm}-${dd}`;
-    const total = source.filter(e => e.cat !== 'TopUp' && e.date <= cutoff).reduce((s, e) => s + e.amount, 0);
+    let total;
+    if (y === curYear) {
+      total = data.expenses.filter(e => e.cat !== 'TopUp' && e.date <= cutoff).reduce((s, e) => s + e.amount, 0);
+    } else {
+      total = Object.entries(data.monthlyAgg)
+        .filter(([m]) => m.startsWith(y + '-'))
+        .reduce((s, [, cats]) => s + Object.values(cats).reduce((a, b) => a + b, 0), 0);
+    }
     return `<div class="ytd-chip"><span class="ytd-year">${y}</span><span class="ytd-amt">${balanceHidden ? '••••' : fmtDollar(total)}</span></div>`;
   }).join('')}</div>`;
 }
