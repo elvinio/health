@@ -16,7 +16,6 @@
   :root {
     --radius: 12px;
     --tab-h: 48px;
-    --header-h: 56px;
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html { font-size: 16px; -webkit-tap-highlight-color: transparent; }
@@ -29,17 +28,6 @@
   }
 
   /* ── Header ── */
-  .header {
-    position: sticky; top: 0; z-index: 100;
-    background: var(--primary);
-    color: #fff;
-    padding: 0 16px;
-    padding-top: env(safe-area-inset-top);
-    height: calc(var(--header-h) + env(safe-area-inset-top));
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .header h1 { font-size: 1.1rem; font-weight: 700; letter-spacing: .02em; }
-  .header-actions { display: flex; gap: 4px; }
   .iconbtn {
     background: none; border: none; color: inherit;
     width: 40px; height: 40px; border-radius: 50%;
@@ -57,8 +45,10 @@
 
   /* ── Tabs ── */
   .tabs {
+    position: sticky; top: 0; z-index: 100;
     display: flex; background: var(--primary);
     border-bottom: 1px solid rgba(255,255,255,.15);
+    padding-top: env(safe-area-inset-top);
   }
   .tab {
     flex: 1; height: var(--tab-h);
@@ -326,36 +316,30 @@
 <body>
 
 <!-- Header -->
-<div class="header">
-  <h1>Finance</h1>
-  <div class="header-actions">
-    <button class="iconbtn" id="driveSyncHeaderBtn" title="Sync Google Drive" aria-label="Sync Google Drive" onclick="driveSyncHeader()" style="display:none"><span class="material-symbols-outlined">sync</span></button>
-    <div class="menu-wrap">
-      <button class="iconbtn" id="menuBtn" title="More options" aria-label="More options">⋯</button>
-      <div class="dropdown" id="mainMenu">
-        <button class="dropdown-item" onclick="openAccountSettings()">⚙️ Account Settings</button>
-        <button class="dropdown-item" id="balanceToggleBtn" onclick="toggleBalanceVisibility()"><span class="material-symbols-outlined">visibility_off</span> Hide Balances</button>
-        <div class="dropdown-sep"></div>
-        <button class="dropdown-item" onclick="exportData()">⬇ Export JSON</button>
-        <button class="dropdown-item" onclick="triggerImport()">⬆ Import JSON</button>
-        <button class="dropdown-item" onclick="pullHistory()">📥 Pull History</button>
-        <button class="dropdown-item" onclick="recalcAll()"><span class="material-symbols-outlined">calculate</span> Recalculate</button>
-        <div class="dropdown-sep"></div>
-        <button class="dropdown-item" onclick="openDriveMenu()">☁ Google Drive</button>
-        <div class="dropdown-sep"></div>
-        <button class="dropdown-item" onclick="openThemePicker()"><span class="material-symbols-outlined">palette</span> Theme</button>
-        <div class="dropdown-sep"></div>
-        <button class="dropdown-item danger" onclick="confirmClearData()"><span class="material-symbols-outlined">delete</span> Clear all data</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- Tabs -->
 <div class="tabs">
   <button class="tab active" data-tab="expenses"><span class="material-symbols-outlined">credit_card</span></button>
   <button class="tab" data-tab="investments"><span class="material-symbols-outlined">trending_up</span></button>
   <button class="tab" data-tab="analysis"><span class="material-symbols-outlined">bar_chart</span></button>
+  <div class="menu-wrap" style="display:flex;align-items:center;padding-right:4px">
+    <button class="iconbtn" id="menuBtn" title="More options" aria-label="More options">⋯</button>
+    <div class="dropdown" id="mainMenu">
+      <button class="dropdown-item" onclick="openAccountSettings()">⚙️ Account Settings</button>
+      <button class="dropdown-item" id="balanceToggleBtn" onclick="toggleBalanceVisibility()"><span class="material-symbols-outlined">visibility_off</span> Hide Balances</button>
+      <div class="dropdown-sep"></div>
+      <button class="dropdown-item" id="quickSyncMenuItem" onclick="driveSyncHeader()" style="display:none"><span class="material-symbols-outlined">sync</span> Quick Sync</button>
+      <button class="dropdown-item" onclick="exportData()">⬇ Export JSON</button>
+      <button class="dropdown-item" onclick="triggerImport()">⬆ Import JSON</button>
+      <button class="dropdown-item" onclick="pullHistory()">📥 Pull History</button>
+      <button class="dropdown-item" onclick="recalcAll()"><span class="material-symbols-outlined">calculate</span> Recalculate</button>
+      <div class="dropdown-sep"></div>
+      <button class="dropdown-item" onclick="openDriveMenu()">☁ Google Drive</button>
+      <div class="dropdown-sep"></div>
+      <button class="dropdown-item" onclick="openThemePicker()"><span class="material-symbols-outlined">palette</span> Theme</button>
+      <div class="dropdown-sep"></div>
+      <button class="dropdown-item danger" onclick="confirmClearData()"><span class="material-symbols-outlined">delete</span> Clear all data</button>
+    </div>
+  </div>
 </div>
 
 <!-- Expenses Page -->
@@ -1382,19 +1366,12 @@ document.getElementById('historyImportFile').addEventListener('change', e => {
 // ── Drive header sync button ──────────────────────────────────────────────────
 function updateDriveSyncBtn() {
   const connected = !!(localStorage.getItem(DRIVE_FILE_KEY) && localStorage.getItem(DRIVE_CLIENT_KEY));
-  document.getElementById('driveSyncHeaderBtn').style.display = connected ? '' : 'none';
+  document.getElementById('quickSyncMenuItem').style.display = connected ? '' : 'none';
 }
 
 async function driveSyncHeader() {
-  const btn = document.getElementById('driveSyncHeaderBtn');
-  btn.innerHTML = '<span class="material-symbols-outlined">hourglass_empty</span>';
-  btn.disabled = true;
-  try {
-    await driveSync();
-  } finally {
-    btn.innerHTML = '<span class="material-symbols-outlined">sync</span>';
-    btn.disabled = false;
-  }
+  document.getElementById('mainMenu').classList.remove('open');
+  await driveSync();
 }
 
 // ── Google Drive ──────────────────────────────────────────────────────────────
