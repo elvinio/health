@@ -564,6 +564,8 @@ function renderThemePicker() {
     (THEMES.find(t => t.id === saved) || THEMES[0]).primary;
 })();
 
+const DEFAULT_CATS = ['Grocery', 'Travel'];
+
 // ── Storage ──────────────────────────────────────────────────────────────────
 const STORAGE_KEY = 'finance:v1';
 const DRIVE_FILE_KEY = 'finance:driveFileId';
@@ -852,7 +854,7 @@ function openExpenseSheet(id, preAcct) {
   sel.innerHTML = data.accounts.map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join('');
 
   // Populate category select from existing data, TopUp first then alphabetical
-  const cats = [...new Set(allExpenses().map(e => e.cat))].sort();
+  const cats = [...new Set([...DEFAULT_CATS, ...allExpenses().map(e => e.cat)])].sort();
   if (!cats.includes('TopUp')) cats.unshift('TopUp'); else { cats.splice(cats.indexOf('TopUp'), 1); cats.unshift('TopUp'); }
   document.getElementById('expCat').innerHTML = cats.map(c => `<option>${esc(c)}</option>`).join('');
 
@@ -869,7 +871,9 @@ function openExpenseSheet(id, preAcct) {
     document.getElementById('expDeleteBtn').style.display = '';
   } else {
     document.getElementById('expenseSheetTitle').textContent = 'Add Expense';
-    if (preAcct) sel.value = preAcct;
+    const lastAcct = preAcct || localStorage.getItem('finance:lastAcct');
+    if (lastAcct && data.accounts.some(a => a.id === lastAcct)) sel.value = lastAcct;
+    document.getElementById('expCat').value = 'Grocery';
   }
   openSheet('expenseSheet');
   setTimeout(() => document.getElementById('expAmount').focus(), 350);
@@ -887,6 +891,7 @@ document.getElementById('expenseForm').addEventListener('submit', e => {
     cat: document.getElementById('expCat').value,
     _ts: Date.now()
   };
+  if (!id) localStorage.setItem('finance:lastAcct', entry.ac);
   const curYear = String(new Date().getFullYear());
   const toHistory = !entry.date.startsWith(curYear + '-');
 
@@ -1060,6 +1065,7 @@ function openAccountSettings() {
   document.getElementById('mainMenu').classList.remove('open');
   const body = document.getElementById('accountSettingsBody');
   const allCats = [...new Set([
+    ...DEFAULT_CATS,
     ...allExpenses().filter(e => e.cat !== 'TopUp').map(e => e.cat),
     ...Object.keys(data.budgets || {})
   ])].sort();
@@ -1100,6 +1106,7 @@ function saveAccountSettings() {
   });
 
   const allCats = [...new Set([
+    ...DEFAULT_CATS,
     ...allExpenses().filter(e => e.cat !== 'TopUp').map(e => e.cat),
     ...Object.keys(data.budgets || {})
   ])].sort();
@@ -1997,6 +2004,10 @@ if ('serviceWorker' in navigator) {
 // ── Init ──────────────────────────────────────────────────────────────────────
 renderAll();
 updateDriveSyncBtn();
+if (new URLSearchParams(location.search).get('add') === '1') {
+  history.replaceState(null, '', location.pathname);
+  setTimeout(() => openExpenseSheet(), 100);
+}
 </script>
 </body>
 </html>
