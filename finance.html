@@ -105,14 +105,6 @@
     font-size: .9rem; color: var(--text); outline: none; -webkit-appearance: none;
   }
   .filter-search:focus { border-color: var(--primary-light); }
-  .ytd-row { display: flex; gap: 8px; flex-wrap: wrap; }
-  .ytd-chip {
-    display: flex; align-items: center; gap: 6px;
-    padding: 5px 12px; border-radius: 20px; font-size: .8rem;
-    background: var(--card); border: 1.5px solid var(--border);
-  }
-  .ytd-chip .ytd-year { font-weight: 700; color: var(--muted); }
-  .ytd-chip .ytd-amt { font-weight: 700; color: var(--text); }
 
   /* ── Expense list ── */
   .date-group { margin-bottom: 4px; }
@@ -373,7 +365,6 @@
     <div class="filter-pills" id="yearFilterPills"></div>
     <div class="filter-pills" id="accountFilterPills"></div>
     <input class="filter-search" id="expenseSearch" type="search" placeholder="Search by description…" oninput="onSearchInput()">
-    <div id="ytdSpending"></div>
   </div>
   <div id="expenseList"></div>
 </div>
@@ -993,30 +984,15 @@ function renderYearFilterPills() {
     return source.map(e => e.date.slice(0, 7)).filter((m, i, a) => a.indexOf(m) === i).every(m => collapsedMonths.has(m));
   });
   const collapseLabel = allCollapsed ? 'Expand All' : 'Collapse All';
+  const curYear = String(new Date().getFullYear());
+  const cutoff = new Date().toISOString().slice(0, 10);
+  const ytd = data.expenses.filter(e => e.cat !== 'TopUp' && e.date <= cutoff).reduce((s, e) => s + e.amount, 0);
+  const ytdPill = `<span class="filter-pill" style="cursor:default">YTD: ${balanceHidden ? '••••' : fmtDollar(ytd)}</span>`;
   container.innerHTML = years.map(y =>
     `<button class="filter-pill${filterYear === y ? ' active' : ''}" onclick="setYearFilter('${y}')">${y}</button>`
-  ).join('') + `<button class="filter-pill" onclick="toggleCollapseAll()">${collapseLabel}</button>`;
+  ).join('') + `<button class="filter-pill" onclick="toggleCollapseAll()">${collapseLabel}</button>${ytdPill}`;
 }
 
-function renderYtdSpending() {
-  const el = document.getElementById('ytdSpending');
-  if (!el) return;
-  const years = getExpenseYears();
-  const today = new Date();
-  const curYear = String(today.getFullYear());
-  const cutoff = today.toISOString().slice(0, 10);
-  el.innerHTML = `<div class="ytd-row">${years.map(y => {
-    let total;
-    if (y === curYear) {
-      total = data.expenses.filter(e => e.cat !== 'TopUp' && e.date <= cutoff).reduce((s, e) => s + e.amount, 0);
-    } else {
-      total = Object.entries(data.monthlyAgg)
-        .filter(([m]) => m.startsWith(y + '-'))
-        .reduce((s, [, cats]) => s + Object.values(cats).reduce((a, b) => a + b, 0), 0);
-    }
-    return `<div class="ytd-chip"><span class="ytd-year">${y}</span><span class="ytd-amt">${balanceHidden ? '••••' : fmtDollar(total)}</span></div>`;
-  }).join('')}</div>`;
-}
 
 function toggleCollapseAll() {
   const source = filterYear === String(new Date().getFullYear()) ? data.expenses : historyData.expenses.filter(e => e.date.startsWith(filterYear + '-'));
@@ -1082,7 +1058,7 @@ function recalcAll() {
   saveData(data);
   document.getElementById('mainMenu').classList.remove('open');
   renderExpenseList();
-  renderYtdSpending();
+
 }
 
 function toggleBalanceVisibility() {
@@ -1092,7 +1068,7 @@ function toggleBalanceVisibility() {
     : '<span class="material-symbols-outlined">visibility_off</span> Hide Balances';
   document.getElementById('mainMenu').classList.remove('open');
   renderExpenseList();
-  renderYtdSpending();
+
 }
 
 // ── Account Settings ──────────────────────────────────────────────────────────
@@ -1862,6 +1838,58 @@ function renderCategoryChart(byMonth, months, allCats) {
 }
 
 // ── Render: Analysis ─────────────────────────────────────────────────────────
+function renderYearlyChart() {
+  const years = getExpenseYears().slice().reverse(); // ascending
+  if (!years.length) return '';
+  const curYear = String(new Date().getFullYear());
+  const cutoff = new Date().toISOString().slice(0, 10);
+  const totals = years.map(y => {
+    if (y === curYear) {
+      return data.expenses.filter(e => e.cat !== 'TopUp' && e.date <= cutoff).reduce((s, e) => s + e.amount, 0);
+    }
+    return Object.entries(data.monthlyAgg)
+      .filter(([m]) => m.startsWith(y + '-'))
+      .reduce((s, [, cats]) => s + Object.values(cats).reduce((a, b) => a + b, 0), 0);
+  });
+
+  const COL_W = 64, H = 140, PAD_L = 44, PAD_B = 28, PAD_T = 8, PAD_R = 12;
+  const svgW = PAD_L + years.length * COL_W + PAD_R;
+  const svgH = H + PAD_T + PAD_B;
+
+  let maxVal = Math.max(...totals, 1);
+  const scale = Math.pow(10, Math.floor(Math.log10(maxVal)));
+  maxVal = Math.ceil(maxVal / scale) * scale;
+
+  const xPos = i => PAD_L + i * COL_W + COL_W / 2;
+  const yPos = v => PAD_T + H - Math.min(1, v / maxVal) * H;
+
+  const ticks = [0, .25, .5, .75, 1].map(f => ({ v: maxVal * f, y: yPos(maxVal * f) }));
+  const grid = ticks.map(({ v, y }) =>
+    `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${(svgW - PAD_R).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#e8dece" stroke-width="1"/>` +
+    `<text x="${(PAD_L - 4).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="#7a6a52">${fmtShort(v)}</text>`
+  ).join('');
+
+  const COLOR = 'var(--primary)';
+  const pts = totals.map((v, i) => [xPos(i), yPos(v)]);
+  const path = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+  const line = `<path d="${path}" fill="none" stroke="${COLOR}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+  const dots = pts.map(([cx, cy], i) =>
+    `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="4" fill="${COLOR}" stroke="#fff" stroke-width="1.5"/>` +
+    `<text x="${cx.toFixed(1)}" y="${(cy - 9).toFixed(1)}" text-anchor="middle" font-size="8" font-weight="700" fill="${COLOR}">${fmtShort(totals[i])}</text>`
+  ).join('');
+  const xLabels = years.map((y, i) =>
+    `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="9" fill="#7a6a52">${y}${y === curYear ? '*' : ''}</text>`
+  ).join('');
+
+  return `<div class="chart-wrap">
+    <div class="chart-title">Yearly Total Spending</div>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+      <svg width="${svgW}" height="${svgH}" style="display:block">${grid}${line}${dots}${xLabels}</svg>
+    </div>
+    <div style="font-size:.72rem;color:var(--muted);margin-top:4px;padding:0 4px">* current year to date</div>
+  </div>`;
+}
+
 function renderAnalysis() {
   const el = document.getElementById('analysisList');
   const allYears = getExpenseYears();
@@ -1926,7 +1954,8 @@ function renderAnalysis() {
       </div>`;
   }).join('');
 
-  el.innerHTML = yearPillsHtml + chart + cards;
+  const yearlyChart = `<div id="yearlyChart">${renderYearlyChart()}</div>`;
+  el.innerHTML = yearPillsHtml + chart + yearlyChart + cards;
 }
 
 // ── Render all ────────────────────────────────────────────────────────────────
@@ -1934,7 +1963,7 @@ function renderAll() {
   renderAccountFilterPills();
   renderYearFilterPills();
   renderExpenseList();
-  renderYtdSpending();
+
   renderInvestments();
   renderAnalysis();
   document.getElementById('fabBtn').style.display = currentTab === 'analysis' ? 'none' : '';
