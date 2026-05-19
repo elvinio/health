@@ -954,6 +954,7 @@ let filterAccount = null;
 let filterSearch = '';
 let filterYear = String(new Date().getFullYear());
 let analysisYears = new Set([String(new Date().getFullYear())]);
+let showHistoryPills = false;
 
 function getExpenseYears() {
   const years = new Set([
@@ -968,18 +969,37 @@ function renderYearFilterPills() {
   const container = document.getElementById('yearFilterPills');
   if (!container) return;
   const years = getExpenseYears();
-  const allCollapsed = years.every(y => {
-    const source = y === String(new Date().getFullYear()) ? data.expenses : historyData.expenses.filter(e => e.date.startsWith(y + '-'));
+  const curYear = String(new Date().getFullYear());
+  const prevYears = years.filter(y => y !== curYear);
+  const visibleYears = showHistoryPills ? years : [curYear];
+  const allCollapsed = visibleYears.every(y => {
+    const source = y === curYear ? data.expenses : historyData.expenses.filter(e => e.date.startsWith(y + '-'));
     return source.map(e => e.date.slice(0, 7)).filter((m, i, a) => a.indexOf(m) === i).every(m => collapsedMonths.has(m));
   });
   const collapseLabel = allCollapsed ? 'Expand All' : 'Collapse All';
-  const curYear = String(new Date().getFullYear());
   const cutoff = new Date().toISOString().slice(0, 10);
   const ytd = data.expenses.filter(e => e.cat !== 'TopUp' && e.date <= cutoff).reduce((s, e) => s + e.amount, 0);
   const ytdPill = `<span class="filter-pill" style="cursor:default">YTD: ${balanceHidden ? '••••' : fmtDollar(ytd)}</span>`;
-  container.innerHTML = years.map(y =>
-    `<button class="filter-pill${filterYear === y ? ' active' : ''}" onclick="setYearFilter('${y}')">${y}</button>`
-  ).join('') + `<button class="filter-pill" onclick="toggleCollapseAll()">${collapseLabel}</button>${ytdPill}`;
+  const historyActive = showHistoryPills && filterYear !== curYear;
+  const historyPill = prevYears.length > 0
+    ? `<button class="filter-pill${historyActive ? ' active' : ''}" onclick="toggleHistoryPills()">History ${showHistoryPills ? '▲' : '▼'}</button>`
+    : '';
+  const prevPills = showHistoryPills
+    ? prevYears.map(y => `<button class="filter-pill${filterYear === y ? ' active' : ''}" onclick="setYearFilter('${y}')">${y}</button>`).join('')
+    : '';
+  container.innerHTML =
+    `<button class="filter-pill${filterYear === curYear ? ' active' : ''}" onclick="setYearFilter('${curYear}')">${curYear}</button>` +
+    historyPill + prevPills +
+    `<button class="filter-pill" onclick="toggleCollapseAll()">${collapseLabel}</button>${ytdPill}`;
+}
+
+function toggleHistoryPills() {
+  showHistoryPills = !showHistoryPills;
+  if (!showHistoryPills && filterYear !== String(new Date().getFullYear())) {
+    filterYear = String(new Date().getFullYear());
+    renderExpenseList();
+  }
+  renderYearFilterPills();
 }
 
 
@@ -995,6 +1015,7 @@ function toggleCollapseAll() {
 
 function setYearFilter(y) {
   filterYear = y;
+  if (y !== String(new Date().getFullYear())) showHistoryPills = true;
   renderYearFilterPills();
   renderExpenseList();
 }
