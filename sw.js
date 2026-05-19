@@ -1,4 +1,4 @@
-const CACHE = 'finance-v2';
+const CACHE = 'finance-v3';
 const ASSETS = [
   '/finance.html',
   '/themes.css',
@@ -23,5 +23,15 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request))
+  );
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => {
+      if (cs.length) return cs[0].focus();
+      return clients.openWindow('/health/finance.html');
+    })
   );
 });

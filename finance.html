@@ -296,6 +296,34 @@
   .over-budget { color: var(--red); font-weight: 700; font-size: .8rem; }
   .under-budget { color: var(--green); font-weight: 700; font-size: .8rem; }
 
+  /* ── Time picker ── */
+  .time-picker-row { display: grid; grid-template-columns: 2fr 2fr 1fr; gap: 8px; }
+
+  /* ── Event list ── */
+  .event-item {
+    background: var(--card); border-radius: 10px;
+    box-shadow: var(--shadow); padding: 12px 14px;
+    margin-bottom: 8px; cursor: pointer; transition: background .1s;
+  }
+  .event-item:active { background: var(--bg); }
+  .event-datetime { font-size: .78rem; font-weight: 700; color: var(--primary); margin-bottom: 2px; }
+  .event-title { font-size: .95rem; font-weight: 700; }
+  .event-desc-text { font-size: .85rem; color: var(--muted); margin-top: 2px; }
+  .event-reminder-badge {
+    display: inline-block; margin-top: 5px;
+    font-size: .7rem; font-weight: 700; padding: 2px 7px;
+    border-radius: 4px; background: var(--border); color: var(--muted);
+  }
+  .event-section-label {
+    font-size: .75rem; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .08em;
+    margin: 16px 0 8px;
+  }
+  .notif-hint {
+    font-size: .75rem; color: var(--muted); text-align: center;
+    padding: 8px 0 4px;
+  }
+
   /* ── Theme picker ── */
   .theme-option {
     display: flex; align-items: center; gap: 12px; width: 100%;
@@ -318,7 +346,8 @@
 <!-- Header -->
 <!-- Tabs -->
 <div class="tabs">
-  <button class="tab active" data-tab="expenses"><span class="material-symbols-outlined">credit_card</span></button>
+  <button class="tab active" data-tab="events"><span class="material-symbols-outlined">event</span></button>
+  <button class="tab" data-tab="expenses"><span class="material-symbols-outlined">credit_card</span></button>
   <button class="tab" data-tab="investments"><span class="material-symbols-outlined">trending_up</span></button>
   <button class="tab" data-tab="analysis"><span class="material-symbols-outlined">bar_chart</span></button>
   <div class="menu-wrap" style="display:flex;align-items:center;padding-right:4px">
@@ -342,8 +371,13 @@
   </div>
 </div>
 
+<!-- Events Page -->
+<div class="page active" id="page-events">
+  <div id="eventList"></div>
+</div>
+
 <!-- Expenses Page -->
-<div class="page active" id="page-expenses">
+<div class="page" id="page-expenses">
   <div class="section-heading">Expense List</div>
   <div class="filter-bar">
     <div class="filter-pills" id="yearFilterPills"></div>
@@ -412,6 +446,51 @@
     <div class="btn-row">
       <button type="submit" class="btn btn-primary btn-block">Save</button>
       <button type="button" class="btn btn-secondary" id="expDeleteBtn" style="display:none;min-width:60px" onclick="deleteExpense()">Delete</button>
+    </div>
+  </form>
+</div>
+
+<!-- Event Sheet -->
+<div class="sheet" id="eventSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="eventSheetTitle">Add Event</div>
+  <form id="eventForm">
+    <input type="hidden" id="eventId">
+    <div class="field">
+      <label>Title</label>
+      <input type="text" id="evTitle" placeholder="Event name" required>
+    </div>
+    <div class="field">
+      <label>Description</label>
+      <textarea id="evDesc" rows="2" placeholder="Optional details…"></textarea>
+    </div>
+    <div class="field">
+      <label>Start Date</label>
+      <input type="date" id="evDate" required>
+    </div>
+    <div class="field">
+      <label>Start Time</label>
+      <div class="time-picker-row">
+        <select id="evHour"></select>
+        <select id="evMinute">
+          <option value="0">:00</option>
+          <option value="15">:15</option>
+          <option value="30">:30</option>
+          <option value="45">:45</option>
+        </select>
+        <select id="evAmpm">
+          <option value="AM">AM</option>
+          <option value="PM">PM</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Reminder (hours before start)</label>
+      <input type="number" id="evReminder" min="0" step="1" value="0" placeholder="0 = no reminder">
+    </div>
+    <div class="btn-row">
+      <button type="submit" class="btn btn-primary btn-block">Save</button>
+      <button type="button" class="btn btn-secondary" id="evDeleteBtn" style="display:none;min-width:60px" onclick="deleteEvent()">Delete</button>
     </div>
   </form>
 </div>
@@ -581,6 +660,7 @@ function defaultData() {
     ],
     expenses: [],
     assets: [],
+    events: [],
     _deletedIds: [],
     budgets: {},
     monthlyAgg: {}
@@ -595,6 +675,7 @@ function loadData() {
     if (!d.accounts) d.accounts = defaultData().accounts;
     if (!d.expenses) d.expenses = [];
     if (!d.assets) d.assets = [];
+    if (!d.events) d.events = [];
     if (!d._deletedIds) d._deletedIds = [];
     if (!d.budgets) d.budgets = {};
     if (!d.monthlyAgg) d.monthlyAgg = {};
@@ -697,7 +778,7 @@ function showToast(msg, dur = 2500) {
 }
 
 // ── Tabs ─────────────────────────────────────────────────────────────────────
-let currentTab = 'expenses';
+let currentTab = 'events';
 
 document.querySelectorAll('.tab').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -737,7 +818,8 @@ document.getElementById('backdrop').addEventListener('click', closeSheet);
 
 // ── FAB ──────────────────────────────────────────────────────────────────────
 document.getElementById('fabBtn').addEventListener('click', () => {
-  if (currentTab === 'expenses') openExpenseSheet(null);
+  if (currentTab === 'events') openEventSheet(null);
+  else if (currentTab === 'expenses') openExpenseSheet(null);
   else openAssetSheet(null);
 });
 
@@ -1560,10 +1642,18 @@ function mergeData(local, remote) {
     if (!existing || (a._updatedAt || 0) >= (existing._updatedAt || 0)) accMap.set(a.id, a);
   });
 
+  const eventMap = new Map();
+  [...(remote.events || []), ...(local.events || [])].forEach(ev => {
+    if (deletedIds.has(ev.id)) return;
+    const existing = eventMap.get(ev.id);
+    if (!existing || (ev._ts || 0) > (existing._ts || 0)) eventMap.set(ev.id, ev);
+  });
+
   const merged = {
     accounts: [...accMap.values()],
     expenses: [...expMap.values()],
     assets: [...assetMap.values()],
+    events: [...eventMap.values()],
     _deletedIds: [...deletedIds],
     budgets: { ...(remote.budgets || {}), ...(local.budgets || {}) }
   };
@@ -2019,8 +2109,174 @@ function renderAnalysis() {
   el.innerHTML = yearPillsHtml + chart + yearlyChart + budgetSummary + cards;
 }
 
+// ── Events ────────────────────────────────────────────────────────────────────
+function eventToMs(ev) {
+  let h = ev.startTime.hour % 12;
+  if (ev.startTime.ampm === 'PM') h += 12;
+  const [y, m, d] = ev.startDate.split('-').map(Number);
+  return new Date(y, m - 1, d, h, ev.startTime.minute).getTime();
+}
+
+function fmtEventDateTime(ev) {
+  const ms = eventToMs(ev);
+  const datePart = new Date(ms).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  const min = String(ev.startTime.minute).padStart(2, '0');
+  return `${datePart} at ${ev.startTime.hour}:${min} ${ev.startTime.ampm}`;
+}
+
+function renderEventList() {
+  const el = document.getElementById('eventList');
+  if (!el) return;
+  const now = Date.now();
+  const events = (data.events || []).slice().sort((a, b) => eventToMs(a) - eventToMs(b));
+  const upcoming = events.filter(ev => eventToMs(ev) >= now);
+  const past = events.filter(ev => eventToMs(ev) < now);
+
+  if (!events.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">event</span></div>No events yet.<br>Tap + to add one.</div>`;
+    return;
+  }
+
+  const renderItems = arr => arr.map(ev => `
+    <div class="event-item" onclick="openEventSheet('${ev.id}')">
+      <div class="event-datetime">${fmtEventDateTime(ev)}</div>
+      <div class="event-title">${esc(ev.title)}</div>
+      ${ev.description ? `<div class="event-desc-text">${esc(ev.description)}</div>` : ''}
+      ${ev.reminderHours > 0 ? `<span class="event-reminder-badge">&#9200; ${ev.reminderHours}h before</span>` : ''}
+    </div>`).join('');
+
+  let html = '';
+  if (upcoming.length) html += `<div class="event-section-label">Upcoming</div>${renderItems(upcoming)}`;
+  if (past.length) html += `<div class="event-section-label" style="margin-top:24px">Past</div>${renderItems(past)}`;
+  el.innerHTML = html;
+}
+
+function openEventSheet(id) {
+  const form = document.getElementById('eventForm');
+  form.reset();
+  document.getElementById('eventId').value = '';
+  document.getElementById('evDate').value = today();
+  document.getElementById('evDeleteBtn').style.display = 'none';
+
+  const hourSel = document.getElementById('evHour');
+  if (!hourSel.options.length) {
+    for (let h = 1; h <= 12; h++) hourSel.add(new Option(h, h));
+  }
+  const nowH = new Date().getHours();
+  hourSel.value = nowH % 12 || 12;
+  document.getElementById('evAmpm').value = nowH < 12 ? 'AM' : 'PM';
+  document.getElementById('evMinute').value = '0';
+  document.getElementById('evReminder').value = '0';
+
+  if (id) {
+    const ev = (data.events || []).find(e => e.id === id);
+    if (!ev) return;
+    document.getElementById('eventSheetTitle').textContent = 'Edit Event';
+    document.getElementById('eventId').value = id;
+    document.getElementById('evTitle').value = ev.title;
+    document.getElementById('evDesc').value = ev.description || '';
+    document.getElementById('evDate').value = ev.startDate;
+    hourSel.value = ev.startTime.hour;
+    document.getElementById('evMinute').value = ev.startTime.minute;
+    document.getElementById('evAmpm').value = ev.startTime.ampm;
+    document.getElementById('evReminder').value = ev.reminderHours;
+    document.getElementById('evDeleteBtn').style.display = '';
+  } else {
+    document.getElementById('eventSheetTitle').textContent = 'Add Event';
+  }
+  openSheet('eventSheet');
+  setTimeout(() => document.getElementById('evTitle').focus(), 350);
+}
+
+document.getElementById('eventForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const id = document.getElementById('eventId').value;
+  const reminderHours = parseFloat(document.getElementById('evReminder').value) || 0;
+  const ev = {
+    id: id || uid(),
+    title: document.getElementById('evTitle').value.trim(),
+    description: document.getElementById('evDesc').value.trim(),
+    startDate: document.getElementById('evDate').value,
+    startTime: {
+      hour: parseInt(document.getElementById('evHour').value),
+      minute: parseInt(document.getElementById('evMinute').value),
+      ampm: document.getElementById('evAmpm').value
+    },
+    reminderHours,
+    _ts: Date.now()
+  };
+  if (!data.events) data.events = [];
+  if (id) {
+    const idx = data.events.findIndex(e => e.id === id);
+    if (idx >= 0) data.events[idx] = ev; else data.events.push(ev);
+  } else {
+    data.events.push(ev);
+  }
+  saveData(data);
+  closeSheet();
+  renderEventList();
+  scheduleEventReminders();
+  if (reminderHours > 0) requestNotificationPermission();
+  showToast(id ? 'Event updated' : 'Event added');
+});
+
+function deleteEvent() {
+  const id = document.getElementById('eventId').value;
+  if (!id || !confirm('Delete this event?')) return;
+  data._deletedIds.push(id);
+  data.events = (data.events || []).filter(e => e.id !== id);
+  saveData(data);
+  closeSheet();
+  renderEventList();
+  scheduleEventReminders();
+  showToast('Event deleted');
+}
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+let _reminderTimeouts = [];
+
+function clearReminderTimeouts() {
+  _reminderTimeouts.forEach(t => clearTimeout(t));
+  _reminderTimeouts = [];
+}
+
+async function requestNotificationPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    await Notification.requestPermission();
+    scheduleEventReminders();
+  }
+}
+
+function scheduleEventReminders() {
+  clearReminderTimeouts();
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const now = Date.now();
+  const MAX_DELAY = 7 * 24 * 3600 * 1000;
+  (data.events || []).forEach(ev => {
+    if (!ev.reminderHours) return;
+    const fireMs = eventToMs(ev) - ev.reminderHours * 3600 * 1000;
+    const delay = fireMs - now;
+    if (delay <= 0 || delay > MAX_DELAY) return;
+    const min = String(ev.startTime.minute).padStart(2, '0');
+    const timeStr = `${ev.startTime.hour}:${min} ${ev.startTime.ampm}`;
+    const t = setTimeout(() => {
+      const body = `Starts at ${timeStr}${ev.description ? ' — ' + ev.description : ''}`;
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.ready.then(reg =>
+          reg.showNotification(ev.title, { body, icon: '/health/icons/icon-192.png', tag: 'event-' + ev.id })
+        ).catch(() => new Notification(ev.title, { body }));
+      } else {
+        new Notification(ev.title, { body });
+      }
+    }, delay);
+    _reminderTimeouts.push(t);
+  });
+}
+
 // ── Render all ────────────────────────────────────────────────────────────────
 function renderAll() {
+  renderEventList();
   renderAccountFilterPills();
   renderYearFilterPills();
   renderExpenseList();
@@ -2043,6 +2299,7 @@ if ('serviceWorker' in navigator) {
 // ── Init ──────────────────────────────────────────────────────────────────────
 renderAll();
 updateDriveSyncBtn();
+scheduleEventReminders();
 if (new URLSearchParams(location.search).get('add') === '1') {
   history.replaceState(null, '', location.pathname);
   setTimeout(() => openExpenseSheet(), 100);
