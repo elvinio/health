@@ -306,7 +306,14 @@
     margin-bottom: 8px; cursor: pointer; transition: background .1s;
   }
   .event-item:active { background: var(--bg); }
-  .event-datetime { font-size: .78rem; font-weight: 700; color: var(--primary); margin-bottom: 2px; }
+  .event-row { display: flex; align-items: flex-start; gap: 10px; }
+  .event-countdown { min-width: 58px; flex-shrink: 0; }
+  .event-countdown-value { font-size: .8rem; font-weight: 700; color: var(--primary); }
+  .event-countdown-day { font-size: .72rem; color: var(--muted); margin-top: 2px; }
+  .event-middle { flex: 1; min-width: 0; }
+  .event-date-col { min-width: 52px; flex-shrink: 0; text-align: right; }
+  .event-date-display { font-size: .8rem; font-weight: 700; color: var(--primary); }
+  .event-time-display { font-size: .72rem; color: var(--muted); margin-top: 2px; }
   .event-title { font-size: .95rem; font-weight: 700; }
   .event-desc-text { font-size: .85rem; color: var(--muted); margin-top: 2px; }
   .event-reminder-badge {
@@ -2124,6 +2131,17 @@ function fmtEventDateTime(ev) {
   return `${datePart} at ${ev.startTime.hour}:${min} ${ev.startTime.ampm}`;
 }
 
+function fmtEventCountdown(ev) {
+  const days = Math.round((eventToMs(ev) - Date.now()) / 86400000);
+  if (days === 0) return 'Today';
+  if (days === 1) return '1 day';
+  if (days > 1 && days < 7) return `${days} days`;
+  if (days >= 7 && days < 14) return '1 week';
+  if (days >= 14) return `${Math.round(days / 7)} weeks`;
+  if (days === -1) return '1 day ago';
+  return `${Math.abs(days)} days ago`;
+}
+
 function renderEventList() {
   const el = document.getElementById('eventList');
   if (!el) return;
@@ -2137,13 +2155,33 @@ function renderEventList() {
     return;
   }
 
-  const renderItems = arr => arr.map(ev => `
+  const renderItems = arr => arr.map(ev => {
+    const ms = eventToMs(ev);
+    const d = new Date(ms);
+    const dayNum = d.getDate();
+    const mon = d.toLocaleDateString(undefined, { month: 'short' });
+    const min = String(ev.startTime.minute).padStart(2, '0');
+    const timeFmt = `${ev.startTime.hour}:${min} ${ev.startTime.ampm}`;
+    const weekday = d.toLocaleDateString(undefined, { weekday: 'long' });
+    return `
     <div class="event-item" onclick="openEventSheet('${ev.id}')">
-      <div class="event-datetime">${fmtEventDateTime(ev)}</div>
-      <div class="event-title">${esc(ev.title)}</div>
-      ${ev.description ? `<div class="event-desc-text">${esc(ev.description)}</div>` : ''}
-      ${ev.reminderHours > 0 ? `<span class="event-reminder-badge">&#9200; ${ev.reminderHours}h before</span>` : ''}
-    </div>`).join('');
+      <div class="event-row">
+        <div class="event-countdown">
+          <div class="event-countdown-value">${fmtEventCountdown(ev)}</div>
+          <div class="event-countdown-day">${weekday}</div>
+        </div>
+        <div class="event-middle">
+          <div class="event-title">${esc(ev.title)}</div>
+          ${ev.description ? `<div class="event-desc-text">${esc(ev.description)}</div>` : ''}
+          ${ev.reminderHours > 0 ? `<span class="event-reminder-badge">&#9200; ${ev.reminderHours}h before</span>` : ''}
+        </div>
+        <div class="event-date-col">
+          <div class="event-date-display">${dayNum} ${mon}</div>
+          <div class="event-time-display">${timeFmt}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 
   let html = '';
   if (upcoming.length) html += `<div class="event-section-label">Upcoming</div>${renderItems(upcoming)}`;
