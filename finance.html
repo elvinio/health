@@ -307,13 +307,11 @@
   }
   .event-item:active { background: var(--bg); }
   .event-row { display: flex; align-items: flex-start; gap: 10px; }
-  .event-countdown { min-width: 58px; flex-shrink: 0; }
-  .event-countdown-value { font-size: .8rem; font-weight: 700; color: var(--primary); }
-  .event-countdown-day { font-size: .72rem; color: var(--muted); margin-top: 2px; }
   .event-middle { flex: 1; min-width: 0; }
-  .event-date-col { min-width: 52px; flex-shrink: 0; text-align: right; }
+  .event-date-col { min-width: 72px; flex-shrink: 0; text-align: left; }
   .event-date-display { font-size: .8rem; font-weight: 700; color: var(--primary); }
   .event-time-display { font-size: .72rem; color: var(--muted); margin-top: 2px; }
+  .event-weekday-display { font-size: .68rem; color: var(--muted); margin-top: 1px; }
   .event-title { font-size: .95rem; font-weight: 700; }
   .event-desc-text { font-size: .85rem; color: var(--muted); margin-top: 2px; }
   .event-reminder-badge {
@@ -324,7 +322,7 @@
   .event-tag-badge {
     display: inline-block; margin-top: 4px; margin-right: 3px;
     font-size: .68rem; font-weight: 700; padding: 2px 7px;
-    border-radius: 4px; background: var(--primary); color: #fff;
+    border-radius: 4px; color: #fff;
   }
   .event-end-time {
     font-size: .68rem; color: var(--muted); margin-top: 2px;
@@ -2357,19 +2355,12 @@ function getCurrentTermWeek() {
   }
   if (!current) return null;
   const week = Math.floor((todayMs - current.startMs) / (7 * 86400000)) + 1;
-  return `${current.label}  ·  Week ${week}`;
+  return `${current.label}, Week ${week}`;
 }
 
 function renderTermWeekBanner() {
   const el = document.getElementById('termWeekBanner');
-  if (!el) return;
-  const label = getCurrentTermWeek();
-  if (label) {
-    el.textContent = label;
-    el.style.display = '';
-  } else {
-    el.style.display = 'none';
-  }
+  if (el) el.style.display = 'none';
 }
 
 function syncEndDate() {
@@ -2403,6 +2394,17 @@ function getMondayMs(dateMs) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate() + daysToMon).getTime();
 }
 
+const TAG_COLORS = ['#1a6b9e','#8b2252','#2d7a4f','#7a4d1a','#5a2d7a','#1a7a6b','#7a2d2d','#4d6b1a'];
+
+function getTagColor(tag) {
+  const tags = data.eventTags || [];
+  const idx = tags.indexOf(tag);
+  if (idx >= 0) return TAG_COLORS[idx % TAG_COLORS.length];
+  let h = 0;
+  for (let i = 0; i < tag.length; i++) h = (h * 31 + tag.charCodeAt(i)) | 0;
+  return TAG_COLORS[Math.abs(h) % TAG_COLORS.length];
+}
+
 function renderEventItem(ev) {
   const ms = eventToMs(ev);
   const d = new Date(ms);
@@ -2410,11 +2412,11 @@ function renderEventItem(ev) {
   const mon = d.toLocaleDateString(undefined, { month: 'short' });
   const min = String(ev.startTime.minute).padStart(2, '0');
   const timeFmt = `${ev.startTime.hour}:${min} ${ev.startTime.ampm}`;
-  const weekday = d.toLocaleDateString(undefined, { weekday: 'long' });
-  const tagBadges = (ev.tags || []).map(t => `<span class="event-tag-badge">${esc(t)}</span>`).join('');
+  const weekday = d.toLocaleDateString(undefined, { weekday: 'short' });
+  const tagBadges = (ev.tags || []).map(t => `<span class="event-tag-badge" style="background:${getTagColor(t)}">${esc(t)}</span>`).join('');
 
   const isMultiDay = ev.endDate && ev.endDate !== ev.startDate;
-  let dateDisplay, timeLine, endTimeLine = '';
+  let dateDisplay, endTimeLine = '';
 
   if (isMultiDay) {
     const endD = new Date(ev.endDate + 'T00:00:00');
@@ -2423,16 +2425,14 @@ function renderEventItem(ev) {
     if (endD.getMonth() === d.getMonth() && endD.getFullYear() === d.getFullYear()) {
       dateDisplay = `${dayNum}–${endDayNum} ${mon}`;
     } else {
-      dateDisplay = `${dayNum} ${mon}<br><span style="font-size:.72rem;font-weight:600">to ${endDayNum} ${endMon}</span>`;
+      dateDisplay = `${dayNum} ${mon}–${endDayNum} ${endMon}`;
     }
-    timeLine = `<div class="event-time-display">${timeFmt}</div>`;
     if (ev.endTime) {
       const endMin = String((ev.endTime).minute || 0).padStart(2, '0');
       endTimeLine = `<div class="event-end-time">${ev.endTime.hour}:${endMin} ${ev.endTime.ampm}</div>`;
     }
   } else {
     dateDisplay = `${dayNum} ${mon}`;
-    timeLine = `<div class="event-time-display">${timeFmt}</div>`;
     if (ev.endTime) {
       const endMin = String((ev.endTime).minute || 0).padStart(2, '0');
       endTimeLine = `<div class="event-end-time">to ${ev.endTime.hour}:${endMin} ${ev.endTime.ampm}</div>`;
@@ -2442,19 +2442,17 @@ function renderEventItem(ev) {
   return `
   <div class="event-item" onclick="openEventSheet('${ev.id}')">
     <div class="event-row">
-      <div class="event-countdown">
-        <div class="event-countdown-value">${fmtEventCountdown(ev)}</div>
-        <div class="event-countdown-day">${weekday}</div>
+      <div class="event-date-col">
+        <div class="event-date-display">${dateDisplay}</div>
+        <div class="event-time-display">${timeFmt}</div>
+        <div class="event-weekday-display">${weekday}</div>
+        ${endTimeLine}
       </div>
       <div class="event-middle">
         <div class="event-title">${esc(ev.title)}</div>
         ${ev.description ? `<div class="event-desc-text">${esc(ev.description)}</div>` : ''}
         ${tagBadges ? `<div>${tagBadges}</div>` : ''}
         ${ev.reminderHours > 0 ? `<span class="event-reminder-badge">&#9200; ${ev.reminderHours}h before</span>` : ''}
-      </div>
-      <div class="event-date-col">
-        <div class="event-date-display">${dateDisplay}</div>
-        ${timeLine}${endTimeLine}
       </div>
     </div>
   </div>`;
@@ -2476,6 +2474,7 @@ function renderEventList() {
     return;
   }
 
+  const currentMonMs = getMondayMs(Date.now());
   const renderWithWeekMarkers = arr => {
     let html = '';
     let lastMonMs = null;
@@ -2485,15 +2484,18 @@ function renderEventList() {
         lastMonMs = monMs;
         const monDate = new Date(monMs);
         const monLabel = monDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-        html += `<div class="week-marker">${monLabel}</div>`;
+        const weeksAway = Math.round((monMs - currentMonMs) / (7 * 86400000));
+        const bracket = weeksAway > 0 ? ` (${weeksAway} week${weeksAway !== 1 ? 's' : ''})` : '';
+        html += `<div class="week-marker">${monLabel}${bracket}</div>`;
       }
       html += renderEventItem(ev);
     });
     return html;
   };
 
+  const termWeekLabel = getCurrentTermWeek() || 'Upcoming';
   let html = '';
-  if (upcoming.length) html += `<div class="event-section-label">Upcoming</div>${renderWithWeekMarkers(upcoming)}`;
+  if (upcoming.length) html += `<div class="event-section-label">${termWeekLabel}</div>${renderWithWeekMarkers(upcoming)}`;
   if (past.length) html += `<div class="event-section-label" style="margin-top:24px">Past</div>${past.map(renderEventItem).join('')}`;
   el.innerHTML = html;
 }
