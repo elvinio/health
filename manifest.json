@@ -18,6 +18,13 @@
       "description": "Quickly add a new expense",
       "url": "/health/finance.html?add=1",
       "icons": [{ "src": "/health/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Add Event",
+      "short_name": "Add Event",
+      "description": "Quickly add a new event",
+      "url": "/health/finance.html?addevent=1",
+      "icons": [{ "src": "/health/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }

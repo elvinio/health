@@ -321,10 +321,31 @@
     font-size: .7rem; font-weight: 700; padding: 2px 7px;
     border-radius: 4px; background: var(--border); color: var(--muted);
   }
+  .event-tag-badge {
+    display: inline-block; margin-top: 4px; margin-right: 3px;
+    font-size: .68rem; font-weight: 700; padding: 2px 7px;
+    border-radius: 4px; background: var(--primary-light, #e8d8cc); color: var(--primary);
+  }
+  .event-end-time {
+    font-size: .68rem; color: var(--muted); margin-top: 2px;
+  }
+  .tag-toggle-pill {
+    display: inline-block; padding: 4px 12px; border-radius: 16px; font-size: .8rem; font-weight: 600;
+    border: 1.5px solid var(--border); background: var(--card); color: var(--muted);
+    cursor: pointer; transition: background .15s, color .15s, border-color .15s; margin: 2px;
+  }
+  .tag-toggle-pill.selected { background: var(--primary); color: #fff; border-color: var(--primary); }
   .event-section-label {
     font-size: .75rem; font-weight: 700; color: var(--muted);
     text-transform: uppercase; letter-spacing: .08em;
     margin: 16px 0 8px;
+  }
+  .term-week-banner {
+    background: var(--primary); color: #fff;
+    border-radius: 10px; padding: 10px 16px;
+    font-weight: 700; font-size: 1rem;
+    margin-bottom: 12px; text-align: center;
+    letter-spacing: .02em;
   }
   .notif-hint {
     font-size: .75rem; color: var(--muted); text-align: center;
@@ -366,6 +387,7 @@
       <button class="dropdown-item" id="quickSyncMenuItem" onclick="driveSyncHeader()" style="display:none"><span class="material-symbols-outlined">sync</span> Quick Sync</button>
       <button class="dropdown-item" onclick="exportData()">⬇ Export JSON</button>
       <button class="dropdown-item" onclick="triggerImport()">⬆ Import JSON</button>
+      <button class="dropdown-item" onclick="triggerImportEvents()">📅 Import Events</button>
       <button class="dropdown-item" onclick="pullHistory()">📥 Pull History</button>
       <button class="dropdown-item" onclick="recalcAll()"><span class="material-symbols-outlined">calculate</span> Recalculate</button>
       <div class="dropdown-sep"></div>
@@ -380,6 +402,10 @@
 
 <!-- Events Page -->
 <div class="page active" id="page-events">
+  <div id="termWeekBanner" style="display:none"></div>
+  <div class="filter-bar" id="eventFilterBar" style="display:none">
+    <div class="filter-pills" id="eventTagFilterPills"></div>
+  </div>
   <div id="eventList"></div>
 </div>
 
@@ -492,6 +518,30 @@
       </div>
     </div>
     <div class="field">
+      <label>End Date</label>
+      <input type="date" id="evEndDate">
+    </div>
+    <div class="field">
+      <label>End Time</label>
+      <div class="time-picker-row">
+        <select id="evEndHour"></select>
+        <select id="evEndMinute">
+          <option value="0">:00</option>
+          <option value="15">:15</option>
+          <option value="30">:30</option>
+          <option value="45">:45</option>
+        </select>
+        <select id="evEndAmpm">
+          <option value="AM">AM</option>
+          <option value="PM">PM</option>
+        </select>
+      </div>
+    </div>
+    <div class="field" id="evTagsField" style="display:none">
+      <label>Tags</label>
+      <div id="evTagPills"></div>
+    </div>
+    <div class="field">
       <label>Reminder (hours before start)</label>
       <input type="number" id="evReminder" min="0" step="1" value="0" placeholder="0 = no reminder">
     </div>
@@ -602,6 +652,7 @@
 <!-- Hidden file input for import -->
 <input type="file" id="importFile" accept=".json" style="display:none">
 <input type="file" id="historyImportFile" accept=".json" style="display:none">
+<input type="file" id="importEventsFile" accept=".json" style="display:none">
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
@@ -1042,6 +1093,7 @@ function deleteExpense() {
 let filterAccount = null;
 let filterSearch = '';
 let filterYear = String(new Date().getFullYear());
+let filterEventTag = null;
 let analysisYears = new Set([String(new Date().getFullYear())]);
 let showHistoryPills = false;
 
@@ -1192,6 +1244,25 @@ function openAccountSettings() {
         </div>`).join('')}
     </div>` : '';
 
+  const td = data.termDates || {};
+  const tagsSection = `
+    <div style="padding-top:4px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+      <div class="section-heading">School Terms</div>
+      <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Start date of each term. Used to show current term &amp; week on the events page.</p>
+      ${[1,2,3,4].map(n => `
+        <div class="field">
+          <label>Term ${n} Start</label>
+          <input type="date" id="termDate${n}" value="${esc(td['t'+n] || '')}">
+        </div>`).join('')}
+    </div>
+    <div style="padding-top:4px">
+      <div class="section-heading">Event Tags</div>
+      <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Comma-separated list of tags for events (e.g. Work, Personal, Travel).</p>
+      <div class="field">
+        <input type="text" id="eventTagsInput" value="${esc((data.eventTags || []).join(', '))}" placeholder="Work, Personal, Travel">
+      </div>
+    </div>`;
+
   body.innerHTML = data.accounts.map((acc, i) => `
     <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)">
       <div class="section-heading">Account ${i + 1}</div>
@@ -1202,7 +1273,7 @@ function openAccountSettings() {
         <input type="number" id="accStart${i}" value="${acc.startingBalance}" step="0.01" placeholder="0.00">
       </div>
     </div>
-  `).join('') + budgetSection;
+  `).join('') + tagsSection + budgetSection;
   openSheet('settingsSheet');
 }
 
@@ -1214,6 +1285,18 @@ function saveAccountSettings() {
     acc.startingBalance = start;
     acc._updatedAt = Date.now();
   });
+
+  const termDates = {};
+  [1,2,3,4].forEach(n => {
+    const v = document.getElementById('termDate' + n).value;
+    if (v) termDates['t' + n] = v;
+  });
+  data.termDates = termDates;
+  data._termDatesTs = Date.now();
+
+  const tagsRaw = (document.getElementById('eventTagsInput').value || '').trim();
+  data.eventTags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
+  data._eventTagsTs = Date.now();
 
   const allCats = [...new Set([
     ...DEFAULT_CATS,
@@ -1454,6 +1537,41 @@ function confirmClearData() {
   showToast('All data cleared');
 }
 
+function triggerImportEvents() {
+  document.getElementById('mainMenu').classList.remove('open');
+  document.getElementById('importEventsFile').click();
+}
+
+document.getElementById('importEventsFile').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const parsed = JSON.parse(ev.target.result);
+      const incoming = Array.isArray(parsed) ? parsed : parsed.events;
+      if (!Array.isArray(incoming)) { showToast('Invalid events file'); return; }
+      if (!data.events) data.events = [];
+      let added = 0, updated = 0;
+      incoming.forEach(ev => {
+        if (!ev.id || !ev.title || !ev.startDate) return;
+        const idx = data.events.findIndex(e => e.id === ev.id);
+        if (idx >= 0) {
+          if ((ev._ts || 0) > (data.events[idx]._ts || 0)) { data.events[idx] = ev; updated++; }
+        } else {
+          data.events.push(ev); added++;
+        }
+      });
+      saveData(data);
+      renderEventList();
+      scheduleEventReminders();
+      showToast(`Imported: ${added} added, ${updated} updated`);
+    } catch { showToast('Could not read events file'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
 function pullHistory() {
   document.getElementById('mainMenu').classList.remove('open');
   document.getElementById('historyImportFile').click();
@@ -1656,13 +1774,29 @@ function mergeData(local, remote) {
     if (!existing || (ev._ts || 0) > (existing._ts || 0)) eventMap.set(ev.id, ev);
   });
 
+  // termDates: prefer whichever side was saved most recently
+  const termDates = (local._termDatesTs || 0) >= (remote._termDatesTs || 0)
+    ? (local.termDates || remote.termDates || {})
+    : (remote.termDates || local.termDates || {});
+  const termDatesTs = Math.max(local._termDatesTs || 0, remote._termDatesTs || 0);
+
+  // eventTags: prefer whichever side was saved most recently
+  const eventTags = (local._eventTagsTs || 0) >= (remote._eventTagsTs || 0)
+    ? (local.eventTags || remote.eventTags || [])
+    : (remote.eventTags || local.eventTags || []);
+  const eventTagsTs = Math.max(local._eventTagsTs || 0, remote._eventTagsTs || 0);
+
   const merged = {
     accounts: [...accMap.values()],
     expenses: [...expMap.values()],
     assets: [...assetMap.values()],
     events: [...eventMap.values()],
     _deletedIds: [...deletedIds],
-    budgets: { ...(remote.budgets || {}), ...(local.budgets || {}) }
+    budgets: { ...(remote.budgets || {}), ...(local.budgets || {}) },
+    termDates,
+    _termDatesTs: termDatesTs,
+    eventTags,
+    _eventTagsTs: eventTagsTs
   };
   recalcBalances(merged, merged.expenses);
   recalcMonthlyAgg(merged, merged.expenses);
@@ -2142,11 +2276,63 @@ function fmtEventCountdown(ev) {
   return `${Math.abs(days)} days ago`;
 }
 
+function getCurrentTermWeek() {
+  const td = data.termDates || {};
+  const terms = [1,2,3,4]
+    .map(n => ({ label: `Term ${n}`, date: td['t'+n] }))
+    .filter(t => t.date);
+  if (!terms.length) return null;
+  const now = new Date();
+  const todayMs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  let current = null;
+  for (const t of terms) {
+    const [y,m,d] = t.date.split('-').map(Number);
+    const startMs = new Date(y, m-1, d).getTime();
+    if (todayMs >= startMs) current = { label: t.label, startMs };
+  }
+  if (!current) return null;
+  const week = Math.floor((todayMs - current.startMs) / (7 * 86400000)) + 1;
+  return `${current.label}  ·  Week ${week}`;
+}
+
+function renderTermWeekBanner() {
+  const el = document.getElementById('termWeekBanner');
+  if (!el) return;
+  const label = getCurrentTermWeek();
+  if (label) {
+    el.textContent = label;
+    el.style.display = '';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+function renderEventTagFilterPills() {
+  const bar = document.getElementById('eventFilterBar');
+  const container = document.getElementById('eventTagFilterPills');
+  if (!bar || !container) return;
+  const tags = data.eventTags || [];
+  if (!tags.length) { bar.style.display = 'none'; return; }
+  bar.style.display = '';
+  container.innerHTML =
+    `<button class="filter-pill${filterEventTag === null ? ' active' : ''}" onclick="setEventTagFilter(null)">All</button>` +
+    tags.map(t => `<button class="filter-pill${filterEventTag === t ? ' active' : ''}" onclick="setEventTagFilter('${esc(t)}')">${esc(t)}</button>`).join('');
+}
+
+function setEventTagFilter(tag) {
+  filterEventTag = tag;
+  renderEventTagFilterPills();
+  renderEventList();
+}
+
 function renderEventList() {
   const el = document.getElementById('eventList');
   if (!el) return;
+  renderTermWeekBanner();
+  renderEventTagFilterPills();
   const now = Date.now();
-  const events = (data.events || []).slice().sort((a, b) => eventToMs(a) - eventToMs(b));
+  let events = (data.events || []).slice().sort((a, b) => eventToMs(a) - eventToMs(b));
+  if (filterEventTag) events = events.filter(ev => (ev.tags || []).includes(filterEventTag));
   const upcoming = events.filter(ev => eventToMs(ev) >= now);
   const past = events.filter(ev => eventToMs(ev) < now);
 
@@ -2163,6 +2349,16 @@ function renderEventList() {
     const min = String(ev.startTime.minute).padStart(2, '0');
     const timeFmt = `${ev.startTime.hour}:${min} ${ev.startTime.ampm}`;
     const weekday = d.toLocaleDateString(undefined, { weekday: 'long' });
+    const tagBadges = (ev.tags || []).map(t => `<span class="event-tag-badge">${esc(t)}</span>`).join('');
+    let endTimeLine = '';
+    if (ev.endDate || ev.endTime) {
+      const endMin = String((ev.endTime || {}).minute || 0).padStart(2, '0');
+      const endH = (ev.endTime || {}).hour || 12;
+      const endAmpm = (ev.endTime || {}).ampm || 'PM';
+      const endDateStr = ev.endDate && ev.endDate !== ev.startDate
+        ? ` ${new Date(ev.endDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : '';
+      endTimeLine = `<div class="event-end-time">to${endDateStr} ${endH}:${endMin} ${endAmpm}</div>`;
+    }
     return `
     <div class="event-item" onclick="openEventSheet('${ev.id}')">
       <div class="event-row">
@@ -2173,11 +2369,13 @@ function renderEventList() {
         <div class="event-middle">
           <div class="event-title">${esc(ev.title)}</div>
           ${ev.description ? `<div class="event-desc-text">${esc(ev.description)}</div>` : ''}
+          ${tagBadges ? `<div>${tagBadges}</div>` : ''}
           ${ev.reminderHours > 0 ? `<span class="event-reminder-badge">&#9200; ${ev.reminderHours}h before</span>` : ''}
         </div>
         <div class="event-date-col">
           <div class="event-date-display">${dayNum} ${mon}</div>
           <div class="event-time-display">${timeFmt}</div>
+          ${endTimeLine}
         </div>
       </div>
     </div>`;
@@ -2200,11 +2398,33 @@ function openEventSheet(id) {
   if (!hourSel.options.length) {
     for (let h = 1; h <= 12; h++) hourSel.add(new Option(h, h));
   }
-  const nowH = new Date().getHours();
-  hourSel.value = nowH % 12 || 12;
-  document.getElementById('evAmpm').value = nowH < 12 ? 'AM' : 'PM';
+  const endHourSel = document.getElementById('evEndHour');
+  if (!endHourSel.options.length) {
+    for (let h = 1; h <= 12; h++) endHourSel.add(new Option(h, h));
+  }
+
+  // Defaults: start 9 AM, end 6 PM
+  hourSel.value = '9';
+  document.getElementById('evAmpm').value = 'AM';
   document.getElementById('evMinute').value = '0';
+  document.getElementById('evEndDate').value = today();
+  endHourSel.value = '6';
+  document.getElementById('evEndAmpm').value = 'PM';
+  document.getElementById('evEndMinute').value = '0';
   document.getElementById('evReminder').value = '0';
+
+  // Tags field
+  const tags = data.eventTags || [];
+  const tagsField = document.getElementById('evTagsField');
+  const tagPills = document.getElementById('evTagPills');
+  if (tags.length) {
+    tagsField.style.display = '';
+    tagPills.innerHTML = tags.map(t =>
+      `<span class="tag-toggle-pill" data-tag="${esc(t)}" onclick="toggleEventTagPill(this)">${esc(t)}</span>`
+    ).join('');
+  } else {
+    tagsField.style.display = 'none';
+  }
 
   if (id) {
     const ev = (data.events || []).find(e => e.id === id);
@@ -2217,7 +2437,19 @@ function openEventSheet(id) {
     hourSel.value = ev.startTime.hour;
     document.getElementById('evMinute').value = ev.startTime.minute;
     document.getElementById('evAmpm').value = ev.startTime.ampm;
+    if (ev.endDate) document.getElementById('evEndDate').value = ev.endDate;
+    if (ev.endTime) {
+      endHourSel.value = ev.endTime.hour;
+      document.getElementById('evEndMinute').value = ev.endTime.minute;
+      document.getElementById('evEndAmpm').value = ev.endTime.ampm;
+    }
     document.getElementById('evReminder').value = ev.reminderHours;
+    if (tags.length) {
+      const evTags = ev.tags || [];
+      tagPills.querySelectorAll('.tag-toggle-pill').forEach(pill => {
+        if (evTags.includes(pill.dataset.tag)) pill.classList.add('selected');
+      });
+    }
     document.getElementById('evDeleteBtn').style.display = '';
   } else {
     document.getElementById('eventSheetTitle').textContent = 'Add Event';
@@ -2226,10 +2458,16 @@ function openEventSheet(id) {
   setTimeout(() => document.getElementById('evTitle').focus(), 350);
 }
 
+function toggleEventTagPill(el) {
+  el.classList.toggle('selected');
+}
+
 document.getElementById('eventForm').addEventListener('submit', e => {
   e.preventDefault();
   const id = document.getElementById('eventId').value;
   const reminderHours = parseFloat(document.getElementById('evReminder').value) || 0;
+  const selectedTags = [...document.getElementById('evTagPills').querySelectorAll('.tag-toggle-pill.selected')]
+    .map(el => el.dataset.tag);
   const ev = {
     id: id || uid(),
     title: document.getElementById('evTitle').value.trim(),
@@ -2240,6 +2478,13 @@ document.getElementById('eventForm').addEventListener('submit', e => {
       minute: parseInt(document.getElementById('evMinute').value),
       ampm: document.getElementById('evAmpm').value
     },
+    endDate: document.getElementById('evEndDate').value || null,
+    endTime: {
+      hour: parseInt(document.getElementById('evEndHour').value),
+      minute: parseInt(document.getElementById('evEndMinute').value),
+      ampm: document.getElementById('evEndAmpm').value
+    },
+    tags: selectedTags,
     reminderHours,
     _ts: Date.now()
   };
@@ -2341,6 +2586,10 @@ scheduleEventReminders();
 if (new URLSearchParams(location.search).get('add') === '1') {
   history.replaceState(null, '', location.pathname);
   setTimeout(() => openExpenseSheet(), 100);
+}
+if (new URLSearchParams(location.search).get('addevent') === '1') {
+  history.replaceState(null, '', location.pathname);
+  setTimeout(() => openEventSheet(null), 100);
 }
 </script>
 </body>
