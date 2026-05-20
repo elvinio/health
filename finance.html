@@ -324,7 +324,7 @@
   .event-tag-badge {
     display: inline-block; margin-top: 4px; margin-right: 3px;
     font-size: .68rem; font-weight: 700; padding: 2px 7px;
-    border-radius: 4px; background: var(--primary-light, #e8d8cc); color: var(--primary);
+    border-radius: 4px; background: var(--primary); color: #fff;
   }
   .event-end-time {
     font-size: .68rem; color: var(--muted); margin-top: 2px;
@@ -339,6 +339,61 @@
     font-size: .75rem; font-weight: 700; color: var(--muted);
     text-transform: uppercase; letter-spacing: .08em;
     margin: 16px 0 8px;
+  }
+  .week-marker {
+    display: flex; align-items: center; gap: 8px;
+    margin: 10px 0 4px;
+    font-size: .68rem; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .08em;
+  }
+  .week-marker::before, .week-marker::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+  .event-view-row {
+    display: flex; justify-content: flex-end; gap: 4px; margin-bottom: 8px;
+  }
+  .event-view-btn {
+    background: var(--card); border: 1.5px solid var(--border);
+    border-radius: 8px; padding: 5px 10px; cursor: pointer; color: var(--muted);
+    display: flex; align-items: center; transition: background .15s, color .15s, border-color .15s;
+  }
+  .event-view-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .cal-nav-btn {
+    background: none; border: none; font-size: 1.5rem; color: var(--text);
+    cursor: pointer; padding: 4px 10px; border-radius: 8px;
+  }
+  .cal-nav-btn:active { background: var(--border); }
+  .cal-month-label { font-weight: 700; font-size: 1rem; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .cal-day-header {
+    text-align: center; font-size: .62rem; font-weight: 700;
+    color: var(--muted); text-transform: uppercase; padding: 4px 0 6px;
+  }
+  .cal-day {
+    min-height: 52px; border-radius: 6px; padding: 4px 3px;
+    background: var(--card); border: 1px solid transparent; overflow: hidden;
+  }
+  .cal-day.other-month { background: transparent; }
+  .cal-day.today { border-color: var(--primary); }
+  .cal-day.has-events { cursor: pointer; }
+  .cal-day.has-events:active { opacity: .75; }
+  .cal-day-num { font-size: .75rem; font-weight: 600; color: var(--text); margin-bottom: 2px; text-align: center; }
+  .cal-day.other-month .cal-day-num { color: var(--border); }
+  .cal-day.today .cal-day-num { color: var(--primary); font-weight: 800; }
+  .cal-ev-chip {
+    font-size: .55rem; font-weight: 700; color: #fff; background: var(--primary);
+    border-radius: 3px; padding: 1px 3px; margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .cal-ev-more { font-size: .58rem; color: var(--muted); margin-top: 1px; text-align: center; }
+  .cal-day-modal {
+    background: var(--card); border-radius: 12px; padding: 14px;
+    margin-top: 14px; box-shadow: var(--shadow);
+  }
+  .cal-day-modal-title {
+    font-size: .8rem; font-weight: 700; color: var(--muted);
+    margin-bottom: 10px; text-transform: uppercase; letter-spacing: .06em;
   }
   .term-week-banner {
     background: var(--primary); color: #fff;
@@ -406,7 +461,12 @@
   <div class="filter-bar" id="eventFilterBar" style="display:none">
     <div class="filter-pills" id="eventTagFilterPills"></div>
   </div>
+  <div class="event-view-row">
+    <button class="event-view-btn active" id="evViewList" onclick="setEventView('list')"><span class="material-symbols-outlined" style="font-size:1.1rem">list</span></button>
+    <button class="event-view-btn" id="evViewCal" onclick="setEventView('calendar')"><span class="material-symbols-outlined" style="font-size:1.1rem">calendar_month</span></button>
+  </div>
   <div id="eventList"></div>
+  <div id="eventCalendar" style="display:none"></div>
 </div>
 
 <!-- Expenses Page -->
@@ -499,7 +559,7 @@
     </div>
     <div class="field">
       <label>Start Date</label>
-      <input type="date" id="evDate" required>
+      <input type="date" id="evDate" required oninput="syncEndDate()">
     </div>
     <div class="field">
       <label>Start Time</label>
@@ -1094,6 +1154,9 @@ let filterAccount = null;
 let filterSearch = '';
 let filterYear = String(new Date().getFullYear());
 let filterEventTag = null;
+let eventViewMode = 'list';
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
 let analysisYears = new Set([String(new Date().getFullYear())]);
 let showHistoryPills = false;
 
@@ -2309,12 +2372,18 @@ function renderTermWeekBanner() {
   }
 }
 
+function syncEndDate() {
+  const startEl = document.getElementById('evDate');
+  const endEl = document.getElementById('evEndDate');
+  if (startEl.value) endEl.value = startEl.value;
+}
+
 function renderEventTagFilterPills() {
   const bar = document.getElementById('eventFilterBar');
   const container = document.getElementById('eventTagFilterPills');
   if (!bar || !container) return;
   const tags = data.eventTags || [];
-  if (!tags.length) { bar.style.display = 'none'; return; }
+  if (!tags.length || eventViewMode === 'calendar') { bar.style.display = 'none'; return; }
   bar.style.display = '';
   container.innerHTML =
     `<button class="filter-pill${filterEventTag === null ? ' active' : ''}" onclick="setEventTagFilter(null)">All</button>` +
@@ -2325,6 +2394,70 @@ function setEventTagFilter(tag) {
   filterEventTag = tag;
   renderEventTagFilterPills();
   renderEventList();
+}
+
+function getMondayMs(dateMs) {
+  const d = new Date(dateMs);
+  const day = d.getDay();
+  const daysToMon = day === 0 ? -6 : 1 - day;
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + daysToMon).getTime();
+}
+
+function renderEventItem(ev) {
+  const ms = eventToMs(ev);
+  const d = new Date(ms);
+  const dayNum = d.getDate();
+  const mon = d.toLocaleDateString(undefined, { month: 'short' });
+  const min = String(ev.startTime.minute).padStart(2, '0');
+  const timeFmt = `${ev.startTime.hour}:${min} ${ev.startTime.ampm}`;
+  const weekday = d.toLocaleDateString(undefined, { weekday: 'long' });
+  const tagBadges = (ev.tags || []).map(t => `<span class="event-tag-badge">${esc(t)}</span>`).join('');
+
+  const isMultiDay = ev.endDate && ev.endDate !== ev.startDate;
+  let dateDisplay, timeLine, endTimeLine = '';
+
+  if (isMultiDay) {
+    const endD = new Date(ev.endDate + 'T00:00:00');
+    const endDayNum = endD.getDate();
+    const endMon = endD.toLocaleDateString(undefined, { month: 'short' });
+    if (endD.getMonth() === d.getMonth() && endD.getFullYear() === d.getFullYear()) {
+      dateDisplay = `${dayNum}–${endDayNum} ${mon}`;
+    } else {
+      dateDisplay = `${dayNum} ${mon}<br><span style="font-size:.72rem;font-weight:600">to ${endDayNum} ${endMon}</span>`;
+    }
+    timeLine = `<div class="event-time-display">${timeFmt}</div>`;
+    if (ev.endTime) {
+      const endMin = String((ev.endTime).minute || 0).padStart(2, '0');
+      endTimeLine = `<div class="event-end-time">${ev.endTime.hour}:${endMin} ${ev.endTime.ampm}</div>`;
+    }
+  } else {
+    dateDisplay = `${dayNum} ${mon}`;
+    timeLine = `<div class="event-time-display">${timeFmt}</div>`;
+    if (ev.endTime) {
+      const endMin = String((ev.endTime).minute || 0).padStart(2, '0');
+      endTimeLine = `<div class="event-end-time">to ${ev.endTime.hour}:${endMin} ${ev.endTime.ampm}</div>`;
+    }
+  }
+
+  return `
+  <div class="event-item" onclick="openEventSheet('${ev.id}')">
+    <div class="event-row">
+      <div class="event-countdown">
+        <div class="event-countdown-value">${fmtEventCountdown(ev)}</div>
+        <div class="event-countdown-day">${weekday}</div>
+      </div>
+      <div class="event-middle">
+        <div class="event-title">${esc(ev.title)}</div>
+        ${ev.description ? `<div class="event-desc-text">${esc(ev.description)}</div>` : ''}
+        ${tagBadges ? `<div>${tagBadges}</div>` : ''}
+        ${ev.reminderHours > 0 ? `<span class="event-reminder-badge">&#9200; ${ev.reminderHours}h before</span>` : ''}
+      </div>
+      <div class="event-date-col">
+        <div class="event-date-display">${dateDisplay}</div>
+        ${timeLine}${endTimeLine}
+      </div>
+    </div>
+  </div>`;
 }
 
 function renderEventList() {
@@ -2343,50 +2476,135 @@ function renderEventList() {
     return;
   }
 
-  const renderItems = arr => arr.map(ev => {
-    const ms = eventToMs(ev);
-    const d = new Date(ms);
-    const dayNum = d.getDate();
-    const mon = d.toLocaleDateString(undefined, { month: 'short' });
+  const renderWithWeekMarkers = arr => {
+    let html = '';
+    let lastMonMs = null;
+    arr.forEach(ev => {
+      const monMs = getMondayMs(eventToMs(ev));
+      if (monMs !== lastMonMs) {
+        lastMonMs = monMs;
+        const monDate = new Date(monMs);
+        const monLabel = monDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        html += `<div class="week-marker">${monLabel}</div>`;
+      }
+      html += renderEventItem(ev);
+    });
+    return html;
+  };
+
+  let html = '';
+  if (upcoming.length) html += `<div class="event-section-label">Upcoming</div>${renderWithWeekMarkers(upcoming)}`;
+  if (past.length) html += `<div class="event-section-label" style="margin-top:24px">Past</div>${past.map(renderEventItem).join('')}`;
+  el.innerHTML = html;
+}
+
+function setEventView(mode) {
+  eventViewMode = mode;
+  document.getElementById('evViewList').classList.toggle('active', mode === 'list');
+  document.getElementById('evViewCal').classList.toggle('active', mode === 'calendar');
+  document.getElementById('eventList').style.display = mode === 'list' ? '' : 'none';
+  document.getElementById('eventCalendar').style.display = mode === 'calendar' ? '' : 'none';
+  renderEventTagFilterPills();
+  if (mode === 'calendar') renderEventCalendar();
+}
+
+function calPrev() {
+  calMonth--;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderEventCalendar();
+}
+
+function calNext() {
+  calMonth++;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  renderEventCalendar();
+}
+
+function renderEventCalendar() {
+  const el = document.getElementById('eventCalendar');
+  if (!el) return;
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const firstDay = new Date(calYear, calMonth, 1);
+  const lastDay = new Date(calYear, calMonth + 1, 0);
+
+  // Monday-based start offset (Mon=0 … Sun=6)
+  let startDow = firstDay.getDay();
+  startDow = startDow === 0 ? 6 : startDow - 1;
+
+  // Build map: dateStr -> events active on that day
+  const evByDate = {};
+  (data.events || []).forEach(ev => {
+    let d = new Date(ev.startDate + 'T00:00:00');
+    const endD = new Date((ev.endDate || ev.startDate) + 'T00:00:00');
+    while (d <= endD) {
+      const key = d.toISOString().slice(0, 10);
+      if (!evByDate[key]) evByDate[key] = [];
+      evByDate[key].push(ev);
+      d.setDate(d.getDate() + 1);
+    }
+  });
+
+  const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const headerRow = DAYS.map(d => `<div class="cal-day-header">${d}</div>`).join('');
+
+  let cells = '';
+  for (let i = 0; i < startDow; i++) cells += `<div class="cal-day other-month"></div>`;
+
+  for (let day = 1; day <= lastDay.getDate(); day++) {
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const dayEvs = evByDate[dateStr] || [];
+    const isToday = dateStr === todayStr;
+    let cls = 'cal-day' + (isToday ? ' today' : '') + (dayEvs.length ? ' has-events' : '');
+    let chips = dayEvs.slice(0, 2).map(ev => `<div class="cal-ev-chip">${esc(ev.title)}</div>`).join('');
+    if (dayEvs.length > 2) chips += `<div class="cal-ev-more">+${dayEvs.length - 2}</div>`;
+    const onclick = dayEvs.length ? `showCalDay('${dateStr}')` : '';
+    cells += `<div class="${cls}" onclick="${onclick}"><div class="cal-day-num">${day}</div>${chips}</div>`;
+  }
+
+  const total = startDow + lastDay.getDate();
+  const trailing = total % 7 === 0 ? 0 : 7 - (total % 7);
+  for (let i = 0; i < trailing; i++) cells += `<div class="cal-day other-month"></div>`;
+
+  el.innerHTML = `
+    <div class="cal-nav">
+      <button class="cal-nav-btn" onclick="calPrev()">‹</button>
+      <div class="cal-month-label">${MONTHS[calMonth]} ${calYear}</div>
+      <button class="cal-nav-btn" onclick="calNext()">›</button>
+    </div>
+    <div class="cal-grid">${headerRow}${cells}</div>
+    <div id="calDayDetail"></div>`;
+}
+
+function showCalDay(dateStr) {
+  const detail = document.getElementById('calDayDetail');
+  if (!detail) return;
+  const evs = (data.events || []).filter(ev => {
+    const start = ev.startDate;
+    const end = ev.endDate || ev.startDate;
+    return dateStr >= start && dateStr <= end;
+  }).sort((a, b) => eventToMs(a) - eventToMs(b));
+  if (!evs.length) { detail.innerHTML = ''; return; }
+  const d = new Date(dateStr + 'T00:00:00');
+  const dateLabel = d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  const items = evs.map(ev => {
     const min = String(ev.startTime.minute).padStart(2, '0');
     const timeFmt = `${ev.startTime.hour}:${min} ${ev.startTime.ampm}`;
-    const weekday = d.toLocaleDateString(undefined, { weekday: 'long' });
     const tagBadges = (ev.tags || []).map(t => `<span class="event-tag-badge">${esc(t)}</span>`).join('');
-    let endTimeLine = '';
-    if (ev.endDate || ev.endTime) {
-      const endMin = String((ev.endTime || {}).minute || 0).padStart(2, '0');
-      const endH = (ev.endTime || {}).hour || 12;
-      const endAmpm = (ev.endTime || {}).ampm || 'PM';
-      const endDateStr = ev.endDate && ev.endDate !== ev.startDate
-        ? ` ${new Date(ev.endDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : '';
-      endTimeLine = `<div class="event-end-time">to${endDateStr} ${endH}:${endMin} ${endAmpm}</div>`;
-    }
-    return `
-    <div class="event-item" onclick="openEventSheet('${ev.id}')">
+    return `<div class="event-item" onclick="openEventSheet('${ev.id}')">
       <div class="event-row">
-        <div class="event-countdown">
-          <div class="event-countdown-value">${fmtEventCountdown(ev)}</div>
-          <div class="event-countdown-day">${weekday}</div>
-        </div>
         <div class="event-middle">
           <div class="event-title">${esc(ev.title)}</div>
           ${ev.description ? `<div class="event-desc-text">${esc(ev.description)}</div>` : ''}
           ${tagBadges ? `<div>${tagBadges}</div>` : ''}
-          ${ev.reminderHours > 0 ? `<span class="event-reminder-badge">&#9200; ${ev.reminderHours}h before</span>` : ''}
         </div>
         <div class="event-date-col">
-          <div class="event-date-display">${dayNum} ${mon}</div>
           <div class="event-time-display">${timeFmt}</div>
-          ${endTimeLine}
         </div>
       </div>
     </div>`;
   }).join('');
-
-  let html = '';
-  if (upcoming.length) html += `<div class="event-section-label">Upcoming</div>${renderItems(upcoming)}`;
-  if (past.length) html += `<div class="event-section-label" style="margin-top:24px">Past</div>${renderItems(past)}`;
-  el.innerHTML = html;
+  detail.innerHTML = `<div class="cal-day-modal"><div class="cal-day-modal-title">${dateLabel}</div>${items}</div>`;
 }
 
 function openEventSheet(id) {
@@ -2500,6 +2718,7 @@ document.getElementById('eventForm').addEventListener('submit', e => {
   saveData(data);
   closeSheet();
   renderEventList();
+  if (eventViewMode === 'calendar') renderEventCalendar();
   scheduleEventReminders();
   if (reminderHours > 0) requestNotificationPermission();
   showToast(id ? 'Event updated' : 'Event added');
@@ -2513,6 +2732,7 @@ function deleteEvent() {
   saveData(data);
   closeSheet();
   renderEventList();
+  if (eventViewMode === 'calendar') renderEventCalendar();
   scheduleEventReminders();
   showToast('Event deleted');
 }
