@@ -2012,6 +2012,7 @@ async function driveSync() {
     mergedHistory.expenses = mergedHistory.expenses.filter(e => !deletedSet.has(e.id));
 
     setDriveStatus('Uploading…');
+    merged.busApiKey = getBusApiKey() || merged.busApiKey || '';
     if (uploadHistory) {
       mergedHistory._updatedAt = Date.now();
       merged.historyUpdatedAt = mergedHistory._updatedAt;
@@ -2024,6 +2025,7 @@ async function driveSync() {
     const now = new Date().toISOString();
     localStorage.setItem('finance:lastSync', now);
     data = merged;
+    if (merged.busApiKey) saveBusApiKey(merged.busApiKey);
     historyData = mergedHistory;
     recalcBalances(data, allExpenses());
     recalcMonthlyAgg(data, allExpenses());
@@ -2600,8 +2602,9 @@ function busTimeLabel(mins) {
 }
 
 async function fetchBusStop(stopCode, apiKey) {
-  const resp = await fetch(`${BUS_API_URL}?BusStopCode=${stopCode}`,
-    { headers: { AccountKey: apiKey, accept: 'application/json' } });
+  const target = `${BUS_API_URL}?BusStopCode=${stopCode}`;
+  const url = `https://corsproxy.io/?${encodeURIComponent(target)}`;
+  const resp = await fetch(url, { headers: { AccountKey: apiKey, accept: 'application/json' } });
   if (!resp.ok) throw new Error(resp.status);
   return resp.json();
 }
