@@ -315,7 +315,7 @@
   .event-date-col { min-width: 72px; flex-shrink: 0; text-align: left; }
   .event-date-display { font-size: .8rem; font-weight: 700; color: var(--primary); }
   .event-time-display { font-size: .72rem; color: var(--muted); margin-top: 2px; }
-  .event-weekday-display { font-size: .68rem; color: var(--muted); margin-top: 1px; }
+  .event-weekday-right { font-size: .8rem; font-weight: 700; color: var(--primary); flex-shrink: 0; align-self: center; text-align: right; min-width: 48px; }
   .event-title { font-size: .95rem; font-weight: 700; }
   .event-desc-text { font-size: .85rem; color: var(--muted); margin-top: 2px; }
   .event-reminder-badge {
@@ -2436,23 +2436,20 @@ function renderEventItem(ev) {
   const dayClass = ev.startDate === todayStr ? ' event-item-today' : ev.startDate === tomorrowStr ? ' event-item-tomorrow' : '';
 
   const isMultiDay = ev.endDate && ev.endDate !== ev.startDate;
-  let dateDisplay, endTimeLine = '';
+  let dateDisplay, weekdayDisplay, endTimeLine = '';
 
   if (isMultiDay) {
     const endD = new Date(ev.endDate + 'T00:00:00');
-    const endDayNum = endD.getDate();
-    const endMon = endD.toLocaleDateString(undefined, { month: 'short' });
-    if (endD.getMonth() === d.getMonth() && endD.getFullYear() === d.getFullYear()) {
-      dateDisplay = `${dayNum}–${endDayNum} ${mon}`;
-    } else {
-      dateDisplay = `${dayNum} ${mon}–${endDayNum} ${endMon}`;
-    }
+    const endWeekday = endD.toLocaleDateString(undefined, { weekday: 'short' });
+    dateDisplay = `${dayNum} ${mon}`;
+    weekdayDisplay = `${weekday} to ${endWeekday}`;
     if (ev.endTime) {
       const endMin = String((ev.endTime).minute || 0).padStart(2, '0');
       endTimeLine = `<div class="event-end-time">${ev.endTime.hour}:${endMin} ${ev.endTime.ampm}</div>`;
     }
   } else {
     dateDisplay = `${dayNum} ${mon}`;
+    weekdayDisplay = weekday;
     if (ev.endTime) {
       const endMin = String((ev.endTime).minute || 0).padStart(2, '0');
       endTimeLine = `<div class="event-end-time">to ${ev.endTime.hour}:${endMin} ${ev.endTime.ampm}</div>`;
@@ -2465,7 +2462,6 @@ function renderEventItem(ev) {
       <div class="event-date-col">
         <div class="event-date-display">${dateDisplay}</div>
         <div class="event-time-display">${timeFmt}</div>
-        <div class="event-weekday-display">${weekday}</div>
         ${endTimeLine}
       </div>
       <div class="event-middle">
@@ -2474,6 +2470,7 @@ function renderEventItem(ev) {
         ${tagBadges ? `<div>${tagBadges}</div>` : ''}
         ${ev.reminderHours > 0 ? `<span class="event-reminder-badge">&#9200; ${ev.reminderHours}h before</span>` : ''}
       </div>
+      <div class="event-weekday-right">${weekdayDisplay}</div>
     </div>
   </div>`;
 }
@@ -2505,7 +2502,7 @@ function renderEventList() {
         const monDate = new Date(monMs);
         const monLabel = monDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
         const weeksAway = Math.round((monMs - currentMonMs) / (7 * 86400000));
-        const bracket = weeksAway > 0 ? ` (${weeksAway} week${weeksAway !== 1 ? 's' : ''})` : '';
+        const bracket = weeksAway === 1 ? ' (Next Week)' : weeksAway > 1 ? ` (${weeksAway} weeks)` : '';
         html += `<div class="week-marker">${monLabel}${bracket}</div>`;
       }
       html += renderEventItem(ev);
@@ -2546,7 +2543,8 @@ function renderEventCalendar() {
   const el = document.getElementById('eventCalendar');
   if (!el) return;
   const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const _tn = new Date();
+  const todayStr = `${_tn.getFullYear()}-${String(_tn.getMonth()+1).padStart(2,'0')}-${String(_tn.getDate()).padStart(2,'0')}`;
   const firstDay = new Date(calYear, calMonth, 1);
   const lastDay = new Date(calYear, calMonth + 1, 0);
 
@@ -2560,7 +2558,7 @@ function renderEventCalendar() {
     let d = new Date(ev.startDate + 'T00:00:00');
     const endD = new Date((ev.endDate || ev.startDate) + 'T00:00:00');
     while (d <= endD) {
-      const key = d.toISOString().slice(0, 10);
+      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
       if (!evByDate[key]) evByDate[key] = [];
       evByDate[key].push(ev);
       d.setDate(d.getDate() + 1);
