@@ -657,6 +657,14 @@
     font-variant-numeric: tabular-nums;
   }
 
+  .hist-actions {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+  }
+
   .empty {
     text-align: center;
     color: var(--muted);
@@ -1347,6 +1355,7 @@ const Storage = {
   /* ── Workout sessions ───────────────────────────────── */
   getSession(dateStr, pid) { return this._pd(pid).sessions[dateStr] || null; },
   upsertSession(dateStr, session, pid) { this._pd(pid).sessions[dateStr] = session; this.save(); },
+  deleteSession(dateStr, pid) { delete this._pd(pid).sessions[dateStr]; this.save(); },
   listSessions(pid) {
     return Object.entries(this._pd(pid).sessions)
       .map(([date, s]) => ({ date, ...s }))
@@ -3063,7 +3072,7 @@ function renderHistory() {
     view.innerHTML = `<div class="empty">No sessions logged yet. Complete a workout to see history here.</div>`;
     return;
   }
-  view.innerHTML = sessions.map(s => {
+  const html = sessions.map(s => {
     const d = dayDef(s.day);
     const name = d ? d.name : `Day ${s.day}`;
     const isStrength = d && d.type === 'strength';
@@ -3100,9 +3109,23 @@ function renderHistory() {
           <span class="text-xs text-muted">▾</span>
         </summary>
         <div class="hist-detail">${renderHistoryDetail(s)}</div>
+        <div class="hist-actions">
+          <button class="btn danger sm hist-delete-btn" data-date="${escapeHtml(s.date)}">Delete record</button>
+        </div>
       </details>
     `;
   }).join('');
+  view.innerHTML = html;
+
+  view.querySelectorAll('.hist-delete-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const date = btn.dataset.date;
+      if (!confirm(`Delete record for ${fmtDateShort(date)}? This cannot be undone.`)) return;
+      Storage.deleteSession(date);
+      renderHistory();
+    });
+  });
 }
 
 function findExerciseName(id) {
