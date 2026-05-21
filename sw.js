@@ -1,9 +1,9 @@
 const CACHE = 'finance-v3';
 const ASSETS = [
-  '/finance.html',
-  '/themes.css',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
+  '/health/finance.html',
+  '/health/themes.css',
+  '/health/icons/icon-192.png',
+  '/health/icons/icon-512.png',
 ];
 
 self.addEventListener('install', e => {
