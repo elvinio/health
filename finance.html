@@ -360,6 +360,44 @@
     display: flex; align-items: center; transition: background .15s, color .15s, border-color .15s;
   }
   .event-view-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .bus-stop-card {
+    background: var(--card); border-radius: 12px; padding: 12px 14px;
+    margin-bottom: 10px; border: 1px solid var(--border);
+  }
+  .bus-stop-header {
+    font-size: .75rem; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px;
+  }
+  .bus-route-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+  .bus-route-badge {
+    background: var(--primary); color: #fff; border-radius: 6px;
+    font-size: .78rem; font-weight: 700; padding: 2px 8px; min-width: 36px; text-align: center;
+  }
+  .bus-time-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .bus-time-chip {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+    font-size: .82rem; padding: 2px 10px; color: var(--text);
+  }
+  .bus-time-chip.arriving { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 700; }
+  .bus-time-chip.no-data { color: var(--muted); font-style: italic; }
+  .bus-api-setup {
+    background: var(--card); border-radius: 12px; padding: 16px;
+    border: 1px solid var(--border); margin-bottom: 12px;
+  }
+  .bus-api-setup input {
+    width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 8px;
+    border: 1.5px solid var(--border); background: var(--bg); color: var(--text);
+    font-size: .9rem; margin: 8px 0;
+  }
+  .bus-refresh-row {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
+  }
+  .bus-refresh-btn {
+    background: none; border: 1.5px solid var(--border); border-radius: 8px;
+    padding: 4px 12px; cursor: pointer; color: var(--muted); font-size: .82rem;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .bus-last-updated { font-size: .72rem; color: var(--muted); }
   .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
   .cal-nav-btn {
     background: none; border: none; font-size: 1.5rem; color: var(--text);
@@ -465,9 +503,11 @@
   <div class="event-view-row">
     <button class="event-view-btn active" id="evViewList" onclick="setEventView('list')"><span class="material-symbols-outlined" style="font-size:1.1rem">list</span></button>
     <button class="event-view-btn" id="evViewCal" onclick="setEventView('calendar')"><span class="material-symbols-outlined" style="font-size:1.1rem">calendar_month</span></button>
+    <button class="event-view-btn" id="evViewBus" onclick="setEventView('bus')"><span class="material-symbols-outlined" style="font-size:1.1rem">directions_bus</span></button>
   </div>
   <div id="eventList"></div>
   <div id="eventCalendar" style="display:none"></div>
+  <div id="busPanel" style="display:none"></div>
 </div>
 
 <!-- Expenses Page -->
@@ -770,6 +810,17 @@ const DRIVE_FILE_KEY = 'finance:driveFileId';
 const DRIVE_CLIENT_KEY = 'finance:googleClientId';
 const HISTORY_KEY = 'finance:v1:history';
 const DRIVE_HISTORY_FILE_KEY = 'finance:driveHistoryFileId';
+const BUS_API_KEY_STORAGE = 'finance:busApiKey';
+const BUS_STOPS = [
+  { code: '83121', name: 'Nature Mansions' },
+  { code: '83129', name: 'Ji Xiang Court' },
+  { code: '82061', name: 'Eunos Station' },
+  { code: '92049', name: 'Parkway Center' },
+  { code: '92041', name: 'Opp Parkway' },
+];
+const BUS_SERVICES = ['15', '150'];
+const BUS_API_URL = 'https://datamall2.mytransport.sg/ltaodataservice/v3/BusArrival';
+let busPollingInterval = null;
 
 function defaultData() {
   return {
@@ -2521,10 +2572,116 @@ function setEventView(mode) {
   eventViewMode = mode;
   document.getElementById('evViewList').classList.toggle('active', mode === 'list');
   document.getElementById('evViewCal').classList.toggle('active', mode === 'calendar');
+  document.getElementById('evViewBus').classList.toggle('active', mode === 'bus');
   document.getElementById('eventList').style.display = mode === 'list' ? '' : 'none';
   document.getElementById('eventCalendar').style.display = mode === 'calendar' ? '' : 'none';
+  document.getElementById('busPanel').style.display = mode === 'bus' ? '' : 'none';
+  if (busPollingInterval) { clearInterval(busPollingInterval); busPollingInterval = null; }
   renderEventTagFilterPills();
   if (mode === 'calendar') renderEventCalendar();
+  if (mode === 'bus') {
+    renderBusPanel();
+    busPollingInterval = setInterval(renderBusPanel, 60000);
+  }
+}
+
+function getBusApiKey() { return localStorage.getItem(BUS_API_KEY_STORAGE) || ''; }
+function saveBusApiKey(key) { localStorage.setItem(BUS_API_KEY_STORAGE, key.trim()); }
+
+function busMinutes(isoStr) {
+  if (!isoStr) return null;
+  return Math.round((new Date(isoStr) - Date.now()) / 60000);
+}
+
+function busTimeLabel(mins) {
+  if (mins === null) return null;
+  if (mins <= 1) return 'Arr';
+  return mins + ' min';
+}
+
+async function fetchBusStop(stopCode, apiKey) {
+  const resp = await fetch(`${BUS_API_URL}?BusStopCode=${stopCode}`,
+    { headers: { AccountKey: apiKey, accept: 'application/json' } });
+  if (!resp.ok) throw new Error(resp.status);
+  return resp.json();
+}
+
+async function renderBusPanel() {
+  const panel = document.getElementById('busPanel');
+  if (!panel || panel.style.display === 'none') return;
+  const apiKey = getBusApiKey();
+
+  if (!apiKey) {
+    panel.innerHTML = `<div class="bus-api-setup">
+      <div style="font-weight:600;margin-bottom:4px">LTA DataMall API Key</div>
+      <div style="font-size:.82rem;color:var(--muted);margin-bottom:4px">Enter your API key to fetch live bus timings.</div>
+      <input type="text" id="busApiKeyInput" placeholder="Paste API key here…" />
+      <button class="btn btn-primary btn-block" style="margin-top:4px" onclick="
+        const k=document.getElementById('busApiKeyInput').value;
+        if(k.trim()){saveBusApiKey(k);renderBusPanel();}
+      ">Save &amp; Load</button>
+    </div>`;
+    return;
+  }
+
+  const container = document.getElementById('busStopsContainer');
+  if (!container) {
+    panel.innerHTML = `<div class="bus-refresh-row">
+      <span class="bus-last-updated" id="busLastUpdated">Fetching…</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="bus-refresh-btn" onclick="saveBusApiKey('');renderBusPanel()" style="font-size:.75rem">Change key</button>
+        <button class="bus-refresh-btn" onclick="renderBusPanel()">
+          <span class="material-symbols-outlined" style="font-size:.9rem">refresh</span> Refresh
+        </button>
+      </div>
+    </div>
+    <div id="busStopsContainer"><div style="color:var(--muted);text-align:center;padding:24px">Loading…</div></div>`;
+  }
+
+  const results = await Promise.allSettled(
+    BUS_STOPS.map(stop => fetchBusStop(stop.code, apiKey))
+  );
+
+  const cont = document.getElementById('busStopsContainer');
+  if (!cont) return;
+
+  cont.innerHTML = BUS_STOPS.map((stop, i) => {
+    const result = results[i];
+    if (result.status === 'rejected') {
+      return `<div class="bus-stop-card">
+        <div class="bus-stop-header">${stop.name} <span style="font-weight:400;text-transform:none">(${stop.code})</span></div>
+        <div style="color:var(--muted);font-size:.82rem">Failed to load</div>
+      </div>`;
+    }
+    const serviceMap = {};
+    (result.value.Services || []).forEach(s => { serviceMap[s.ServiceNo] = s; });
+    const rows = BUS_SERVICES.map(svc => {
+      const s = serviceMap[svc];
+      let chips = '';
+      if (!s) {
+        chips = `<span class="bus-time-chip no-data">—</span>`;
+      } else {
+        [s.NextBus, s.NextBus2].forEach(nb => {
+          const mins = busMinutes(nb && nb.EstimatedArrival);
+          if (mins === null || mins < -1) return;
+          const label = busTimeLabel(mins);
+          chips += `<span class="bus-time-chip ${mins <= 1 ? 'arriving' : ''}">${label}</span>`;
+        });
+        if (!chips) chips = `<span class="bus-time-chip no-data">No data</span>`;
+      }
+      return `<div class="bus-route-row">
+        <span class="bus-route-badge">${svc}</span>
+        <div class="bus-time-chips">${chips}</div>
+      </div>`;
+    }).join('');
+    return `<div class="bus-stop-card">
+      <div class="bus-stop-header">${stop.name} <span style="font-weight:400;text-transform:none">(${stop.code})</span></div>
+      ${rows}
+    </div>`;
+  }).join('');
+
+  const upd = document.getElementById('busLastUpdated');
+  if (upd) upd.textContent = 'Updated ' + new Date().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit' });
 }
 
 function calPrev() {
