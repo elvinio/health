@@ -563,6 +563,24 @@
   .bpm-green { color: var(--green-d) !important; }
   .bpm-red   { color: var(--red)     !important; }
 
+  .timer-bar .set-details-strip {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 14px;
+    padding: 2px 0 6px;
+  }
+  .timer-bar .detail-reps {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--fg);
+  }
+  .timer-bar .detail-tempo {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--muted);
+  }
+
   @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.55; }
@@ -637,6 +655,14 @@
     font-size: 0.8rem;
     margin-left: 6px;
     font-variant-numeric: tabular-nums;
+  }
+
+  .hist-actions {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
   }
 
   .empty {
@@ -902,10 +928,9 @@
       <div class="sub" id="topbar-sub"></div>
     </div>
     <div class="topbar-actions">
-      <button class="iconbtn" id="today-btn" title="Jump to today" hidden>Today</button>
       <button class="iconbtn" title="Change theme" onclick="openThemePicker()">◑</button>
       <span id="hr-badge" class="hr-badge" hidden>♥ <span id="hr-bpm">--</span></span>
-      <button id="hr-connect-btn" class="hr-connect-btn">♥ Connect HR</button>
+      <button id="hr-connect-btn" class="hr-connect-btn">♥</button>
       <button class="profile-chip" id="profile-switcher">Person 1 ▾</button>
     </div>
   </header>
@@ -1330,6 +1355,7 @@ const Storage = {
   /* ── Workout sessions ───────────────────────────────── */
   getSession(dateStr, pid) { return this._pd(pid).sessions[dateStr] || null; },
   upsertSession(dateStr, session, pid) { this._pd(pid).sessions[dateStr] = session; this.save(); },
+  deleteSession(dateStr, pid) { delete this._pd(pid).sessions[dateStr]; this.save(); },
   listSessions(pid) {
     return Object.entries(this._pd(pid).sessions)
       .map(([date, s]) => ({ date, ...s }))
@@ -1749,6 +1775,15 @@ function fmtISO(d) {
   return `${y}-${m}-${dd}`;
 }
 function todayISO() { return fmtISO(new Date()); }
+function relDayLabel(iso) {
+  const t = parseISO(todayISO());
+  const d = parseISO(iso);
+  const diff = Math.round((d - t) / 86400000);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Tomorrow';
+  if (diff === -1) return 'Yesterday';
+  return fmtDateShort(iso);
+}
 function parseISO(s) {
   // local-midnight interpretation so day math doesn't drift by timezone
   const [y, m, d] = s.split('-').map(Number);
@@ -1899,6 +1934,10 @@ const Timer = {
           <span class="label">SET IN PROGRESS</span>
           <span class="ex" id="tm-ex"></span>
         </div>
+        <div class="set-details-strip">
+          <span class="detail-reps" id="tm-reps"></span>
+          <span class="detail-tempo" id="tm-tempo"></span>
+        </div>
         <div class="rest-display">
           <div class="rest-col">
             <div class="rest-label">TIME</div>
@@ -1973,6 +2012,14 @@ const Timer = {
       const exEl = document.getElementById('tm-ex');
       const txt = `${s.meta.exerciseName} · Set ${s.meta.setIndex}/${s.meta.totalSets}`;
       if (exEl.textContent !== txt) exEl.textContent = txt;
+      const repsEl = document.getElementById('tm-reps');
+      if (repsEl && repsEl.textContent !== (s.meta.reps || '')) repsEl.textContent = s.meta.reps || '';
+      const tempoEl = document.getElementById('tm-tempo');
+      if (tempoEl) {
+        const tempoTxt = s.meta.tempo ? `Tempo ${s.meta.tempo}` : '';
+        if (tempoEl.textContent !== tempoTxt) tempoEl.textContent = tempoTxt;
+        tempoEl.hidden = !s.meta.tempo;
+      }
       document.getElementById('tm-digits').textContent = fmtTime(elapsed);
       const hrBigEl = document.getElementById('tm-hr-big');
       if (hrBigEl) hrBigEl.textContent = HeartRate.isConnected() && HeartRate.latest() != null ? HeartRate.latest() : '--';
@@ -2049,7 +2096,6 @@ function route() {
   });
   Timer.cancel();
   stopCardioOnNav();
-  document.getElementById('today-btn').hidden = (path !== '/day');
 
   if (path === '/' || path === '/today') {
     if (!cfg) return renderSetup(true);
@@ -2379,10 +2425,6 @@ function renderDay(week, day, opts) {
   document.getElementById('topbar-sub').textContent =
     `${WEEKS[week].phase} · RPE ${WEEKS[week].rpe} · ${WEEKS[week].rest}s rest`;
 
-  const todayBtn = document.getElementById('today-btn');
-  todayBtn.hidden = (dateISO === todayISO());
-  todayBtn.onclick = () => go('/today');
-
   const isRestType = d.type !== 'strength';
 
   let html = `
@@ -2393,7 +2435,7 @@ function renderDay(week, day, opts) {
     </div>
     <div class="day-nav">
       <button class="btn secondary sm" id="prev-day">← Prev</button>
-      <button class="btn ghost sm" id="today-day">Today</button>
+      <button class="btn ghost sm" id="today-day">${escapeHtml(relDayLabel(dateISO))}</button>
       <button class="btn secondary sm" id="next-day">Next →</button>
     </div>
   `;
@@ -2761,6 +2803,8 @@ function renderExercise(block, ex, week, exDomId) {
                 data-set-index="${i}"
                 data-total-sets="${spec.sets}"
                 data-planned-rest="${spec.rest}"
+                data-reps="${escapeHtml(String(repsForSet))}"
+                data-tempo="${escapeHtml(ex.tempo || '')}"
                 data-planned="${planned != null ? planned : ''}">${actionLabel}</button>
         ${done ? `
           <div class="set-rpe">
@@ -2859,6 +2903,8 @@ function handleSetAction(btn) {
   const totalSets = Number(btn.dataset.totalSets);
   const exerciseName = btn.dataset.exName;
   const plannedRest = Number(btn.dataset.plannedRest);
+  const reps = btn.dataset.reps || '';
+  const tempo = btn.dataset.tempo || '';
 
   const exState = ensureExEntry(exKey, btn.dataset.planned);
   const existing = exState.sets.find(s => s.setIndex === setIndex);
@@ -2891,7 +2937,7 @@ function handleSetAction(btn) {
   abandonInProgressSets();
 
   // Start this set
-  Timer.beginSet({ exerciseName, setIndex, totalSets, plannedRest });
+  Timer.beginSet({ exerciseName, setIndex, totalSets, plannedRest, reps, tempo });
   pendingSet = { exKey, exerciseName, setIndex, totalSets, plannedRest };
   // Persist startedAt so a refresh mid-set isn't lost
   const setEntry = { setIndex, startedAt: Date.now() };
@@ -3019,7 +3065,6 @@ function renderHistory() {
   const profiles = Storage.getProfiles();
   document.getElementById('topbar-title').textContent = 'History';
   document.getElementById('topbar-sub').textContent = profiles[pid]?.name || '';
-  document.getElementById('today-btn').hidden = true;
 
   const view = document.getElementById('view');
   const sessions = Storage.listSessions();
@@ -3027,7 +3072,7 @@ function renderHistory() {
     view.innerHTML = `<div class="empty">No sessions logged yet. Complete a workout to see history here.</div>`;
     return;
   }
-  view.innerHTML = sessions.map(s => {
+  const html = sessions.map(s => {
     const d = dayDef(s.day);
     const name = d ? d.name : `Day ${s.day}`;
     const isStrength = d && d.type === 'strength';
@@ -3064,9 +3109,23 @@ function renderHistory() {
           <span class="text-xs text-muted">▾</span>
         </summary>
         <div class="hist-detail">${renderHistoryDetail(s)}</div>
+        <div class="hist-actions">
+          <button class="btn danger sm hist-delete-btn" data-date="${escapeHtml(s.date)}">Delete record</button>
+        </div>
       </details>
     `;
   }).join('');
+  view.innerHTML = html;
+
+  view.querySelectorAll('.hist-delete-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const date = btn.dataset.date;
+      if (!confirm(`Delete record for ${fmtDateShort(date)}? This cannot be undone.`)) return;
+      Storage.deleteSession(date);
+      renderHistory();
+    });
+  });
 }
 
 function findExerciseName(id) {
@@ -3142,7 +3201,6 @@ function renderHealth() {
 
   document.getElementById('topbar-title').textContent = 'Health';
   document.getElementById('topbar-sub').textContent = profileName;
-  document.getElementById('today-btn').hidden = true;
 
   const view = document.getElementById('view');
   view.innerHTML = `
@@ -3418,7 +3476,7 @@ document.addEventListener('visibilitychange', () => {
 
   function setConnected(on) {
     badge.hidden = !on;
-    connectBtn.textContent = on ? '♥ Disconnect' : '♥ Connect HR';
+    connectBtn.textContent = '♥';
     connectBtn.classList.toggle('connected', on);
   }
 
