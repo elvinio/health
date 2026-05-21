@@ -524,6 +524,22 @@
     line-height: 1;
   }
   .timer-bar.green .rest-digits { color: var(--green-d); }
+  .timer-bar.set-active .rest-digits { color: var(--accent-d); }
+  .timer-bar.set-active .rest-bpm   { color: var(--accent-d); }
+  .timer-bar .set-info-strip {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .timer-bar .set-info-strip .label { flex-shrink: 0; }
+  .timer-bar .set-info-strip .ex {
+    font-weight: 700;
+    font-size: 0.88rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .timer-bar .rest-bpm {
     font-family: var(--mono);
     font-size: 2.8rem;
@@ -1718,13 +1734,19 @@ const Timer = {
     const el = this.el;
     if (kind === 'set-active') {
       el.innerHTML = `
-        <div class="row">
-          <div>
-            <div class="label" id="tm-label">SET IN PROGRESS</div>
-            <div class="ex" id="tm-ex"></div>
+        <div class="set-info-strip">
+          <span class="label">SET IN PROGRESS</span>
+          <span class="ex" id="tm-ex"></span>
+        </div>
+        <div class="rest-display">
+          <div class="rest-col">
+            <div class="rest-label">TIME</div>
+            <div class="rest-digits" id="tm-digits">00:00</div>
           </div>
-          <div class="digits" id="tm-digits">00:00</div>
-          <span class="hr-inline" id="tm-hr"></span>
+          <div class="rest-col">
+            <div class="rest-label">♥ BPM</div>
+            <div class="rest-bpm" id="tm-hr-big">--</div>
+          </div>
         </div>
         <div class="controls">
           <button class="btn block" id="timer-end-set">End set &amp; rest</button>
@@ -1791,8 +1813,8 @@ const Timer = {
       const txt = `${s.meta.exerciseName} · Set ${s.meta.setIndex}/${s.meta.totalSets}`;
       if (exEl.textContent !== txt) exEl.textContent = txt;
       document.getElementById('tm-digits').textContent = fmtTime(elapsed);
-      const hrEl = document.getElementById('tm-hr');
-      if (hrEl) hrEl.textContent = HeartRate.isConnected() && HeartRate.latest() ? '♥ ' + HeartRate.latest() : '';
+      const hrBigEl = document.getElementById('tm-hr-big');
+      if (hrBigEl) hrBigEl.textContent = HeartRate.isConnected() && HeartRate.latest() != null ? HeartRate.latest() : '--';
     } else if (s.kind === 'warmup-active') {
       const elapsed = Math.floor((Date.now() - s.startedAt) / 1000);
       if (el.className !== 'timer-bar set-active') el.className = 'timer-bar set-active';
