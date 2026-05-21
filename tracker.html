@@ -493,6 +493,64 @@
     gap: 8px;
     margin-top: 8px;
   }
+
+  /* ── Resting-state big display ───────────────────────── */
+  .timer-bar .rest-display {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 40px;
+    padding: 4px 0 2px;
+  }
+  .timer-bar .rest-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .timer-bar .rest-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .timer-bar .rest-digits {
+    font-family: var(--mono);
+    font-size: 2.8rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--red);
+    line-height: 1;
+  }
+  .timer-bar.green .rest-digits { color: var(--green-d); }
+  .timer-bar.set-active .rest-digits { color: var(--accent-d); }
+  .timer-bar.set-active .rest-bpm   { color: var(--accent-d); }
+  .timer-bar .set-info-strip {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .timer-bar .set-info-strip .label { flex-shrink: 0; }
+  .timer-bar .set-info-strip .ex {
+    font-weight: 700;
+    font-size: 0.88rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .timer-bar .rest-bpm {
+    font-family: var(--mono);
+    font-size: 2.8rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+    line-height: 1;
+  }
+  .bpm-green { color: var(--green-d) !important; }
+  .bpm-red   { color: var(--red)     !important; }
+
   @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.55; }
@@ -635,6 +693,30 @@
     color: var(--green-d);
     margin-top: 2px;
     font-weight: 600;
+  }
+
+  /* ── Cardio session live HR display ─────────────────── */
+  .cardio-hr-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 14px 22px;
+  }
+  .cardio-hr-num {
+    font-family: var(--mono);
+    font-size: 5.5rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent-d);
+    line-height: 1;
+  }
+  .cardio-hr-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-top: 6px;
   }
 
   /* ── Profile chip ────────────────────────────────────── */
@@ -1652,13 +1734,19 @@ const Timer = {
     const el = this.el;
     if (kind === 'set-active') {
       el.innerHTML = `
-        <div class="row">
-          <div>
-            <div class="label" id="tm-label">SET IN PROGRESS</div>
-            <div class="ex" id="tm-ex"></div>
+        <div class="set-info-strip">
+          <span class="label">SET IN PROGRESS</span>
+          <span class="ex" id="tm-ex"></span>
+        </div>
+        <div class="rest-display">
+          <div class="rest-col">
+            <div class="rest-label">TIME</div>
+            <div class="rest-digits" id="tm-digits">00:00</div>
           </div>
-          <div class="digits" id="tm-digits">00:00</div>
-          <span class="hr-inline" id="tm-hr"></span>
+          <div class="rest-col">
+            <div class="rest-label">♥ BPM</div>
+            <div class="rest-bpm" id="tm-hr-big">--</div>
+          </div>
         </div>
         <div class="controls">
           <button class="btn block" id="timer-end-set">End set &amp; rest</button>
@@ -1684,19 +1772,19 @@ const Timer = {
       });
     } else if (kind === 'resting') {
       el.innerHTML = `
-        <div class="row">
-          <div>
-            <div class="label" id="tm-label"></div>
-            <div class="planned" id="tm-planned"></div>
+        <div class="rest-display">
+          <div class="rest-col">
+            <div class="rest-label">REST</div>
+            <div class="rest-digits" id="tm-digits">00:00</div>
           </div>
-          <div class="digits" id="tm-digits">00:00</div>
-          <span class="hr-inline" id="tm-hr"></span>
+          <div class="rest-col">
+            <div class="rest-label">♥ BPM</div>
+            <div class="rest-bpm" id="tm-hr-big">--</div>
+          </div>
         </div>
         <div class="controls">
           <button class="btn secondary sm" id="timer-add-rest">+30 s</button>
           <button class="btn secondary sm" id="timer-skip-rest">Skip rest</button>
-          <div class="grow"></div>
-          <span class="text-xs text-muted">Tap next set's <em>Start</em></span>
         </div>`;
       document.getElementById('timer-add-rest').addEventListener('click', () => this.addRest(30));
       document.getElementById('timer-skip-rest').addEventListener('click', () => {
@@ -1725,8 +1813,8 @@ const Timer = {
       const txt = `${s.meta.exerciseName} · Set ${s.meta.setIndex}/${s.meta.totalSets}`;
       if (exEl.textContent !== txt) exEl.textContent = txt;
       document.getElementById('tm-digits').textContent = fmtTime(elapsed);
-      const hrEl = document.getElementById('tm-hr');
-      if (hrEl) hrEl.textContent = HeartRate.isConnected() && HeartRate.latest() ? '♥ ' + HeartRate.latest() : '';
+      const hrBigEl = document.getElementById('tm-hr-big');
+      if (hrBigEl) hrBigEl.textContent = HeartRate.isConnected() && HeartRate.latest() != null ? HeartRate.latest() : '--';
     } else if (s.kind === 'warmup-active') {
       const elapsed = Math.floor((Date.now() - s.startedAt) / 1000);
       if (el.className !== 'timer-bar set-active') el.className = 'timer-bar set-active';
@@ -1736,22 +1824,25 @@ const Timer = {
     } else if (s.kind === 'resting') {
       const elapsed = Math.floor((Date.now() - s.restStartedAt) / 1000);
       const planned = s.plannedRest;
-      const remaining = planned - elapsed;
-      let colour = 'amber';
-      if (elapsed >= planned) colour = 'red';
-      else if (elapsed >= planned - 10) colour = 'green';
+      const colour = elapsed >= planned ? 'green' : 'red';
       const className = 'timer-bar ' + colour;
       if (el.className !== className) el.className = className;
-      const labelTxt = `RESTING · after ${s.meta.exerciseName} set ${s.meta.setIndex}`;
-      const labelEl = document.getElementById('tm-label');
-      if (labelEl.textContent !== labelTxt) labelEl.textContent = labelTxt;
-      const remTxt = remaining >= 0
-        ? `${fmtTime(remaining)} left of ${fmtTime(planned)} planned`
-        : `+${fmtTime(-remaining)} over ${fmtTime(planned)} plan`;
-      document.getElementById('tm-planned').textContent = remTxt;
       document.getElementById('tm-digits').textContent = fmtTime(elapsed);
-      const hrEl = document.getElementById('tm-hr');
-      if (hrEl) hrEl.textContent = HeartRate.isConnected() && HeartRate.latest() ? '♥ ' + HeartRate.latest() : '';
+      const cfg = Storage.getConfig() || {};
+      const recoveryHrTarget = cfg.recoveryHrTarget ? Number(cfg.recoveryHrTarget) : null;
+      const bpm = HeartRate.latest();
+      const hrBigEl = document.getElementById('tm-hr-big');
+      if (hrBigEl) {
+        if (HeartRate.isConnected() && bpm != null) {
+          hrBigEl.textContent = bpm;
+          hrBigEl.className = recoveryHrTarget != null
+            ? 'rest-bpm ' + (bpm <= recoveryHrTarget ? 'bpm-green' : 'bpm-red')
+            : 'rest-bpm';
+        } else {
+          hrBigEl.textContent = '--';
+          hrBigEl.className = 'rest-bpm';
+        }
+      }
     }
   },
 };
@@ -1880,6 +1971,16 @@ function renderSetup(isFirstRun) {
     </div>
 
     <div class="card">
+      <h2>Workout settings</h2>
+      <div class="field">
+        <label for="recovery-hr">Recovery HR target (bpm)</label>
+        <input type="number" id="recovery-hr" min="40" max="220"
+               placeholder="e.g. 120" value="${escapeHtml(String(cfg.recoveryHrTarget || ''))}">
+        <div class="text-xs text-muted">Rest between strength sets until HR drops below this value. Leave blank to disable.</div>
+      </div>
+    </div>
+
+    <div class="card">
       <h2>Data backup</h2>
       <div class="row mb-2">
         <button class="btn secondary" id="export-btn">Export JSON</button>
@@ -1980,7 +2081,10 @@ function renderSetup(isFirstRun) {
     list.querySelectorAll('.weight-input').forEach(inp => {
       if (inp.value !== '') weights[inp.dataset.ex] = Number(inp.value);
     });
-    Storage.setConfig({ startDate, cycleNumber: cycle });
+    const recoveryHrRaw = document.getElementById('recovery-hr').value;
+    const newCfg = { startDate, cycleNumber: cycle };
+    if (recoveryHrRaw !== '') newCfg.recoveryHrTarget = Number(recoveryHrRaw);
+    Storage.setConfig(newCfg);
     Storage.setBaselines(cycle, weights);
     go('/today');
   };
@@ -2134,6 +2238,15 @@ function renderDay(week, day, opts) {
         </ul>
       </div>
     `;
+    if (d.type === 'cardio') {
+      const initBpm = HeartRate.isConnected() && HeartRate.latest() ? HeartRate.latest() : '--';
+      html += `
+        <div class="card cardio-hr-card">
+          <div class="cardio-hr-num" id="cardio-hr-num">${initBpm}</div>
+          <div class="cardio-hr-label">BPM</div>
+        </div>
+      `;
+    }
   } else {
     if (d.purpose) {
       html += `<div class="card subtle"><div class="note">${escapeHtml(d.purpose)}</div></div>`;
@@ -2959,9 +3072,19 @@ document.addEventListener('visibilitychange', () => {
 
   window.addEventListener('hr:reading', e => {
     bpmSpan.textContent = e.detail.bpm;
+    const cardioEl = document.getElementById('cardio-hr-num');
+    if (cardioEl) cardioEl.textContent = e.detail.bpm;
   });
-  window.addEventListener('hr:connected',    () => setConnected(true));
-  window.addEventListener('hr:disconnected', () => setConnected(false));
+  window.addEventListener('hr:connected', () => {
+    setConnected(true);
+    const cardioEl = document.getElementById('cardio-hr-num');
+    if (cardioEl && HeartRate.latest() != null) cardioEl.textContent = HeartRate.latest();
+  });
+  window.addEventListener('hr:disconnected', () => {
+    setConnected(false);
+    const cardioEl = document.getElementById('cardio-hr-num');
+    if (cardioEl) cardioEl.textContent = '--';
+  });
 
   connectBtn.addEventListener('click', () => {
     if (HeartRate.isConnected()) {
