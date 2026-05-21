@@ -1446,6 +1446,58 @@ function exportData() {
   URL.revokeObjectURL(url);
 }
 
+function importHealthData(fileInput) {
+  const file = fileInput.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      const { doctorVisits, healthReports } = parsed;
+      if (!doctorVisits && !healthReports) {
+        alert('File must contain a "doctorVisits" or "healthReports" array.');
+        return;
+      }
+      const now = Date.now();
+      const pid = Storage.getActiveProfile();
+      const p = Storage._pd(pid);
+
+      if (Array.isArray(doctorVisits)) {
+        for (const incoming of doctorVisits) {
+          if (!incoming.id || !incoming.date) continue;
+          const inTs = incoming._ts ?? now;
+          const idx = p.doctorVisits.findIndex(v => v.id === incoming.id);
+          if (idx === -1) {
+            p.doctorVisits.push({ ...incoming, _ts: inTs });
+          } else if (inTs > (p.doctorVisits[idx]._ts ?? 0)) {
+            p.doctorVisits[idx] = { ...incoming, _ts: inTs };
+          }
+        }
+      }
+
+      if (Array.isArray(healthReports)) {
+        for (const incoming of healthReports) {
+          if (!incoming.id || !incoming.date) continue;
+          const inTs = incoming._ts ?? now;
+          const idx = p.healthReports.findIndex(r => r.id === incoming.id);
+          if (idx === -1) {
+            p.healthReports.push({ ...incoming, _ts: inTs });
+          } else if (inTs > (p.healthReports[idx]._ts ?? 0)) {
+            p.healthReports[idx] = { ...incoming, _ts: inTs };
+          }
+        }
+      }
+
+      Storage.save();
+      location.reload();
+    } catch {
+      alert('Could not read the file — make sure it is valid JSON.');
+    }
+    fileInput.value = '';
+  };
+  reader.readAsText(file);
+}
+
 function importData(fileInput) {
   const file = fileInput.files[0];
   if (!file) return;
@@ -2195,7 +2247,12 @@ function renderSetup(isFirstRun) {
         <button class="btn secondary" id="import-btn">Import JSON</button>
         <input type="file" id="import-file" accept=".json" style="display:none">
       </div>
-      <div class="text-xs text-muted">Download a backup of all workout data, or restore from a previous export.</div>
+      <div class="text-xs text-muted mb-2">Download a backup of all workout data, or restore from a previous export.</div>
+      <div class="row mb-2">
+        <button class="btn secondary" id="import-health-btn">Import Health Data</button>
+        <input type="file" id="import-health-file" accept=".json" style="display:none">
+      </div>
+      <div class="text-xs text-muted">Merge doctor visits and health reports from a JSON file without replacing existing data. See <code>tracker-import-format.md</code> for the format.</div>
     </div>
 
     <div class="card">
@@ -2318,6 +2375,10 @@ function renderSetup(isFirstRun) {
   const importFile = document.getElementById('import-file');
   document.getElementById('import-btn').onclick = () => importFile.click();
   importFile.onchange = () => importData(importFile);
+
+  const importHealthFile = document.getElementById('import-health-file');
+  document.getElementById('import-health-btn').onclick = () => importHealthFile.click();
+  importHealthFile.onchange = () => importHealthData(importHealthFile);
 
   document.getElementById('drive-cred-btn').onclick = () => {
     const clientId = document.getElementById('drive-client-id').value.trim();
