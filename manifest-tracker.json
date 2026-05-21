@@ -1,0 +1,30 @@
+{
+  "name": "Health Tracker",
+  "short_name": "Health",
+  "description": "Workout, health records, and doctor visit tracker",
+  "start_url": "/health/tracker.html",
+  "scope": "/health/tracker.html",
+  "display": "standalone",
+  "background_color": "#faf6ee",
+  "theme_color": "#8b5e3c",
+  "icons": [
+    { "src": "/health/icons/tracker-icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/health/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Log Workout",
+      "short_name": "Workout",
+      "description": "Start today's workout session",
+      "url": "/health/tracker.html#/today",
+      "icons": [{ "src": "/health/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Add Doctor Visit",
+      "short_name": "Doctor",
+      "description": "Record a doctor visit",
+      "url": "/health/tracker.html#/health",
+      "icons": [{ "src": "/health/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}

@@ -6,7 +6,8 @@
 <meta name="theme-color" content="#8b5e3c">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<title>Workout Tracker — 4-Week Male Plan</title>
+<title>Health Tracker</title>
+<link rel="manifest" href="/health/manifest-tracker.json">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -635,6 +636,114 @@
     margin-top: 2px;
     font-weight: 600;
   }
+
+  /* ── Profile chip ────────────────────────────────────── */
+  .profile-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--paper);
+    border: 1px solid var(--border-h);
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--accent-d);
+    min-height: 36px;
+  }
+  .profile-chip:active { background: var(--border); }
+
+  /* ── Section header (Health tab) ─────────────────────── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 4px 6px;
+    margin-top: 8px;
+  }
+  .section-header h2 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--accent-d);
+    margin: 0;
+  }
+
+  /* ── Health record cards ─────────────────────────────── */
+  .kv-display {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 12px;
+    margin: 6px 0;
+    font-size: 0.82rem;
+  }
+  .kv-display-row { display: contents; }
+  .kv-label { color: var(--muted); }
+  .kv-val { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* ── Modal bottom sheet ──────────────────────────────── */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.38);
+    z-index: 200;
+  }
+  .modal-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--card);
+    border-radius: 18px 18px 0 0;
+    z-index: 210;
+    max-height: 92dvh;
+    overflow-y: auto;
+    padding: 16px 16px calc(16px + var(--safe-b));
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.14);
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .modal-header h3 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--accent-d);
+  }
+
+  /* ── kv-row in form ──────────────────────────────────── */
+  .kv-list { display: flex; flex-direction: column; gap: 6px; }
+  .kv-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .kv-row input {
+    flex: 1;
+    background: var(--paper);
+    border: 1px solid var(--border-h);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.9rem;
+    min-height: 40px;
+  }
+  .kv-row input:focus { outline: none; border-color: var(--accent); }
+
+  /* ── textarea ────────────────────────────────────────── */
+  textarea {
+    resize: vertical;
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border-h);
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 1rem;
+    font-family: var(--sans);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  textarea:focus { outline: none; border-color: var(--accent); }
 </style>
 </head>
 <body>
@@ -647,6 +756,7 @@
       <button class="iconbtn" id="today-btn" title="Jump to today" hidden>Today</button>
       <span id="hr-badge" class="hr-badge" hidden>♥ <span id="hr-bpm">--</span></span>
       <button id="hr-connect-btn" class="hr-connect-btn">♥ Connect HR</button>
+      <button class="profile-chip" id="profile-switcher">Person 1 ▾</button>
     </div>
   </header>
 
@@ -657,8 +767,12 @@
   <nav class="bottom-nav">
     <a href="#/today" data-route="today"><span class="icon">▶</span>Today</a>
     <a href="#/history" data-route="history"><span class="icon">⏱</span>History</a>
+    <a href="#/health" data-route="health"><span class="icon">♡</span>Health</a>
     <a href="#/setup" data-route="setup"><span class="icon">⚙</span>Setup</a>
   </nav>
+
+  <div id="modal-backdrop" class="modal-backdrop" hidden></div>
+  <div id="modal-sheet" class="modal-sheet" hidden></div>
 
 <script>
 'use strict';
@@ -947,55 +1061,148 @@ const WEIGHT_HINTS = {
 };
 
 /* ════════════════════════════════════════════════════════════════
-   STORAGE
+   STORAGE  (multi-profile: health:v1)
    ════════════════════════════════════════════════════════════════ */
-const STORAGE_KEY = 'tracker:v1';
+const STORAGE_KEY = 'health:v1';
 
 const Storage = {
   _data: null,
+
+  _defaultData() {
+    return {
+      profiles: {
+        p1: { name: 'Person 1', gender: 'male' },
+        p2: { name: 'Person 2', gender: 'female' },
+      },
+      activeProfile: 'p1',
+      perProfile: {
+        p1: { config: null, baselines: {}, sessions: {}, doctorVisits: [], healthReports: [] },
+        p2: { config: null, baselines: {}, sessions: {}, doctorVisits: [], healthReports: [] },
+      },
+    };
+  },
+
+  _ensureProfile(id) {
+    const d = this._data;
+    if (!d.perProfile[id]) {
+      d.perProfile[id] = { config: null, baselines: {}, sessions: {}, doctorVisits: [], healthReports: [] };
+    }
+    const p = d.perProfile[id];
+    if (!p.baselines) p.baselines = {};
+    if (!p.sessions) p.sessions = {};
+    if (!p.doctorVisits) p.doctorVisits = [];
+    if (!p.healthReports) p.healthReports = [];
+  },
+
   load() {
     if (this._data) return this._data;
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      this._data = raw ? JSON.parse(raw) : { config: null, baselines: {}, sessions: {} };
+      this._data = raw ? JSON.parse(raw) : this._defaultData();
     } catch (e) {
       console.error('Storage parse failed, resetting', e);
-      this._data = { config: null, baselines: {}, sessions: {} };
+      this._data = this._defaultData();
     }
-    if (!this._data.baselines) this._data.baselines = {};
-    if (!this._data.sessions)  this._data.sessions = {};
+    if (!this._data.profiles) this._data.profiles = { p1: { name: 'Person 1', gender: 'male' }, p2: { name: 'Person 2', gender: 'female' } };
+    if (!this._data.perProfile) this._data.perProfile = {};
+    if (!this._data.activeProfile) this._data.activeProfile = 'p1';
+    this._ensureProfile('p1');
+    this._ensureProfile('p2');
     return this._data;
   },
-  save() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(this._data));
-  },
-  getConfig() { return this.load().config; },
-  setConfig(cfg) { this.load().config = cfg; this.save(); },
-  getBaseline(cycle, exerciseId) {
-    const b = this.load().baselines[cycle] || {};
-    return b[exerciseId];
-  },
-  setBaselines(cycle, weights) {
+
+  save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(this._data)); },
+
+  /* ── Profile management ─────────────────────────────── */
+  getActiveProfile() { return this.load().activeProfile || 'p1'; },
+  setActiveProfile(id) { this.load().activeProfile = id; this.save(); },
+  getProfiles() { return this.load().profiles; },
+  setProfileNames(n1, n2) {
     const d = this.load();
-    d.baselines[cycle] = weights;
+    d.profiles.p1.name = n1 || 'Person 1';
+    d.profiles.p2.name = n2 || 'Person 2';
     this.save();
   },
-  getSession(dateStr) { return this.load().sessions[dateStr] || null; },
-  upsertSession(dateStr, session) {
-    this.load().sessions[dateStr] = session;
-    this.save();
+
+  _pd(pid) {
+    const id = pid || this.getActiveProfile();
+    this._ensureProfile(id);
+    return this.load().perProfile[id];
   },
-  listSessions() {
-    const d = this.load();
-    return Object.entries(d.sessions)
+
+  /* ── Workout config ─────────────────────────────────── */
+  getConfig(pid) { return this._pd(pid).config; },
+  setConfig(cfg, pid) { this._pd(pid).config = cfg; this.save(); },
+
+  /* ── Exercise baselines ─────────────────────────────── */
+  getBaseline(cycle, exerciseId, pid) {
+    return (this._pd(pid).baselines[cycle] || {})[exerciseId];
+  },
+  getBaselines(cycle, pid) { return this._pd(pid).baselines[cycle] || {}; },
+  setBaselines(cycle, weights, pid) { this._pd(pid).baselines[cycle] = weights; this.save(); },
+
+  /* ── Workout sessions ───────────────────────────────── */
+  getSession(dateStr, pid) { return this._pd(pid).sessions[dateStr] || null; },
+  upsertSession(dateStr, session, pid) { this._pd(pid).sessions[dateStr] = session; this.save(); },
+  listSessions(pid) {
+    return Object.entries(this._pd(pid).sessions)
       .map(([date, s]) => ({ date, ...s }))
       .sort((a, b) => b.date.localeCompare(a.date));
   },
-  reset() {
-    localStorage.removeItem(STORAGE_KEY);
-    this._data = null;
+
+  /* ── Doctor visits ──────────────────────────────────── */
+  getDoctorVisits(pid) {
+    return [...this._pd(pid).doctorVisits].sort((a, b) => b.date.localeCompare(a.date));
   },
+  addDoctorVisit(visit, pid) {
+    visit.id = visit.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6));
+    this._pd(pid).doctorVisits.push(visit);
+    this.save();
+  },
+  deleteDoctorVisit(visitId, pid) {
+    const p = this._pd(pid);
+    p.doctorVisits = p.doctorVisits.filter(v => v.id !== visitId);
+    this.save();
+  },
+
+  /* ── Health reports ─────────────────────────────────── */
+  getHealthReports(pid) {
+    return [...this._pd(pid).healthReports].sort((a, b) => b.date.localeCompare(a.date));
+  },
+  addHealthReport(report, pid) {
+    report.id = report.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6));
+    this._pd(pid).healthReports.push(report);
+    this.save();
+  },
+  deleteHealthReport(reportId, pid) {
+    const p = this._pd(pid);
+    p.healthReports = p.healthReports.filter(r => r.id !== reportId);
+    this.save();
+  },
+
+  reset() { localStorage.removeItem(STORAGE_KEY); this._data = null; },
 };
+
+/* ── Migrate from old tracker:v1 format ─────────────────────────── */
+function migrateIfNeeded() {
+  const old = localStorage.getItem('tracker:v1');
+  if (old && !localStorage.getItem(STORAGE_KEY)) {
+    try {
+      const { config, baselines, sessions } = JSON.parse(old);
+      const newData = Storage._defaultData();
+      newData.perProfile.p1 = {
+        config: config || null,
+        baselines: baselines || {},
+        sessions: sessions || {},
+        doctorVisits: [],
+        healthReports: [],
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
+    } catch (e) {
+      console.error('Migration from tracker:v1 failed:', e);
+    }
+  }
+}
 
 /* Most recent prior session that logged actualWeight for this exercise.
    Used to surface a "last: X kg (W1D1)" hint on the Today view so a lifter
@@ -1017,12 +1224,12 @@ function getLastSessionWeight(exId, beforeDateISO) {
    EXPORT / IMPORT
    ════════════════════════════════════════════════════════════════ */
 function exportData() {
-  const data = localStorage.getItem('tracker:v1') || '{}';
+  const data = localStorage.getItem(STORAGE_KEY) || '{}';
   const blob = new Blob([data], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `tracker-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `health-tracker-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -1034,12 +1241,26 @@ function importData(fileInput) {
   reader.onload = e => {
     try {
       const parsed = JSON.parse(e.target.result);
-      if (!parsed.config && !parsed.sessions && !parsed.baselines) {
-        alert('This file does not look like a valid tracker backup.');
+      const isNew = !!parsed.perProfile;
+      const isLegacy = parsed.config !== undefined || parsed.sessions || parsed.baselines;
+      if (!isNew && !isLegacy) {
+        alert('This file does not look like a valid backup.');
         return;
       }
-      if (!confirm('This will replace all current workout data. Continue?')) return;
-      localStorage.setItem('tracker:v1', e.target.result);
+      if (!confirm('This will replace all current data. Continue?')) return;
+      if (isNew) {
+        localStorage.setItem(STORAGE_KEY, e.target.result);
+      } else {
+        const nd = Storage._defaultData();
+        nd.perProfile.p1 = {
+          config: parsed.config || null,
+          baselines: parsed.baselines || {},
+          sessions: parsed.sessions || {},
+          doctorVisits: [],
+          healthReports: [],
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(nd));
+      }
       location.reload();
     } catch {
       alert('Could not read the file — make sure it is a valid JSON backup.');
@@ -1128,7 +1349,7 @@ const DriveSync = (() => {
       const token = await authorize();
       onStatus('Saving…');
       const cfg = loadConfig();
-      const content = localStorage.getItem('tracker:v1') || '{}';
+      const content = localStorage.getItem(STORAGE_KEY) || '{}';
       const result = await uploadFile(token, cfg.fileId || null, content);
       const now = new Date().toLocaleString();
       saveConfig({ fileId: result.id, lastSaved: now });
@@ -1147,9 +1368,9 @@ const DriveSync = (() => {
         onStatus('Downloading…');
         const content = await fetchFile(token, cfg.fileId);
         const parsed = JSON.parse(content);
-        if (!parsed.config && !parsed.sessions && !parsed.baselines) throw new Error('Not a valid backup');
+        if (!parsed.perProfile && !parsed.config && !parsed.sessions && !parsed.baselines) throw new Error('Not a valid backup');
         if (!confirm('Replace all local data with Drive backup?')) { onStatus('Cancelled.'); return; }
-        localStorage.setItem('tracker:v1', content);
+        localStorage.setItem(STORAGE_KEY, content);
         onStatus('Loaded — reloading…');
         setTimeout(() => location.reload(), 800);
       } else {
@@ -1181,10 +1402,10 @@ const DriveSync = (() => {
           onStatus('Downloading…');
           const content = await fetchFile(token, fileId);
           const parsed = JSON.parse(content);
-          if (!parsed.config && !parsed.sessions && !parsed.baselines) throw new Error('Not a valid backup');
+          if (!parsed.perProfile && !parsed.config && !parsed.sessions && !parsed.baselines) throw new Error('Not a valid backup');
           if (!confirm('Replace all local data with Drive backup?')) { onStatus('Cancelled.'); return; }
           saveConfig({ fileId });
-          localStorage.setItem('tracker:v1', content);
+          localStorage.setItem(STORAGE_KEY, content);
           onStatus('Loaded — reloading…');
           setTimeout(() => location.reload(), 800);
         } catch (e) {
@@ -1569,7 +1790,7 @@ function go(path) { location.hash = path; }
 function route() {
   const { path, params } = parseHash();
   const cfg = Storage.getConfig();
-  const navMap = { '/today': 'today', '/setup': 'setup', '/history': 'history', '/day': 'today' };
+  const navMap = { '/today': 'today', '/setup': 'setup', '/history': 'history', '/day': 'today', '/health': 'health' };
   const navKey = navMap[path] || (path === '/' ? 'today' : '');
   document.querySelectorAll('.bottom-nav a').forEach(a => {
     a.classList.toggle('active', a.dataset.route === navKey);
@@ -1586,6 +1807,7 @@ function route() {
   }
   if (path === '/setup') return renderSetup(false);
   if (path === '/history') return renderHistory();
+  if (path === '/health') return renderHealth();
   if (path === '/day') {
     const w = Number(params.w), d = Number(params.d);
     if (!w || !d || w < 1 || w > 4 || d < 1 || d > 7) return renderSetup(true);
@@ -1603,8 +1825,11 @@ window.addEventListener('hashchange', route);
 function renderSetup(isFirstRun) {
   const cfg = Storage.getConfig() || { startDate: todayISO(), cycleNumber: 1 };
   const cycle = cfg.cycleNumber || 1;
-  const existing = Storage.load().baselines[cycle] || {};
+  const existing = Storage.getBaselines(cycle);
   const exercises = listWeightedExercises();
+  const profiles = Storage.getProfiles();
+  const pid = Storage.getActiveProfile();
+  const profileName = profiles[pid]?.name || pid;
 
   document.getElementById('topbar-title').textContent = isFirstRun ? 'Welcome' : 'Setup';
   document.getElementById('topbar-sub').textContent  = isFirstRun ? 'Set start date + Week-1 weights' : `Cycle ${cycle}`;
@@ -1615,12 +1840,24 @@ function renderSetup(isFirstRun) {
     ${isFirstRun ? `
       <div class="card subtle">
         <div class="note">
-          One-time setup. Pick the date your <strong>Week 1 Day 1</strong> begins on,
-          then enter the weights you intend to use for Week 1 working sets.
-          Weeks 2/3/4 are auto-derived from the plan's periodisation.
-          You can edit any of this later.
+          One-time setup. Enter names for both people, pick the date <strong>Week 1 Day 1</strong> begins,
+          then enter the weights for Week 1 working sets.
+          Weeks 2/3/4 are auto-derived. You can edit any of this later.
         </div>
       </div>` : ''}
+
+    <div class="card">
+      <h2>Profiles</h2>
+      <div class="field">
+        <label for="p1-name">Person 1 name</label>
+        <input type="text" id="p1-name" value="${escapeHtml(profiles.p1?.name || 'Person 1')}" placeholder="Name">
+      </div>
+      <div class="field">
+        <label for="p2-name">Person 2 name</label>
+        <input type="text" id="p2-name" value="${escapeHtml(profiles.p2?.name || 'Person 2')}" placeholder="Name">
+      </div>
+      <button class="btn secondary sm" id="save-names-btn">Save names</button>
+    </div>
 
     <div class="card">
       <h2>Cycle ${cycle} — start date</h2>
@@ -1634,10 +1871,10 @@ function renderSetup(isFirstRun) {
     </div>
 
     <div class="card">
-      <h2>Week-1 working weights</h2>
+      <h2>Week-1 working weights — ${escapeHtml(profileName)}</h2>
       <div class="text-xs text-muted mb-1">
         Enter the weight you plan to lift for your <strong>working sets</strong> in Week 1 (RPE 7 — feels like 2–3 reps in reserve).
-        Leave blank if you'll decide on the day.
+        Leave blank if you'll decide on the day. Switch profile above to set the other person's weights.
       </div>
       <div id="exercise-list"></div>
     </div>
@@ -1756,6 +1993,14 @@ function renderSetup(isFirstRun) {
     }
   };
 
+  document.getElementById('save-names-btn').onclick = () => {
+    const n1 = document.getElementById('p1-name').value.trim() || 'Person 1';
+    const n2 = document.getElementById('p2-name').value.trim() || 'Person 2';
+    Storage.setProfileNames(n1, n2);
+    updateProfileSwitcherUI();
+    alert('Names saved.');
+  };
+
   document.getElementById('export-btn').onclick = exportData;
 
   const importFile = document.getElementById('import-file');
@@ -1802,7 +2047,7 @@ function renderCycleComplete(t) {
   document.getElementById('new-cycle-btn').onclick = () => {
     // Seed next cycle's W1 weights from this cycle's W2 projection
     const prevCycle = cfg.cycleNumber;
-    const prevBaselines = Storage.load().baselines[prevCycle] || {};
+    const prevBaselines = Storage.getBaselines(prevCycle);
     const nextBaselines = {};
     listWeightedExercises().forEach(ex => {
       const w1 = prevBaselines[ex.id];
@@ -2330,8 +2575,10 @@ function persistDayState() {
    VIEW: HISTORY
    ════════════════════════════════════════════════════════════════ */
 function renderHistory() {
+  const pid = Storage.getActiveProfile();
+  const profiles = Storage.getProfiles();
   document.getElementById('topbar-title').textContent = 'History';
-  document.getElementById('topbar-sub').textContent = '';
+  document.getElementById('topbar-sub').textContent = profiles[pid]?.name || '';
   document.getElementById('today-btn').hidden = true;
 
   const view = document.getElementById('view');
@@ -2419,11 +2666,278 @@ function renderHistoryDetail(s) {
 }
 
 /* ════════════════════════════════════════════════════════════════
+   VIEW: HEALTH  (doctor visits + health reports)
+   ════════════════════════════════════════════════════════════════ */
+function renderHealth() {
+  const pid = Storage.getActiveProfile();
+  const profiles = Storage.getProfiles();
+  const profileName = profiles[pid]?.name || pid;
+  const visits = Storage.getDoctorVisits();
+  const reports = Storage.getHealthReports();
+
+  document.getElementById('topbar-title').textContent = 'Health';
+  document.getElementById('topbar-sub').textContent = profileName;
+  document.getElementById('today-btn').hidden = true;
+
+  const view = document.getElementById('view');
+  view.innerHTML = `
+    <div class="section-header">
+      <h2>Doctor Visits</h2>
+      <button class="btn sm" id="add-visit-btn">+ Add</button>
+    </div>
+    ${visits.length === 0
+      ? '<div class="empty">No doctor visits recorded yet.</div>'
+      : visits.map(v => renderDoctorVisitCard(v)).join('')}
+
+    <div class="section-header" style="margin-top:16px;">
+      <h2>Health Reports</h2>
+      <button class="btn sm" id="add-report-btn">+ Add</button>
+    </div>
+    ${reports.length === 0
+      ? '<div class="empty">No health reports recorded yet.</div>'
+      : reports.map(r => renderHealthReportCard(r)).join('')}
+  `;
+
+  document.getElementById('add-visit-btn').onclick = () => showAddVisitSheet();
+  document.getElementById('add-report-btn').onclick = () => showAddReportSheet();
+
+  view.querySelectorAll('.delete-visit-btn').forEach(btn => {
+    btn.onclick = () => {
+      if (confirm('Delete this doctor visit?')) {
+        Storage.deleteDoctorVisit(btn.dataset.id);
+        renderHealth();
+      }
+    };
+  });
+  view.querySelectorAll('.delete-report-btn').forEach(btn => {
+    btn.onclick = () => {
+      if (confirm('Delete this health report?')) {
+        Storage.deleteHealthReport(btn.dataset.id);
+        renderHealth();
+      }
+    };
+  });
+}
+
+function renderDoctorVisitCard(v) {
+  return `
+    <details class="hist-row">
+      <summary>
+        <div>
+          <div class="h-date">${escapeHtml(fmtDateShort(v.date))}${v.specialty ? ` <span class="h-tag">${escapeHtml(v.specialty)}</span>` : ''}</div>
+          <div class="h-sub">${escapeHtml(v.doctor || 'Unknown doctor')}${v.reason ? ' · ' + escapeHtml(v.reason) : ''}</div>
+        </div>
+        <span class="text-xs text-muted">▾</span>
+      </summary>
+      <div class="hist-detail">
+        ${v.notes ? `<div style="margin-bottom:8px;white-space:pre-wrap;">${escapeHtml(v.notes)}</div>` : ''}
+        ${v.followUp ? `<div class="text-sm text-muted" style="margin-bottom:8px;">Follow-up: <strong>${escapeHtml(fmtDate(v.followUp))}</strong></div>` : ''}
+        <button class="btn danger sm delete-visit-btn" data-id="${escapeHtml(v.id)}">Delete</button>
+      </div>
+    </details>`;
+}
+
+function renderHealthReportCard(r) {
+  const kvEntries = Object.entries(r.values || {});
+  const kvPreview = kvEntries.slice(0, 3).map(([k, v]) => escapeHtml(k) + ': ' + escapeHtml(v)).join(' · ');
+  return `
+    <details class="hist-row">
+      <summary>
+        <div>
+          <div class="h-date">${escapeHtml(fmtDateShort(r.date))}${r.type ? ` <span class="h-tag">${escapeHtml(r.type)}</span>` : ''}</div>
+          <div class="h-sub">${escapeHtml(r.title || 'Untitled report')}</div>
+          ${kvPreview ? `<div class="h-sub" style="margin-top:4px;">${kvPreview}</div>` : ''}
+        </div>
+        <span class="text-xs text-muted">▾</span>
+      </summary>
+      <div class="hist-detail">
+        ${r.notes ? `<div style="margin-bottom:8px;white-space:pre-wrap;">${escapeHtml(r.notes)}</div>` : ''}
+        ${kvEntries.length > 0 ? `
+          <div class="kv-display" style="margin-bottom:8px;">
+            ${kvEntries.map(([k, v]) => `
+              <div class="kv-display-row">
+                <span class="kv-label">${escapeHtml(k)}</span>
+                <span class="kv-val">${escapeHtml(v)}</span>
+              </div>`).join('')}
+          </div>` : ''}
+        <button class="btn danger sm delete-report-btn" data-id="${escapeHtml(r.id)}">Delete</button>
+      </div>
+    </details>`;
+}
+
+/* ── Modal helpers ─────────────────────────────────────────────── */
+function showModal(bodyHtml, title) {
+  const backdrop = document.getElementById('modal-backdrop');
+  const sheet = document.getElementById('modal-sheet');
+  sheet.innerHTML = `
+    <div class="modal-header">
+      <h3>${escapeHtml(title)}</h3>
+      <button class="iconbtn" id="modal-close">✕</button>
+    </div>
+    <div>${bodyHtml}</div>`;
+  backdrop.hidden = false;
+  sheet.hidden = false;
+  document.getElementById('modal-close').onclick = closeModal;
+  backdrop.onclick = closeModal;
+}
+
+function closeModal() {
+  document.getElementById('modal-backdrop').hidden = true;
+  document.getElementById('modal-sheet').hidden = true;
+}
+
+function showAddVisitSheet() {
+  showModal(`
+    <div class="field">
+      <label>Date</label>
+      <input type="date" id="v-date" value="${todayISO()}">
+    </div>
+    <div class="field">
+      <label>Doctor name</label>
+      <input type="text" id="v-doctor" placeholder="Dr. Smith">
+    </div>
+    <div class="field">
+      <label>Specialty</label>
+      <select id="v-specialty">
+        <option value="GP">GP / General Practice</option>
+        <option value="Cardiologist">Cardiologist</option>
+        <option value="Dentist">Dentist</option>
+        <option value="Dermatologist">Dermatologist</option>
+        <option value="Physiotherapist">Physiotherapist</option>
+        <option value="Specialist">Specialist</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Reason for visit</label>
+      <input type="text" id="v-reason" placeholder="Annual checkup, follow-up…">
+    </div>
+    <div class="field">
+      <label>Notes</label>
+      <textarea id="v-notes" rows="3" placeholder="Findings, blood pressure, recommendations…"></textarea>
+    </div>
+    <div class="field">
+      <label>Follow-up date <span class="text-muted text-xs">(optional)</span></label>
+      <input type="date" id="v-followup">
+    </div>
+    <button class="btn block mt-2" id="save-visit-btn">Save visit</button>
+  `, 'Add Doctor Visit');
+
+  document.getElementById('save-visit-btn').onclick = () => {
+    const date = document.getElementById('v-date').value;
+    if (!date) { alert('Please enter a date.'); return; }
+    Storage.addDoctorVisit({
+      date,
+      doctor:    document.getElementById('v-doctor').value.trim(),
+      specialty: document.getElementById('v-specialty').value,
+      reason:    document.getElementById('v-reason').value.trim(),
+      notes:     document.getElementById('v-notes').value.trim(),
+      followUp:  document.getElementById('v-followup').value || null,
+    });
+    closeModal();
+    renderHealth();
+  };
+}
+
+function showAddReportSheet() {
+  showModal(`
+    <div class="field">
+      <label>Date</label>
+      <input type="date" id="r-date" value="${todayISO()}">
+    </div>
+    <div class="field">
+      <label>Type</label>
+      <select id="r-type">
+        <option value="Blood Test">Blood Test</option>
+        <option value="Imaging">Imaging (X-ray, MRI, etc.)</option>
+        <option value="Checkup">Checkup / Physical</option>
+        <option value="Specialist Report">Specialist Report</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Title</label>
+      <input type="text" id="r-title" placeholder="Annual Blood Panel">
+    </div>
+    <div class="field">
+      <label>Notes</label>
+      <textarea id="r-notes" rows="3" placeholder="Summary, findings, doctor's comments…"></textarea>
+    </div>
+    <div class="field">
+      <label>Key metrics <span class="text-muted text-xs">(optional)</span></label>
+      <div id="kv-list" class="kv-list"></div>
+      <button class="btn secondary sm mt-1" id="add-kv-btn">+ Add metric</button>
+    </div>
+    <button class="btn block mt-2" id="save-report-btn">Save report</button>
+  `, 'Add Health Report');
+
+  document.getElementById('add-kv-btn').onclick = () => {
+    const list = document.getElementById('kv-list');
+    const row = document.createElement('div');
+    row.className = 'kv-row';
+    row.innerHTML = `
+      <input type="text" class="kv-name" placeholder="e.g. Cholesterol">
+      <input type="text" class="kv-value" placeholder="4.2 mmol/L">
+      <button class="btn ghost sm kv-remove" style="color:var(--red);padding:0 8px;">✕</button>`;
+    row.querySelector('.kv-remove').onclick = () => row.remove();
+    list.appendChild(row);
+  };
+
+  document.getElementById('save-report-btn').onclick = () => {
+    const date = document.getElementById('r-date').value;
+    if (!date) { alert('Please enter a date.'); return; }
+    const values = {};
+    document.querySelectorAll('#modal-sheet .kv-row').forEach(row => {
+      const name = row.querySelector('.kv-name').value.trim();
+      const val  = row.querySelector('.kv-value').value.trim();
+      if (name) values[name] = val;
+    });
+    Storage.addHealthReport({
+      date,
+      type:   document.getElementById('r-type').value,
+      title:  document.getElementById('r-title').value.trim(),
+      notes:  document.getElementById('r-notes').value.trim(),
+      values,
+    });
+    closeModal();
+    renderHealth();
+  };
+}
+
+/* ── Profile switcher UI ────────────────────────────────────────── */
+function updateProfileSwitcherUI() {
+  const pid = Storage.getActiveProfile();
+  const profiles = Storage.getProfiles();
+  const name = profiles[pid]?.name || pid;
+  const btn = document.getElementById('profile-switcher');
+  if (btn) btn.textContent = name + ' ▾';
+}
+
+/* ════════════════════════════════════════════════════════════════
    INIT
    ════════════════════════════════════════════════════════════════ */
 window.go = go;
 window.Tracker = { Timer, Storage, HeartRate };
 Timer.init(document.getElementById('timer-bar'));
+
+migrateIfNeeded();
+Storage.load(); // ensure profile data is initialised
+updateProfileSwitcherUI();
+
+// Profile switcher toggle
+document.getElementById('profile-switcher').addEventListener('click', () => {
+  const current = Storage.getActiveProfile();
+  Storage.setActiveProfile(current === 'p1' ? 'p2' : 'p1');
+  updateProfileSwitcherUI();
+  route();
+});
+
+// Register separate service worker (does not conflict with finance app's sw.js)
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/health/sw-tracker.js', { scope: '/health/tracker.html' })
+    .catch(e => console.warn('SW registration failed:', e));
+}
+
 if (!location.hash) location.hash = '/today';
 route();
 
