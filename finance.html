@@ -306,6 +306,10 @@
     margin-bottom: 8px; cursor: pointer; transition: background .1s;
   }
   .event-item:active { background: var(--bg); }
+  .event-item-today { background: #dbeafe !important; }
+  .event-item-today:active { background: #bfdbfe !important; }
+  .event-item-tomorrow { background: #eff6ff !important; }
+  .event-item-tomorrow:active { background: #dbeafe !important; }
   .event-row { display: flex; align-items: flex-start; gap: 10px; }
   .event-middle { flex: 1; min-width: 0; }
   .event-date-col { min-width: 72px; flex-shrink: 0; text-align: left; }
@@ -2415,6 +2419,11 @@ function renderEventItem(ev) {
   const weekday = d.toLocaleDateString(undefined, { weekday: 'short' });
   const tagBadges = (ev.tags || []).map(t => `<span class="event-tag-badge" style="background:${getTagColor(t)}">${esc(t)}</span>`).join('');
 
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const tomorrowD = new Date(); tomorrowD.setDate(tomorrowD.getDate() + 1);
+  const tomorrowStr = tomorrowD.toISOString().slice(0, 10);
+  const dayClass = ev.startDate === todayStr ? ' event-item-today' : ev.startDate === tomorrowStr ? ' event-item-tomorrow' : '';
+
   const isMultiDay = ev.endDate && ev.endDate !== ev.startDate;
   let dateDisplay, endTimeLine = '';
 
@@ -2440,7 +2449,7 @@ function renderEventItem(ev) {
   }
 
   return `
-  <div class="event-item" onclick="openEventSheet('${ev.id}')">
+  <div class="event-item${dayClass}" onclick="openEventSheet('${ev.id}')">
     <div class="event-row">
       <div class="event-date-col">
         <div class="event-date-display">${dateDisplay}</div>
