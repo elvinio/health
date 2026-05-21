@@ -442,9 +442,8 @@
       <button class="dropdown-item" id="balanceToggleBtn" onclick="toggleBalanceVisibility()"><span class="material-symbols-outlined">visibility_off</span> Hide Balances</button>
       <div class="dropdown-sep"></div>
       <button class="dropdown-item" id="quickSyncMenuItem" onclick="driveSyncHeader()" style="display:none"><span class="material-symbols-outlined">sync</span> Quick Sync</button>
-      <button class="dropdown-item" onclick="exportData()">⬇ Export JSON</button>
-      <button class="dropdown-item" onclick="triggerImport()">⬆ Import JSON</button>
       <button class="dropdown-item" onclick="triggerImportEvents()">📅 Import Events</button>
+      <button class="dropdown-item" onclick="triggerImportExpenses()">💰 Import Expenses</button>
       <button class="dropdown-item" onclick="pullHistory()">📥 Pull History</button>
       <button class="dropdown-item" onclick="recalcAll()"><span class="material-symbols-outlined">calculate</span> Recalculate</button>
       <div class="dropdown-sep"></div>
@@ -712,9 +711,9 @@
 </div>
 
 <!-- Hidden file input for import -->
-<input type="file" id="importFile" accept=".json" style="display:none">
 <input type="file" id="historyImportFile" accept=".json" style="display:none">
 <input type="file" id="importEventsFile" accept=".json" style="display:none">
+<input type="file" id="importExpensesFile" accept=".csv" style="display:none">
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
@@ -1544,46 +1543,58 @@ document.getElementById('historyOverlay').addEventListener('click', e => {
 });
 
 // ── Import / Export ───────────────────────────────────────────────────────────
-function exportData() {
+function triggerImportExpenses() {
   document.getElementById('mainMenu').classList.remove('open');
-  const exportObj = { ...data, expenses: allExpenses() };
-  const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'finance-elvis-' + today() + '.json';
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('Exported');
+  document.getElementById('importExpensesFile').click();
 }
 
-function triggerImport() {
-  document.getElementById('mainMenu').classList.remove('open');
-  document.getElementById('importFile').click();
-}
-
-document.getElementById('importFile').addEventListener('change', e => {
+document.getElementById('importExpensesFile').addEventListener('change', e => {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = ev => {
     try {
-      const parsed = JSON.parse(ev.target.result);
-      if (!parsed.accounts || !Array.isArray(parsed.expenses) || !Array.isArray(parsed.assets)) {
-        showToast('Invalid file format'); return;
+      const lines = ev.target.result.trim().split('\n');
+      if (lines.length < 2) { showToast('CSV is empty'); return; }
+      const headers = lines[0].split(',').map(h => h.trim());
+      const required = ['id', 'date', 'desc', 'amount', 'cat', 'ac'];
+      if (!required.every(f => headers.includes(f))) {
+        showToast('CSV missing required columns'); return;
       }
-      if (!confirm('Replace all current data with imported file?')) return;
       const curYear = String(new Date().getFullYear());
-      data = { ...parsed };
-      data.expenses = (parsed.expenses || []).filter(e => e.date.startsWith(curYear + '-'));
-      historyData = { expenses: (parsed.expenses || []).filter(e => !e.date.startsWith(curYear + '-')) };
+      let added = 0, updated = 0;
+      lines.slice(1).forEach(line => {
+        if (!line.trim()) return;
+        const vals = line.split(',');
+        const row = {};
+        headers.forEach((h, i) => row[h] = (vals[i] || '').trim());
+        if (!row.id || !row.date || !row.desc || !row.amount || !row.cat || !row.ac) return;
+        const expense = {
+          id: row.id,
+          date: row.date,
+          desc: row.desc,
+          amount: parseFloat(row.amount),
+          cat: row.cat,
+          ac: row.ac,
+          _ts: row._ts ? parseInt(row._ts) : Date.now()
+        };
+        if (isNaN(expense.amount)) return;
+        const isCurrent = expense.date.startsWith(curYear + '-');
+        const store = isCurrent ? data.expenses : historyData.expenses;
+        const idx = store.findIndex(x => x.id === expense.id);
+        if (idx >= 0) {
+          if (expense._ts > (store[idx]._ts || 0)) { store[idx] = expense; updated++; }
+        } else {
+          store.push(expense); added++;
+        }
+      });
       recalcBalances(data, allExpenses());
       recalcMonthlyAgg(data, allExpenses());
       saveData(data);
       saveHistory(historyData);
       renderAll();
-      showToast('Imported successfully');
-    } catch { showToast('Could not read file'); }
+      showToast(`Imported: ${added} added, ${updated} updated`);
+    } catch (err) { showToast('Could not read CSV'); }
   };
   reader.readAsText(file);
   e.target.value = '';
