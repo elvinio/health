@@ -707,7 +707,7 @@
     font-weight: 600;
   }
 
-  /* ── Cardio session live HR display ─────────────────── */
+  /* ── Cardio session dashboard ────────────────────────── */
   .cardio-hr-card {
     display: flex;
     flex-direction: column;
@@ -729,6 +729,45 @@
     letter-spacing: 0.12em;
     text-transform: uppercase;
     margin-top: 6px;
+  }
+  .cardio-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    text-align: center;
+    margin-bottom: 14px;
+  }
+  .cardio-stat-val {
+    font-family: var(--mono);
+    font-size: 1.45rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent-d);
+    line-height: 1.1;
+  }
+  .cardio-stat-lbl {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .cardio-zone {
+    text-align: center;
+    font-size: 0.82rem;
+    font-weight: 600;
+    min-height: 1.3em;
+    margin-bottom: 8px;
+  }
+  .cardio-zone.zone-ok  { color: #2e9e5b; }
+  .cardio-zone.zone-hi  { color: #d94f3b; }
+  .cardio-zone.zone-lo  { color: var(--muted); }
+  .cardio-gps-status {
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-bottom: 14px;
+    min-height: 1.1em;
   }
 
   /* ── Profile chip ────────────────────────────────────── */
@@ -1643,6 +1682,63 @@ const HeartRate = (() => {
 })();
 
 /* ════════════════════════════════════════════════════════════════
+   GPS DISTANCE TRACKING
+   ════════════════════════════════════════════════════════════════ */
+const GPS = (() => {
+  let _watchId = null;
+  let _distanceM = 0;
+  let _lastPos = null;
+  let _tracking = false;
+
+  function _haversineM(lat1, lon1, lat2, lon2) {
+    const R = 6371000;
+    const toRad = x => x * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat / 2) ** 2 +
+              Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
+
+  function start() {
+    if (_tracking) return true;
+    if (!navigator.geolocation) return false;
+    _distanceM = 0;
+    _lastPos = null;
+    _tracking = true;
+    _watchId = navigator.geolocation.watchPosition(
+      pos => {
+        if (pos.coords.accuracy > 25) return;
+        const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+        if (_lastPos) _distanceM += _haversineM(_lastPos.lat, _lastPos.lng, lat, lng);
+        _lastPos = { lat, lng };
+        document.dispatchEvent(new CustomEvent('gps:update', {
+          detail: { distanceM: _distanceM, accuracy }
+        }));
+      },
+      err => {
+        document.dispatchEvent(new CustomEvent('gps:error', { detail: err.message }));
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+    );
+    return true;
+  }
+
+  function stop() {
+    if (_watchId != null) { navigator.geolocation.clearWatch(_watchId); _watchId = null; }
+    _tracking = false;
+  }
+
+  return {
+    start,
+    stop,
+    isTracking: () => _tracking,
+    getDistanceM: () => _distanceM,
+    isSupported: () => !!navigator.geolocation,
+  };
+})();
+
+/* ════════════════════════════════════════════════════════════════
    DATE / SCHEDULE HELPERS
    ════════════════════════════════════════════════════════════════ */
 function fmtISO(d) {
@@ -1952,6 +2048,7 @@ function route() {
     a.classList.toggle('active', a.dataset.route === navKey);
   });
   Timer.cancel();
+  stopCardioOnNav();
   document.getElementById('today-btn').hidden = (path !== '/day');
 
   if (path === '/' || path === '/today') {
@@ -2270,6 +2367,13 @@ function renderDay(week, day, opts) {
   activeDayState.dateISO = dateISO;
   activeDayState.week = week;
   activeDayState.day = day;
+  if (d && d.type === 'cardio') {
+    activeDayState.cardio = activeDayState.cardio || {
+      startedAt: null, endedAt: null,
+      distanceMeters: 0,
+      hrSamples: [], hrAvg: null, hrMax: null, hrMin: null,
+    };
+  }
 
   document.getElementById('topbar-title').textContent = `Week ${week} · Day ${day}`;
   document.getElementById('topbar-sub').textContent =
@@ -2305,10 +2409,38 @@ function renderDay(week, day, opts) {
     `;
     if (d.type === 'cardio') {
       const initBpm = HeartRate.isConnected() && HeartRate.latest() ? HeartRate.latest() : '--';
+      const already = activeDayState.cardio;
+      const isRunning = already && already.startedAt && !already.endedAt;
+      const isDone    = already && already.endedAt;
       html += `
-        <div class="card cardio-hr-card">
-          <div class="cardio-hr-num" id="cardio-hr-num">${initBpm}</div>
-          <div class="cardio-hr-label">BPM</div>
+        <div class="card" id="cardio-dash">
+          <div class="cardio-stats">
+            <div class="cardio-stat">
+              <div class="cardio-stat-val" id="c-time">${isDone ? fmtTime(Math.round((already.endedAt - already.startedAt) / 1000)) : '0:00'}</div>
+              <div class="cardio-stat-lbl">time</div>
+            </div>
+            <div class="cardio-stat">
+              <div class="cardio-stat-val" id="c-dist">${isDone ? ((already.distanceMeters || 0) / 1000).toFixed(2) : '0.00'}</div>
+              <div class="cardio-stat-lbl">km</div>
+            </div>
+            <div class="cardio-stat">
+              <div class="cardio-stat-val" id="c-pace">--:--</div>
+              <div class="cardio-stat-lbl">min/km</div>
+            </div>
+            <div class="cardio-stat">
+              <div class="cardio-stat-val cardio-hr-num" id="cardio-hr-num">${initBpm}</div>
+              <div class="cardio-stat-lbl">bpm</div>
+            </div>
+          </div>
+          <div class="cardio-zone" id="c-zone"></div>
+          <div class="cardio-gps-status" id="c-gps-status">${isDone ? 'Session complete' : (GPS.isSupported() ? 'GPS ready' : 'GPS not available')}</div>
+          <div id="c-actions">
+            ${isDone
+              ? `<div class="note" style="text-align:center">Saved ${fmtTime(Math.round((already.endedAt - already.startedAt) / 1000))} · ${((already.distanceMeters || 0) / 1000).toFixed(2)} km${already.hrAvg ? ' · ♥ avg ' + already.hrAvg : ''}</div>`
+              : isRunning
+                ? `<button class="btn block danger" id="c-end-btn">End Session</button>`
+                : `<button class="btn block" id="c-start-btn">Start Cardio</button>`}
+          </div>
         </div>
       `;
     }
@@ -2332,7 +2464,16 @@ function renderDay(week, day, opts) {
   document.getElementById('next-day').onclick = () => navDay(+1);
   document.getElementById('today-day').onclick = () => go('/today');
 
-  if (!isRestType) {
+  if (d.type === 'cardio') {
+    const startBtn = document.getElementById('c-start-btn');
+    const endBtn   = document.getElementById('c-end-btn');
+    if (startBtn) startBtn.onclick = startCardio;
+    if (endBtn)   endBtn.onclick   = endCardio;
+    // If a session was started but not finished (e.g. page refresh), re-attach ticker
+    if (activeDayState.cardio.startedAt && !activeDayState.cardio.endedAt) {
+      _resumeCardioTracking();
+    }
+  } else if (!isRestType) {
     attachDayHandlers(d, week);
     document.getElementById('finish-session').onclick = () => {
       activeDayState.completedAt = Date.now();
@@ -2350,6 +2491,126 @@ function navDay(delta) {
   if (nd > 7) { nw += 1; nd = 1; }
   if (nw < 1 || nw > 4) return;
   go(`/day?w=${nw}&d=${nd}`);
+}
+
+/* ── Cardio GPS session ─────────────────────────────────── */
+let _cardioHrListener   = null;
+let _cardioTimerInterval = null;
+let _cardioGpsListener  = null;
+let _cardioGpsErrListener = null;
+
+function _cardioUpdateDisplay() {
+  const state = activeDayState && activeDayState.cardio;
+  if (!state || !state.startedAt) return;
+  const elapsed = Math.floor((Date.now() - state.startedAt) / 1000);
+  const km = GPS.getDistanceM() / 1000;
+  const paceStr = km > 0.05
+    ? fmtTime(Math.round(elapsed / km))
+    : '--:--';
+  const tEl = document.getElementById('c-time');
+  const dEl = document.getElementById('c-dist');
+  const pEl = document.getElementById('c-pace');
+  if (tEl) tEl.textContent = fmtTime(elapsed);
+  if (dEl) dEl.textContent = km.toFixed(2);
+  if (pEl) pEl.textContent = paceStr;
+}
+
+function _cardioUpdateZone(bpm) {
+  const el = document.getElementById('c-zone');
+  if (!el) return;
+  if (bpm >= 107 && bpm <= 125) {
+    el.className = 'cardio-zone zone-ok';
+    el.textContent = 'Zone 2 ✓';
+  } else if (bpm > 125) {
+    el.className = 'cardio-zone zone-hi';
+    el.textContent = 'Too fast — slow down';
+  } else {
+    el.className = 'cardio-zone zone-lo';
+    el.textContent = bpm > 0 ? 'Pick up the pace' : '';
+  }
+}
+
+function _stopCardioListeners() {
+  if (_cardioHrListener)     { window.removeEventListener('hr:reading', _cardioHrListener);   _cardioHrListener = null; }
+  if (_cardioTimerInterval)  { clearInterval(_cardioTimerInterval); _cardioTimerInterval = null; }
+  if (_cardioGpsListener)    { document.removeEventListener('gps:update', _cardioGpsListener); _cardioGpsListener = null; }
+  if (_cardioGpsErrListener) { document.removeEventListener('gps:error', _cardioGpsErrListener); _cardioGpsErrListener = null; }
+}
+
+function _resumeCardioTracking() {
+  _stopCardioListeners();
+
+  _cardioHrListener = e => {
+    const { bpm } = e.detail;
+    if (activeDayState && activeDayState.cardio) activeDayState.cardio.hrSamples.push(bpm);
+    _cardioUpdateZone(bpm);
+  };
+  window.addEventListener('hr:reading', _cardioHrListener);
+
+  _cardioGpsListener = e => {
+    const gpsEl = document.getElementById('c-gps-status');
+    if (gpsEl) gpsEl.textContent = `GPS ±${Math.round(e.detail.accuracy)} m`;
+    _cardioUpdateDisplay();
+  };
+  document.addEventListener('gps:update', _cardioGpsListener);
+
+  _cardioGpsErrListener = e => {
+    const gpsEl = document.getElementById('c-gps-status');
+    if (gpsEl) gpsEl.textContent = 'GPS error: ' + e.detail;
+  };
+  document.addEventListener('gps:error', _cardioGpsErrListener);
+
+  _cardioTimerInterval = setInterval(_cardioUpdateDisplay, 1000);
+  _cardioUpdateDisplay();
+}
+
+function startCardio() {
+  if (!activeDayState || !activeDayState.cardio) return;
+  if (activeDayState.cardio.startedAt) return;
+  if (!GPS.isSupported()) { alert('GPS (Geolocation) is not available in this browser.'); return; }
+
+  const ok = GPS.start();
+  if (!ok) { alert('Could not start GPS.'); return; }
+
+  activeDayState.cardio.startedAt = Date.now();
+  if (!activeDayState.startedAt) activeDayState.startedAt = activeDayState.cardio.startedAt;
+
+  const actionsEl = document.getElementById('c-actions');
+  if (actionsEl) {
+    actionsEl.innerHTML = `<button class="btn block danger" onclick="endCardio()">End Session</button>`;
+  }
+  const gpsEl = document.getElementById('c-gps-status');
+  if (gpsEl) gpsEl.textContent = 'GPS acquiring…';
+
+  _resumeCardioTracking();
+  persistDayState();
+}
+
+function endCardio() {
+  if (!activeDayState || !activeDayState.cardio || !activeDayState.cardio.startedAt) return;
+  if (!confirm('End and save this cardio session?')) return;
+
+  GPS.stop();
+  _stopCardioListeners();
+
+  activeDayState.cardio.endedAt       = Date.now();
+  activeDayState.cardio.distanceMeters = GPS.getDistanceM();
+
+  const samples = activeDayState.cardio.hrSamples;
+  if (samples.length) {
+    activeDayState.cardio.hrAvg = Math.round(samples.reduce((a, b) => a + b, 0) / samples.length);
+    activeDayState.cardio.hrMax = Math.max(...samples);
+    activeDayState.cardio.hrMin = Math.min(...samples);
+  }
+
+  activeDayState.completedAt = activeDayState.cardio.endedAt;
+  persistDayState();
+  go('/history');
+}
+
+function stopCardioOnNav() {
+  if (GPS.isTracking()) GPS.stop();
+  _stopCardioListeners();
 }
 
 function renderWarmupBlock(block, week) {
@@ -2746,6 +3007,7 @@ function persistDayState() {
     completedAt: activeDayState.completedAt || null,
     warmup: activeDayState.warmup || null,
     exercises: clean,
+    cardio: activeDayState.cardio || null,
   });
 }
 
@@ -2769,17 +3031,25 @@ function renderHistory() {
     const d = dayDef(s.day);
     const name = d ? d.name : `Day ${s.day}`;
     const isStrength = d && d.type === 'strength';
-    const topLine = isStrength
-      ? Object.entries(s.exercises || {})
-          .filter(([, ex]) => ex.actualWeight != null)
-          .map(([id, ex]) => {
-            // try to find ex.name from PROGRAMME
-            const exName = findExerciseName(id) || id;
-            return `${exName} ${ex.actualWeight}kg`;
-          })
-          .slice(0, 3)
-          .join(' · ')
-      : (d ? d.type : '');
+    const isCardio   = d && d.type === 'cardio';
+    let topLine = '';
+    if (isStrength) {
+      topLine = Object.entries(s.exercises || {})
+        .filter(([, ex]) => ex.actualWeight != null)
+        .map(([id, ex]) => {
+          const exName = findExerciseName(id) || id;
+          return `${exName} ${ex.actualWeight}kg`;
+        })
+        .slice(0, 3)
+        .join(' · ');
+    } else if (isCardio && s.cardio && s.cardio.startedAt && s.cardio.endedAt) {
+      const durSec = Math.round((s.cardio.endedAt - s.cardio.startedAt) / 1000);
+      const km     = ((s.cardio.distanceMeters || 0) / 1000).toFixed(2);
+      topLine = `${km} km · ${fmtTime(durSec)}`;
+      if (s.cardio.hrAvg) topLine += ` · ♥ avg ${s.cardio.hrAvg}`;
+    } else {
+      topLine = d ? d.type : '';
+    }
     const setCount = Object.values(s.exercises || {}).reduce(
       (sum, ex) => sum + ((ex.sets || []).filter(x => x.endedAt).length), 0
     );
@@ -2813,6 +3083,23 @@ function findExerciseName(id) {
 }
 
 function renderHistoryDetail(s) {
+  // Cardio sessions get their own summary block
+  if (s.cardio && s.cardio.startedAt) {
+    const durSec = s.cardio.endedAt
+      ? Math.round((s.cardio.endedAt - s.cardio.startedAt) / 1000) : null;
+    const km = ((s.cardio.distanceMeters || 0) / 1000).toFixed(2);
+    const pace = (s.cardio.distanceMeters > 10 && durSec)
+      ? fmtTime(Math.round(durSec / (s.cardio.distanceMeters / 1000)))
+      : '—';
+    const hrHtml = s.cardio.hrAvg != null
+      ? `<div class="h-hr">♥ avg ${s.cardio.hrAvg} · max ${s.cardio.hrMax} · min ${s.cardio.hrMin}</div>` : '';
+    return `<div class="h-ex">
+      <span class="h-ex-name">Cardio</span>
+      <span class="h-sets">${km} km${durSec ? ' · ' + fmtTime(durSec) : ''}${s.cardio.distanceMeters > 10 ? ' · ' + pace + '/km' : ''}</span>
+      ${hrHtml}
+    </div>`;
+  }
+
   const entries = Object.entries(s.exercises || {});
   let warmupHtml = '';
   if (s.warmup && s.warmup.startedAt && s.warmup.endedAt) {
@@ -3139,6 +3426,7 @@ document.addEventListener('visibilitychange', () => {
     bpmSpan.textContent = e.detail.bpm;
     const cardioEl = document.getElementById('cardio-hr-num');
     if (cardioEl) cardioEl.textContent = e.detail.bpm;
+    _cardioUpdateZone(e.detail.bpm);
   });
   window.addEventListener('hr:connected', () => {
     setConnected(true);
