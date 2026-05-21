@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Finance</title>
-<link rel="manifest" href="manifest.json">
+<link rel="manifest" href="/health/manifest.json">
 <meta name="theme-color" content="#1b3a6b">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -2820,7 +2820,7 @@ function esc(s) {
 
 // ── Service Worker ────────────────────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js');
+  navigator.serviceWorker.register('./sw.js', { scope: '/health/finance.html' });
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
