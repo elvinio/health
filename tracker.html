@@ -1,37 +1,49 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="theme-navy">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
-<meta name="theme-color" content="#8b5e3c">
+<meta name="theme-color" content="#1b3a6b">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Health Tracker</title>
 <link rel="manifest" href="/health/manifest-tracker.json">
+<link rel="stylesheet" href="themes.css">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg:       #faf6ee;
-    --paper:    #fdf9f2;
-    --card:     #ffffff;
-    --text:     #2c2416;
-    --muted:    #7a6a52;
-    --faint:    #b3a684;
-    --accent:   #8b5e3c;
-    --accent-d: #6f4828;
-    --green:    #5a7c5e;
-    --green-d:  #3f5b43;
+    /* tracker-specific aliases on top of themes.css variables */
+    --accent:   var(--primary);
+    --accent-d: var(--primary);
+    --faint:    var(--muted);
+    --green-d:  var(--green);
     --amber:    #b8860b;
-    --red:      #c0392b;
-    --border:   #e5dcc8;
-    --border-h: #d4c8ab;
-    --shadow:   0 1px 2px rgba(0,0,0,0.04), 0 2px 6px rgba(0,0,0,0.04);
-    --shadow-h: 0 2px 4px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.08);
+    --border-h: var(--border);
+    --shadow-h: var(--shadow-heavy);
     --safe-b:   env(safe-area-inset-bottom, 0px);
     --safe-t:   env(safe-area-inset-top, 0px);
     --sans:     -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
     --mono:     ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  }
+
+  html.theme-earth {
+    --accent-d: #6f4828;
+    --faint:    #b3a684;
+    --green-d:  #3f5b43;
+    --border-h: #d4c8ab;
+  }
+  html.theme-navy {
+    --accent-d: #163060;
+    --faint:    #7090b0;
+    --green-d:  #155039;
+    --border-h: #b8c8dc;
+  }
+  html.theme-pastel {
+    --accent-d: #b85a7e;
+    --faint:    #b898a0;
+    --green-d:  #3f5b43;
+    --border-h: #e0b8c4;
   }
 
   html { -webkit-text-size-adjust: 100%; font-size: 16px; }
@@ -89,7 +101,7 @@
     align-items: center;
     justify-content: center;
   }
-  .iconbtn:active { background: rgba(139,94,60,0.1); }
+  .iconbtn:active { background: color-mix(in srgb, var(--accent) 12%, transparent); }
 
   /* ── View container ──────────────────────────────────── */
   main {
@@ -826,6 +838,22 @@
     line-height: 1.5;
   }
   textarea:focus { outline: none; border-color: var(--accent); }
+
+  /* ── Theme picker ─────────────────────────────────────── */
+  .theme-option {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    padding: 12px 14px; border: 2px solid var(--border);
+    border-radius: 12px; background: var(--card);
+    cursor: pointer; font-family: inherit; font-size: .95rem;
+    font-weight: 600; color: var(--text); margin-bottom: 10px;
+    transition: border-color .15s;
+  }
+  .theme-option.active { border-color: var(--accent); }
+  .theme-swatch {
+    width: 40px; height: 40px; border-radius: 8px; flex-shrink: 0;
+    border: 1px solid rgba(0,0,0,.08);
+  }
+  .theme-check { margin-left: auto; color: var(--accent); font-weight: 800; }
 </style>
 </head>
 <body>
@@ -836,6 +864,7 @@
     </div>
     <div class="topbar-actions">
       <button class="iconbtn" id="today-btn" title="Jump to today" hidden>Today</button>
+      <button class="iconbtn" title="Change theme" onclick="openThemePicker()">◑</button>
       <span id="hr-badge" class="hr-badge" hidden>♥ <span id="hr-bpm">--</span></span>
       <button id="hr-connect-btn" class="hr-connect-btn">♥ Connect HR</button>
       <button class="profile-chip" id="profile-switcher">Person 1 ▾</button>
@@ -858,6 +887,42 @@
 
 <script>
 'use strict';
+
+// ── Theme ─────────────────────────────────────────────────────────────────────
+const THEMES = [
+  { id: 'earth',  label: 'Earth',  bg: '#faf6ee', primary: '#8b5e3c' },
+  { id: 'navy',   label: 'Navy',   bg: '#f0f4f8', primary: '#1b3a6b' },
+  { id: 'pastel', label: 'Pink',   bg: '#fff5f7', primary: '#d4729a' },
+];
+
+function applyTheme(id) {
+  document.documentElement.className = 'theme-' + id;
+  localStorage.setItem('tracker:theme', id);
+  const t = THEMES.find(t => t.id === id) || THEMES[1];
+  document.querySelector('meta[name="theme-color"]').content = t.primary;
+  closeModal();
+}
+
+function openThemePicker() {
+  const current = localStorage.getItem('tracker:theme') || 'navy';
+  const body = THEMES.map(t => `
+    <button class="theme-option${t.id === current ? ' active' : ''}"
+            onclick="applyTheme('${t.id}')">
+      <div class="theme-swatch"
+           style="background:linear-gradient(135deg,${t.bg} 50%,${t.primary} 50%)"></div>
+      <span>${t.label}</span>
+      ${t.id === current ? '<span class="theme-check">✓</span>' : ''}
+    </button>
+  `).join('');
+  showModal(body, 'Theme');
+}
+
+(function() {
+  const saved = localStorage.getItem('tracker:theme') || 'navy';
+  document.documentElement.className = 'theme-' + saved;
+  const t = THEMES.find(t => t.id === saved) || THEMES[1];
+  document.querySelector('meta[name="theme-color"]').content = t.primary;
+})();
 
 /* ════════════════════════════════════════════════════════════════
    PROGRAMME DATA  — transcribed from monthly-plan-male.md
