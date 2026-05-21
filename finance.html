@@ -812,13 +812,13 @@ const HISTORY_KEY = 'finance:v1:history';
 const DRIVE_HISTORY_FILE_KEY = 'finance:driveHistoryFileId';
 const BUS_API_KEY_STORAGE = 'finance:busApiKey';
 const BUS_STOPS = [
-  { code: '83121', name: 'Nature Mansions' },
-  { code: '83129', name: 'Ji Xiang Court' },
-  { code: '82061', name: 'Eunos Station' },
-  { code: '92049', name: 'Parkway Center' },
-  { code: '92041', name: 'Opp Parkway' },
+  { code: '83121', name: 'Nature Mansions', services: ['15', '150'] },
+  { code: '83129', name: 'Ji Xiang Court',  services: ['15', '150'] },
+  { code: '82061', name: 'Eunos Station',   services: ['150', '155'] },
+  { code: '92049', name: 'Parkway Center',  services: ['15'] },
+  { code: '92041', name: 'Opp Parkway',     services: ['15'] },
+  { code: '92229', name: 'Blk 53',          services: ['150'] },
 ];
-const BUS_SERVICES = ['15', '150'];
 const BUS_API_URL = 'https://datamall2.mytransport.sg/ltaodataservice/v3/BusArrival';
 let busPollingInterval = null;
 
@@ -2658,7 +2658,7 @@ async function renderBusPanel() {
     }
     const serviceMap = {};
     (result.value.Services || []).forEach(s => { serviceMap[s.ServiceNo] = s; });
-    const rows = BUS_SERVICES.map(svc => {
+    const rows = stop.services.map(svc => {
       const s = serviceMap[svc];
       let chips = '';
       if (!s) {
