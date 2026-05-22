@@ -398,6 +398,39 @@
     display: flex; align-items: center; gap: 4px;
   }
   .bus-last-updated { font-size: .72rem; color: var(--muted); }
+  /* ── Bus Map ── */
+  .bus-map-controls {
+    display: flex; gap: 8px; align-items: center; margin-bottom: 10px;
+  }
+  .bus-map-coord-input {
+    flex: 1; padding: 8px 10px; border-radius: 8px;
+    border: 1.5px solid var(--border); background: var(--bg);
+    color: var(--text); font-size: .88rem; outline: none; -webkit-appearance: none;
+  }
+  .bus-map-coord-input:focus { border-color: var(--primary-light); }
+  #busMapContainer {
+    width: 100%; height: 58vh; min-height: 300px;
+    border-radius: 12px; overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .bus-map-marker {
+    background: var(--primary, #1b3a6b); color: #fff;
+    font-size: .68rem; font-weight: 700;
+    padding: 3px 7px; border-radius: 6px;
+    white-space: nowrap; text-align: center;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 5px rgba(0,0,0,.35);
+    min-width: 28px; line-height: 1.4;
+    cursor: pointer;
+  }
+  .bus-map-marker.arriving {
+    background: #22a84a;
+    animation: busMapPulse .9s ease-in-out infinite alternate;
+  }
+  @keyframes busMapPulse {
+    from { box-shadow: 0 2px 5px rgba(34,168,74,.4); }
+    to   { box-shadow: 0 0 14px rgba(34,168,74,.85); }
+  }
   .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
   .cal-nav-btn {
     background: none; border: none; font-size: 1.5rem; color: var(--text);
@@ -504,10 +537,12 @@
     <button class="event-view-btn active" id="evViewList" onclick="setEventView('list')"><span class="material-symbols-outlined" style="font-size:1.1rem">list</span></button>
     <button class="event-view-btn" id="evViewCal" onclick="setEventView('calendar')"><span class="material-symbols-outlined" style="font-size:1.1rem">calendar_month</span></button>
     <button class="event-view-btn" id="evViewBus" onclick="setEventView('bus')"><span class="material-symbols-outlined" style="font-size:1.1rem">directions_bus</span></button>
+    <button class="event-view-btn" id="evViewBusMap" onclick="setEventView('busmap')"><span class="material-symbols-outlined" style="font-size:1.1rem">map</span></button>
   </div>
   <div id="eventList"></div>
   <div id="eventCalendar" style="display:none"></div>
   <div id="busPanel" style="display:none"></div>
+  <div id="busMapPanel" style="display:none"></div>
 </div>
 
 <!-- Expenses Page -->
@@ -2575,15 +2610,24 @@ function setEventView(mode) {
   document.getElementById('evViewList').classList.toggle('active', mode === 'list');
   document.getElementById('evViewCal').classList.toggle('active', mode === 'calendar');
   document.getElementById('evViewBus').classList.toggle('active', mode === 'bus');
+  document.getElementById('evViewBusMap').classList.toggle('active', mode === 'busmap');
   document.getElementById('eventList').style.display = mode === 'list' ? '' : 'none';
   document.getElementById('eventCalendar').style.display = mode === 'calendar' ? '' : 'none';
   document.getElementById('busPanel').style.display = mode === 'bus' ? '' : 'none';
+  document.getElementById('busMapPanel').style.display = mode === 'busmap' ? '' : 'none';
   if (busPollingInterval) { clearInterval(busPollingInterval); busPollingInterval = null; }
+  if (busMapPollingInterval) { clearInterval(busMapPollingInterval); busMapPollingInterval = null; }
   renderEventTagFilterPills();
   if (mode === 'calendar') renderEventCalendar();
   if (mode === 'bus') {
     renderBusPanel();
     busPollingInterval = setInterval(renderBusPanel, 60000);
+  }
+  if (mode === 'busmap') {
+    loadLeaflet(function() {
+      renderBusMapPanel();
+      busMapPollingInterval = setInterval(refreshBusMapMarkers, 30000);
+    });
   }
 }
 
@@ -2688,6 +2732,136 @@ async function renderBusPanel() {
 
   const upd = document.getElementById('busLastUpdated');
   if (upd) upd.textContent = 'Updated ' + new Date().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit' });
+}
+
+// ── Bus Map ──────────────────────────────────────────────────────────────────
+let busMapInstance = null;
+let busMapPollingInterval = null;
+let busMapMarkers = [];
+// Default center: Eunos / Marine Parade corridor (covers user's bus stops)
+const BUS_MAP_DEFAULT = [1.3201, 103.9024];
+
+function loadLeaflet(cb) {
+  if (window.L) { cb(); return; }
+  const css = document.createElement('link');
+  css.rel = 'stylesheet';
+  css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+  document.head.appendChild(css);
+  const js = document.createElement('script');
+  js.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+  js.onload = cb;
+  document.head.appendChild(js);
+}
+
+function renderBusMapPanel() {
+  const panel = document.getElementById('busMapPanel');
+  if (!panel || panel.style.display === 'none') return;
+  const apiKey = getBusApiKey();
+
+  if (!apiKey) {
+    panel.innerHTML = `<div class="bus-api-setup">
+      <div style="font-weight:600;margin-bottom:4px">LTA DataMall API Key</div>
+      <div style="font-size:.82rem;color:var(--muted);margin-bottom:4px">Enter your API key to view the live bus map.</div>
+      <input type="text" id="busMapApiKeyInput" placeholder="Paste API key here…" />
+      <button class="btn btn-primary btn-block" style="margin-top:4px" onclick="
+        const k=document.getElementById('busMapApiKeyInput').value;
+        if(k.trim()){saveBusApiKey(k);renderBusMapPanel();}
+      ">Save &amp; Load</button>
+    </div>`;
+    return;
+  }
+
+  // If map already initialised, just refresh markers and re-check size
+  if (busMapInstance) {
+    setTimeout(() => busMapInstance.invalidateSize(), 50);
+    refreshBusMapMarkers();
+    return;
+  }
+
+  panel.innerHTML = `
+    <div class="bus-map-controls">
+      <input type="text" id="busMapCoordInput" class="bus-map-coord-input"
+        placeholder="lat, lng  e.g. 1.3201, 103.9024"
+        value="${BUS_MAP_DEFAULT[0].toFixed(4)}, ${BUS_MAP_DEFAULT[1].toFixed(4)}" />
+      <button class="bus-refresh-btn" title="Centre map" onclick="busMapSetCenter()">
+        <span class="material-symbols-outlined" style="font-size:.95rem">my_location</span>
+      </button>
+      <button class="bus-refresh-btn" title="Refresh" onclick="refreshBusMapMarkers()">
+        <span class="material-symbols-outlined" style="font-size:.95rem">refresh</span>
+      </button>
+    </div>
+    <div id="busMapContainer"></div>
+    <div class="bus-refresh-row" style="margin-top:8px">
+      <span class="bus-last-updated" id="busMapLastUpdated">Fetching…</span>
+      <button class="bus-refresh-btn" onclick="saveBusApiKey('');busMapInstance=null;busMapMarkers=[];renderBusMapPanel()" style="font-size:.75rem">Change key</button>
+    </div>`;
+
+  busMapInstance = L.map('busMapContainer', { zoomControl: true }).setView(BUS_MAP_DEFAULT, 15);
+  L.tileLayer('https://www.onemap.sg/maps/tiles/Default/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.onemap.gov.sg" target="_blank">OneMap</a> Singapore',
+    maxZoom: 19, minZoom: 11
+  }).addTo(busMapInstance);
+
+  refreshBusMapMarkers();
+}
+
+function busMapSetCenter() {
+  if (!busMapInstance) return;
+  const raw = (document.getElementById('busMapCoordInput') || {}).value || '';
+  const parts = raw.split(',').map(s => parseFloat(s.trim()));
+  if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+    busMapInstance.setView([parts[0], parts[1]], 15);
+  }
+}
+
+async function refreshBusMapMarkers() {
+  if (!busMapInstance) return;
+  const apiKey = getBusApiKey();
+  if (!apiKey) return;
+
+  // Remove old markers
+  busMapMarkers.forEach(m => m.remove());
+  busMapMarkers = [];
+
+  const results = await Promise.allSettled(
+    BUS_STOPS.map(stop => fetchBusStop(stop.code, apiKey))
+  );
+
+  const seen = new Set();
+  BUS_STOPS.forEach((stop, i) => {
+    const res = results[i];
+    if (res.status !== 'fulfilled') return;
+    (res.value.Services || []).forEach(svc => {
+      if (!stop.services.includes(svc.ServiceNo)) return;
+      [svc.NextBus, svc.NextBus2].forEach(nb => {
+        if (!nb) return;
+        const lat = parseFloat(nb.Latitude);
+        const lng = parseFloat(nb.Longitude);
+        if (!lat || !lng) return;
+        const key = `${svc.ServiceNo}|${lat.toFixed(4)}|${lng.toFixed(4)}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+
+        const mins = busMinutes(nb.EstimatedArrival);
+        const arriving = mins !== null && mins <= 1;
+        const icon = L.divIcon({
+          className: '',
+          html: `<div class="bus-map-marker${arriving ? ' arriving' : ''}">${svc.ServiceNo}</div>`,
+          iconSize: null,
+          iconAnchor: [22, 13]
+        });
+        const marker = L.marker([lat, lng], { icon }).addTo(busMapInstance);
+        const timeStr = mins === null ? '' : arriving ? 'Arriving now' : `~${mins} min`;
+        marker.bindPopup(`<b>Bus ${svc.ServiceNo}</b>${timeStr ? '<br>' + timeStr : ''}`);
+        busMapMarkers.push(marker);
+      });
+    });
+  });
+
+  const upd = document.getElementById('busMapLastUpdated');
+  if (upd) upd.textContent =
+    'Updated ' + new Date().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit' }) +
+    ' · ' + busMapMarkers.length + (busMapMarkers.length === 1 ? ' bus' : ' buses');
 }
 
 function calPrev() {
