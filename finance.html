@@ -2602,9 +2602,12 @@ function busTimeLabel(mins) {
 }
 
 async function fetchBusStop(stopCode, apiKey) {
-  const target = `${BUS_API_URL}?BusStopCode=${stopCode}`;
+  const target = `${BUS_API_URL}?BusStopCode=${stopCode}&_t=${Date.now()}`;
   const url = `https://corsproxy.io/?${encodeURIComponent(target)}`;
-  const resp = await fetch(url, { headers: { AccountKey: apiKey, accept: 'application/json' } });
+  const resp = await fetch(url, {
+    cache: 'no-store',
+    headers: { AccountKey: apiKey, accept: 'application/json', 'Cache-Control': 'no-cache' }
+  });
   if (!resp.ok) throw new Error(resp.status);
   return resp.json();
 }
