@@ -2801,6 +2801,7 @@ function renderBusMapPanel() {
     attribution: '© <a href="https://www.onemap.gov.sg" target="_blank">OneMap</a> Singapore',
     maxZoom: 19, minZoom: 11
   }).addTo(busMapInstance);
+  setTimeout(() => busMapInstance.invalidateSize(), 50);
 
   refreshBusMapMarkers();
 }
