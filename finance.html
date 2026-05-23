@@ -3499,7 +3499,7 @@ function makeDmyWidget(dateInput) {
 
   const parentForm = dateInput.closest('form');
   if (parentForm) {
-    parentForm.addEventListener('reset', () => { setTimeout(() => { load(null); render(); }, 0); });
+    parentForm.addEventListener('reset', () => { load(null); render(); });
   }
 
   Object.defineProperty(dateInput, 'value', {
