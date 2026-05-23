@@ -2473,12 +2473,52 @@ function mergeData(local, remote) {
     : (remote.eventTags || local.eventTags || []);
   const eventTagsTs = Math.max(local._eventTagsTs || 0, remote._eventTagsTs || 0);
 
+  // Insurances: union by id, prefer higher _updatedAt, exclude deleted
+  const insMap = new Map();
+  [...(remote.insurances || []), ...(local.insurances || [])].forEach(i => {
+    if (deletedIds.has(i.id)) return;
+    const existing = insMap.get(i.id);
+    if (!existing || (i._updatedAt || 0) >= (existing._updatedAt || 0)) insMap.set(i.id, i);
+  });
+
+  // OngoingExpenses: union by id, prefer higher _updatedAt
+  const ongoingMap = new Map();
+  [...(remote.ongoingExpenses || []), ...(local.ongoingExpenses || [])].forEach(o => {
+    if (deletedIds.has(o.id)) return;
+    const existing = ongoingMap.get(o.id);
+    if (!existing || (o._updatedAt || 0) >= (existing._updatedAt || 0)) ongoingMap.set(o.id, o);
+  });
+
+  // Mortgages: union by id, prefer higher _updatedAt, merge entries, exclude deleted
+  const mortgageMap = new Map();
+  [...(remote.mortgages || []), ...(local.mortgages || [])].forEach(m => {
+    if (deletedIds.has(m.id)) return;
+    if (!mortgageMap.has(m.id)) {
+      mortgageMap.set(m.id, { ...m, entries: [] });
+    }
+    const existing = mortgageMap.get(m.id);
+    if ((m._updatedAt || 0) >= (existing._updatedAt || 0)) {
+      const entries = existing.entries;
+      mortgageMap.set(m.id, { ...m, entries });
+    }
+    mortgageMap.get(m.id).entries.push(...(m.entries || []));
+  });
+  mortgageMap.forEach(m => {
+    const seen = new Set();
+    m.entries = m.entries
+      .filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return !deletedIds.has(e.id); })
+      .sort((a, b) => (a._ts || 0) - (b._ts || 0));
+  });
+
   const merged = {
     accounts: [...accMap.values()],
     expenses: [...expMap.values()],
     assets: [...assetMap.values()],
     events: [...eventMap.values()],
     taxRecords: [...taxMap.values()],
+    insurances: [...insMap.values()],
+    ongoingExpenses: [...ongoingMap.values()],
+    mortgages: [...mortgageMap.values()],
     _deletedIds: [...deletedIds],
     budgets: { ...(remote.budgets || {}), ...(local.budgets || {}) },
     termDates,
