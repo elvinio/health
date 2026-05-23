@@ -4144,6 +4144,7 @@ function getOngoingDueInfo(o, refDate) {
   let dueYear, dueMonth, periodKey;
 
   if (o.frequency === 'monthly') {
+    if (y < startYear || (y === startYear && m < startMonth)) return null;
     dueYear = y; dueMonth = m;
     periodKey = `${y}-${String(m + 1).padStart(2, '0')}`;
   } else if (o.frequency === 'quarterly') {
