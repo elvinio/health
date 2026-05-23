@@ -332,6 +332,9 @@
   .event-end-time {
     font-size: .68rem; color: var(--muted); margin-top: 2px;
   }
+  .event-emoji-col {
+    font-size: 2.4rem; line-height: 1; flex-shrink: 0; align-self: center;
+  }
   .tag-toggle-pill {
     display: inline-block; padding: 4px 12px; border-radius: 16px; font-size: .8rem; font-weight: 600;
     border: 1.5px solid var(--border); background: var(--card); color: var(--muted);
@@ -2567,6 +2570,10 @@ function renderEventItem(ev) {
     }
   }
 
+  const emojiMatch = ev.title.match(/^(\p{Extended_Pictographic}[\u{FE0F}\u{200D}\u{1F3FB}-\u{1F3FF}\u{20E3}]*)\s*/u);
+  const leadingEmoji = emojiMatch ? emojiMatch[1] : null;
+  const titleText = emojiMatch ? ev.title.slice(emojiMatch[0].length) : ev.title;
+
   return `
   <div class="event-item${dayClass}" onclick="openEventSheet('${ev.id}')">
     <div class="event-row">
@@ -2575,8 +2582,9 @@ function renderEventItem(ev) {
         <div class="event-time-display">${timeFmt}</div>
         ${endTimeLine}
       </div>
+      ${leadingEmoji ? `<div class="event-emoji-col">${leadingEmoji}</div>` : ''}
       <div class="event-middle">
-        <div class="event-title">${esc(ev.title)}</div>
+        <div class="event-title">${esc(titleText)}</div>
         ${ev.description ? `<div class="event-desc-text">${esc(ev.description)}</div>` : ''}
         ${tagBadges ? `<div>${tagBadges}</div>` : ''}
         ${ev.reminderHours > 0 ? `<span class="event-reminder-badge">&#9200; ${ev.reminderHours}h before</span>` : ''}
