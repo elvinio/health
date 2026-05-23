@@ -560,6 +560,78 @@
     position: absolute; inset: 0; opacity: 0; cursor: text;
     width: 100%; height: 100%; font-size: 16px; border: none;
   }
+
+  /* ── Income & Tax ── */
+  .tax-card {
+    background: var(--card); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 14px 16px;
+    margin-bottom: 8px; cursor: pointer; transition: background .1s;
+  }
+  .tax-card:active { background: var(--bg); }
+  .tax-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .tax-year { font-size: 1.1rem; font-weight: 800; }
+  .tax-badge {
+    font-size: .7rem; font-weight: 700; padding: 3px 8px; border-radius: 12px;
+    background: var(--primary); color: #fff; white-space: nowrap;
+  }
+  .tax-badge.filed { background: var(--green); }
+  .tax-meta { font-size: .82rem; color: var(--muted); margin-top: 6px; display: flex; flex-direction: column; gap: 3px; }
+  .tax-meta span { display: flex; gap: 6px; }
+  .tax-meta .label { font-weight: 700; min-width: 130px; }
+  .tax-payable { font-size: 1.05rem; font-weight: 800; margin-top: 6px; }
+
+  .tax-summary-strip {
+    background: var(--primary); color: #fff;
+    border-radius: var(--radius); padding: 14px 18px;
+    margin-bottom: 16px; box-shadow: var(--shadow);
+    display: flex; gap: 20px; flex-wrap: wrap;
+  }
+  .tax-summary-item { flex: 1; min-width: 120px; }
+  .tax-summary-label { font-size: .75rem; opacity: .75; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+  .tax-summary-value { font-size: 1.3rem; font-weight: 800; margin-top: 2px; }
+
+  .tax-preview {
+    background: var(--bg); border-radius: 10px;
+    padding: 12px 14px; margin-top: 4px; margin-bottom: 14px;
+    border: 1.5px solid var(--border);
+  }
+  .tax-preview-row {
+    display: flex; justify-content: space-between;
+    font-size: .88rem; padding: 3px 0; color: var(--muted);
+  }
+  .tax-preview-row.total {
+    border-top: 1.5px solid var(--border);
+    margin-top: 6px; padding-top: 8px;
+    font-size: 1rem; font-weight: 800; color: var(--text);
+  }
+  .tax-preview-row.deduction { color: var(--red); }
+
+  .tax-mode-toggle { display: flex; gap: 0; margin-bottom: 14px; border-radius: 10px; overflow: hidden; border: 1.5px solid var(--border); }
+  .tax-mode-btn {
+    flex: 1; padding: 10px; font-size: .88rem; font-weight: 700;
+    background: var(--card); color: var(--muted); border: none;
+    cursor: pointer; font-family: inherit; transition: background .15s, color .15s;
+  }
+  .tax-mode-btn.active { background: var(--primary); color: #fff; }
+
+  .tax-relief-row {
+    display: grid; grid-template-columns: 1fr auto auto; gap: 8px;
+    align-items: center; margin-bottom: 8px;
+  }
+  .tax-relief-row input {
+    padding: 10px; border: 1.5px solid var(--border); border-radius: 10px;
+    background: var(--card); color: var(--text); font-size: .95rem;
+    font-family: inherit; outline: none; width: 100%; box-sizing: border-box;
+  }
+  .tax-relief-row input:focus { border-color: var(--primary); }
+  .tax-relief-amount { width: 90px !important; }
+  .tax-relief-remove {
+    background: none; border: none; color: var(--red);
+    font-size: 1.2rem; cursor: pointer; padding: 4px 6px; border-radius: 6px;
+    font-family: inherit; line-height: 1;
+  }
+  .tax-relief-remove:active { background: var(--bg); }
+  .field-hint { font-size: .75rem; color: var(--muted); margin-top: 3px; }
 </style>
 </head>
 <body>
@@ -572,6 +644,7 @@
   <button class="tab" data-tab="investments"><span class="material-symbols-outlined">trending_up</span></button>
   <button class="tab" data-tab="analysis"><span class="material-symbols-outlined">bar_chart</span></button>
   <button class="tab" data-tab="insurance"><span class="material-symbols-outlined">shield</span></button>
+  <button class="tab" data-tab="tax"><span class="material-symbols-outlined">receipt_long</span></button>
   <div class="menu-wrap" style="display:flex;align-items:center;padding-right:4px">
     <button class="iconbtn" id="menuBtn" title="More options" aria-label="More options">⋯</button>
     <div class="dropdown" id="mainMenu">
@@ -640,6 +713,12 @@
 <!-- Insurance Page -->
 <div class="page" id="page-insurance">
   <div id="insuranceList"></div>
+</div>
+
+<!-- Tax Page -->
+<div class="page" id="page-tax">
+  <div id="taxSummaryStrip"></div>
+  <div id="taxList"></div>
 </div>
 
 <!-- FAB -->
@@ -840,6 +919,89 @@
   </form>
 </div>
 
+<!-- Tax Sheet -->
+<div class="sheet" id="taxSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="taxSheetTitle">Add Year</div>
+  <form id="taxForm">
+    <input type="hidden" id="taxId">
+
+    <div class="field">
+      <label>Income Year</label>
+      <input type="number" id="taxYear" min="2000" max="2100" step="1" placeholder="e.g. 2025" required>
+    </div>
+
+    <div class="tax-mode-toggle">
+      <button type="button" class="tax-mode-btn active" id="taxModeEstimate" onclick="setTaxMode('estimate')">Estimate</button>
+      <button type="button" class="tax-mode-btn" id="taxModeFiled" onclick="setTaxMode('historical')">Filed (Historical)</button>
+    </div>
+
+    <!-- Estimate mode -->
+    <div id="taxEstimateSection">
+      <div class="field">
+        <label>Basic Salary (Annual)</label>
+        <input type="number" id="taxBasicSalary" min="0" step="0.01" placeholder="0.00" oninput="updateTaxPreview()">
+      </div>
+      <div class="field">
+        <label>Bonus (Annual)</label>
+        <input type="number" id="taxBonus" min="0" step="0.01" placeholder="0.00" oninput="updateTaxPreview()">
+      </div>
+      <div class="field">
+        <label>Other Income</label>
+        <input type="number" id="taxOtherIncome" min="0" step="0.01" placeholder="0.00" oninput="updateTaxPreview()">
+      </div>
+      <div class="field">
+        <label>CPF Employee Contribution</label>
+        <input type="number" id="taxCpfEmployee" min="0" step="0.01" placeholder="0.00" oninput="updateTaxPreview()">
+        <div class="field-hint">Your employee CPF contribution is tax-deductible</div>
+      </div>
+      <div class="field">
+        <label>Reliefs</label>
+        <div id="taxReliefsList"></div>
+        <button type="button" class="btn btn-secondary" style="font-size:.82rem;padding:8px 14px;margin-top:4px" onclick="addTaxReliefRow('','')">+ Add Relief</button>
+      </div>
+      <div class="field">
+        <label>Tax Rebate</label>
+        <input type="number" id="taxRebate" min="0" step="0.01" placeholder="0.00" oninput="updateTaxPreview()">
+      </div>
+      <div class="tax-preview" id="taxPreview" style="display:none">
+        <div class="tax-preview-row"><span>Assessable Income</span><span id="pvAssessable">—</span></div>
+        <div class="tax-preview-row deduction"><span>Less CPF</span><span id="pvCpf">—</span></div>
+        <div class="tax-preview-row deduction"><span>Less Reliefs</span><span id="pvReliefs">—</span></div>
+        <div class="tax-preview-row"><span>Chargeable Income</span><span id="pvChargeable">—</span></div>
+        <div class="tax-preview-row"><span>Tax Before Rebate</span><span id="pvTaxBefore">—</span></div>
+        <div class="tax-preview-row deduction"><span>Less Rebate</span><span id="pvRebate">—</span></div>
+        <div class="tax-preview-row total"><span>Tax Payable</span><span id="pvTaxPayable">—</span></div>
+      </div>
+    </div>
+
+    <!-- Historical mode -->
+    <div id="taxHistoricalSection" style="display:none">
+      <div class="field">
+        <label>Total Assessable Income</label>
+        <input type="number" id="taxTotalIncome" min="0" step="0.01" placeholder="0.00">
+      </div>
+      <div class="field">
+        <label>Total Relief Claimed</label>
+        <input type="number" id="taxTotalRelief" min="0" step="0.01" placeholder="0.00">
+      </div>
+      <div class="field">
+        <label>Tax Rebate</label>
+        <input type="number" id="taxRebateHistorical" min="0" step="0.01" placeholder="0.00">
+      </div>
+      <div class="field">
+        <label>Actual Tax Paid</label>
+        <input type="number" id="taxPaid" min="0" step="0.01" placeholder="0.00">
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button type="submit" class="btn btn-primary btn-block">Save</button>
+      <button type="button" class="btn btn-secondary" id="taxDeleteBtn" style="display:none;min-width:60px" onclick="deleteTaxRecord()">Delete</button>
+    </div>
+  </form>
+</div>
+
 <!-- Account Settings Sheet -->
 <div class="sheet" id="settingsSheet">
   <div class="sheet-handle"></div>
@@ -992,6 +1154,7 @@ function defaultData() {
     assets: [],
     events: [],
     insurances: [],
+    taxRecords: [],
     _deletedIds: [],
     budgets: {},
     monthlyAgg: {}
@@ -1008,6 +1171,7 @@ function loadData() {
     if (!d.assets) d.assets = [];
     if (!d.events) d.events = [];
     if (!d.insurances) d.insurances = [];
+    if (!d.taxRecords) d.taxRecords = [];
     if (!d._deletedIds) d._deletedIds = [];
     if (!d.budgets) d.budgets = {};
     if (!d.monthlyAgg) d.monthlyAgg = {};
@@ -1109,6 +1273,23 @@ function showToast(msg, dur = 2500) {
   t._timer = setTimeout(() => t.classList.remove('show'), dur);
 }
 
+// ── Singapore Income Tax ──────────────────────────────────────────────────────
+function calcSGTax(chargeableIncome) {
+  if (chargeableIncome <= 0) return 0;
+  const brackets = [
+    [20000, 0], [10000, 0.02], [10000, 0.035], [40000, 0.07],
+    [40000, 0.115], [40000, 0.15], [40000, 0.18], [40000, 0.19],
+    [40000, 0.195], [40000, 0.20], [Infinity, 0.22]
+  ];
+  let remaining = chargeableIncome, tax = 0;
+  for (const [band, rate] of brackets) {
+    if (remaining <= 0) break;
+    tax += Math.min(remaining, band) * rate;
+    remaining -= Math.min(remaining, band);
+  }
+  return tax;
+}
+
 // ── Tabs ─────────────────────────────────────────────────────────────────────
 let currentTab = 'events';
 
@@ -1153,6 +1334,7 @@ document.getElementById('fabBtn').addEventListener('click', () => {
   if (currentTab === 'events') openEventSheet(null);
   else if (currentTab === 'expenses') openExpenseSheet(null);
   else if (currentTab === 'insurance') openInsuranceSheet(null);
+  else if (currentTab === 'tax') openTaxSheet(null);
   else openAssetSheet(null);
 });
 
@@ -2076,6 +2258,13 @@ function mergeData(local, remote) {
     if (!existing || (ev._ts || 0) > (existing._ts || 0)) eventMap.set(ev.id, ev);
   });
 
+  const taxMap = new Map();
+  [...(remote.taxRecords || []), ...(local.taxRecords || [])].forEach(r => {
+    if (deletedIds.has(r.id)) return;
+    const existing = taxMap.get(r.id);
+    if (!existing || (r._ts || 0) > (existing._ts || 0)) taxMap.set(r.id, r);
+  });
+
   // termDates: prefer whichever side was saved most recently
   const termDates = (local._termDatesTs || 0) >= (remote._termDatesTs || 0)
     ? (local.termDates || remote.termDates || {})
@@ -2093,6 +2282,7 @@ function mergeData(local, remote) {
     expenses: [...expMap.values()],
     assets: [...assetMap.values()],
     events: [...eventMap.values()],
+    taxRecords: [...taxMap.values()],
     _deletedIds: [...deletedIds],
     budgets: { ...(remote.budgets || {}), ...(local.budgets || {}) },
     termDates,
@@ -3502,6 +3692,220 @@ function deleteInsurance() {
   showToast('Insurance deleted');
 }
 
+// ── Render: Tax Records ───────────────────────────────────────────────────────
+function calcEffectiveTax(r) {
+  if (r.isHistorical) return r.taxPaid || 0;
+  const assessable = (r.basicSalary || 0) + (r.bonus || 0) + (r.otherIncome || 0);
+  const totalRelief = (r.cpfEmployee || 0) + (r.reliefs || []).reduce((s, x) => s + (x.amount || 0), 0);
+  const chargeable = Math.max(0, assessable - totalRelief);
+  return Math.max(0, calcSGTax(chargeable) - (r.taxRebate || 0));
+}
+
+function renderTaxRecords() {
+  const stripEl = document.getElementById('taxSummaryStrip');
+  const listEl = document.getElementById('taxList');
+  if (!stripEl || !listEl) return;
+
+  const records = (data.taxRecords || []).slice().sort((a, b) => b.year - a.year);
+
+  const estimated = records.find(r => !r.isHistorical);
+  const filed = records.find(r => r.isHistorical);
+  let stripHtml = '';
+  if (estimated) stripHtml += `<div class="tax-summary-item"><div class="tax-summary-label">YA ${estimated.year + 1} Est. Tax</div><div class="tax-summary-value">${fmtCurrency(calcEffectiveTax(estimated))}</div></div>`;
+  if (filed) stripHtml += `<div class="tax-summary-item"><div class="tax-summary-label">YA ${filed.year + 1} Filed Tax</div><div class="tax-summary-value">${fmtCurrency(filed.taxPaid || 0)}</div></div>`;
+  stripEl.innerHTML = stripHtml ? `<div class="tax-summary-strip">${stripHtml}</div>` : '';
+
+  if (!records.length) {
+    listEl.innerHTML = '<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">receipt_long</span></div>No tax records yet.<br>Tap + to add one.</div>';
+    return;
+  }
+
+  listEl.innerHTML = records.map(r => {
+    let assessable, chargeable, taxPayable;
+    if (r.isHistorical) {
+      assessable = r.totalIncome || 0;
+      chargeable = Math.max(0, assessable - (r.totalRelief || 0));
+      taxPayable = r.taxPaid || 0;
+    } else {
+      assessable = (r.basicSalary || 0) + (r.bonus || 0) + (r.otherIncome || 0);
+      const totalRelief = (r.cpfEmployee || 0) + (r.reliefs || []).reduce((s, x) => s + (x.amount || 0), 0);
+      chargeable = Math.max(0, assessable - totalRelief);
+      taxPayable = Math.max(0, calcSGTax(chargeable) - (r.taxRebate || 0));
+    }
+    const badgeClass = r.isHistorical ? ' filed' : '';
+    const badgeLabel = r.isHistorical ? 'Filed' : 'Estimate';
+    return `<div class="tax-card" onclick="openTaxSheet('${esc(r.id)}')">
+      <div class="tax-card-header">
+        <div class="tax-year">YA ${r.year + 1} <span style="font-size:.85rem;font-weight:600;color:var(--muted)">(${r.year} income)</span></div>
+        <div class="tax-badge${badgeClass}">${badgeLabel}</div>
+      </div>
+      <div class="tax-meta">
+        <span><span class="label">Assessable Income:</span>${fmtCurrency(assessable)}</span>
+        <span><span class="label">Chargeable Income:</span>${fmtCurrency(chargeable)}</span>
+      </div>
+      <div class="tax-payable">Tax Payable: ${fmtCurrency(taxPayable)}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Tax Sheet ─────────────────────────────────────────────────────────────────
+let _taxMode = 'estimate';
+
+function setTaxMode(mode) {
+  _taxMode = mode;
+  document.getElementById('taxModeEstimate').classList.toggle('active', mode === 'estimate');
+  document.getElementById('taxModeFiled').classList.toggle('active', mode === 'historical');
+  document.getElementById('taxEstimateSection').style.display = mode === 'estimate' ? '' : 'none';
+  document.getElementById('taxHistoricalSection').style.display = mode === 'historical' ? '' : 'none';
+  if (mode === 'estimate') updateTaxPreview();
+}
+
+function openTaxSheet(id) {
+  const form = document.getElementById('taxForm');
+  form.reset();
+  document.getElementById('taxId').value = '';
+  document.getElementById('taxDeleteBtn').style.display = 'none';
+  document.getElementById('taxReliefsList').innerHTML = '';
+  document.getElementById('taxPreview').style.display = 'none';
+  document.getElementById('taxYear').value = new Date().getFullYear();
+  setTaxMode('estimate');
+
+  if (id) {
+    const r = (data.taxRecords || []).find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('taxSheetTitle').textContent = 'Edit Year';
+    document.getElementById('taxId').value = id;
+    document.getElementById('taxYear').value = r.year;
+    if (r.isHistorical) {
+      setTaxMode('historical');
+      document.getElementById('taxTotalIncome').value = r.totalIncome || '';
+      document.getElementById('taxTotalRelief').value = r.totalRelief || '';
+      document.getElementById('taxRebateHistorical').value = r.taxRebate || '';
+      document.getElementById('taxPaid').value = r.taxPaid || '';
+    } else {
+      setTaxMode('estimate');
+      document.getElementById('taxBasicSalary').value = r.basicSalary || '';
+      document.getElementById('taxBonus').value = r.bonus || '';
+      document.getElementById('taxOtherIncome').value = r.otherIncome || '';
+      document.getElementById('taxCpfEmployee').value = r.cpfEmployee || '';
+      (r.reliefs || []).forEach(rel => addTaxReliefRow(rel.name, rel.amount));
+      document.getElementById('taxRebate').value = r.taxRebate || '';
+      updateTaxPreview();
+    }
+    document.getElementById('taxDeleteBtn').style.display = '';
+  } else {
+    document.getElementById('taxSheetTitle').textContent = 'Add Year';
+  }
+  openSheet('taxSheet');
+}
+
+let _taxReliefCounter = 0;
+
+function addTaxReliefRow(name, amount) {
+  const rowId = 'taxRelief_' + (++_taxReliefCounter);
+  const container = document.getElementById('taxReliefsList');
+  const div = document.createElement('div');
+  div.className = 'tax-relief-row';
+  div.id = rowId;
+  div.innerHTML = `<input type="text" placeholder="Relief name" value="${esc(name || '')}" oninput="updateTaxPreview()">` +
+    `<input type="number" placeholder="0.00" min="0" step="0.01" value="${amount || ''}" class="tax-relief-amount" oninput="updateTaxPreview()">` +
+    `<button type="button" class="tax-relief-remove" onclick="removeTaxReliefRow('${rowId}')">×</button>`;
+  container.appendChild(div);
+  updateTaxPreview();
+}
+
+function removeTaxReliefRow(rowId) {
+  const el = document.getElementById(rowId);
+  if (el) el.remove();
+  updateTaxPreview();
+}
+
+function updateTaxPreview() {
+  const preview = document.getElementById('taxPreview');
+  if (!preview) return;
+  const salary = parseFloat(document.getElementById('taxBasicSalary').value) || 0;
+  const bonus  = parseFloat(document.getElementById('taxBonus').value) || 0;
+  const other  = parseFloat(document.getElementById('taxOtherIncome').value) || 0;
+  const cpf    = parseFloat(document.getElementById('taxCpfEmployee').value) || 0;
+  const rebate = parseFloat(document.getElementById('taxRebate').value) || 0;
+  let totalReliefs = 0;
+  document.querySelectorAll('#taxReliefsList .tax-relief-row').forEach(row => {
+    totalReliefs += parseFloat(row.querySelectorAll('input')[1].value) || 0;
+  });
+  const assessable  = salary + bonus + other;
+  const chargeable  = Math.max(0, assessable - cpf - totalReliefs);
+  const taxBefore   = calcSGTax(chargeable);
+  const taxPayable  = Math.max(0, taxBefore - rebate);
+  if (!(salary || bonus || other || cpf || totalReliefs || rebate)) { preview.style.display = 'none'; return; }
+  preview.style.display = '';
+  document.getElementById('pvAssessable').textContent  = fmtCurrency(assessable);
+  document.getElementById('pvCpf').textContent         = '−' + fmtCurrency(cpf);
+  document.getElementById('pvReliefs').textContent     = '−' + fmtCurrency(totalReliefs);
+  document.getElementById('pvChargeable').textContent  = fmtCurrency(chargeable);
+  document.getElementById('pvTaxBefore').textContent   = fmtCurrency(taxBefore);
+  document.getElementById('pvRebate').textContent      = '−' + fmtCurrency(rebate);
+  document.getElementById('pvTaxPayable').textContent  = fmtCurrency(taxPayable);
+}
+
+document.getElementById('taxForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const id   = document.getElementById('taxId').value;
+  const year = parseInt(document.getElementById('taxYear').value);
+  if (!year) return;
+  let entry;
+  if (_taxMode === 'historical') {
+    entry = {
+      id: id || uid(), year, isHistorical: true,
+      totalIncome:  parseFloat(document.getElementById('taxTotalIncome').value) || 0,
+      totalRelief:  parseFloat(document.getElementById('taxTotalRelief').value) || 0,
+      taxRebate:    parseFloat(document.getElementById('taxRebateHistorical').value) || 0,
+      taxPaid:      parseFloat(document.getElementById('taxPaid').value) || 0,
+      _ts: Date.now()
+    };
+  } else {
+    const reliefs = [];
+    document.querySelectorAll('#taxReliefsList .tax-relief-row').forEach(row => {
+      const inputs = row.querySelectorAll('input');
+      const name   = inputs[0] ? inputs[0].value.trim() : '';
+      const amount = parseFloat(inputs[1] ? inputs[1].value : 0) || 0;
+      if (name || amount) reliefs.push({ id: uid(), name, amount });
+    });
+    entry = {
+      id: id || uid(), year, isHistorical: false,
+      basicSalary:  parseFloat(document.getElementById('taxBasicSalary').value) || 0,
+      bonus:        parseFloat(document.getElementById('taxBonus').value) || 0,
+      otherIncome:  parseFloat(document.getElementById('taxOtherIncome').value) || 0,
+      cpfEmployee:  parseFloat(document.getElementById('taxCpfEmployee').value) || 0,
+      reliefs,
+      taxRebate:    parseFloat(document.getElementById('taxRebate').value) || 0,
+      _ts: Date.now()
+    };
+  }
+  if (!data.taxRecords) data.taxRecords = [];
+  if (id) {
+    const idx = data.taxRecords.findIndex(r => r.id === id);
+    if (idx >= 0) data.taxRecords[idx] = entry; else data.taxRecords.push(entry);
+  } else {
+    data.taxRecords.push(entry);
+  }
+  saveData(data);
+  closeSheet();
+  renderAll();
+  showToast(id ? 'Tax record updated' : 'Tax record added');
+});
+
+function deleteTaxRecord() {
+  const id = document.getElementById('taxId').value;
+  if (!id) return;
+  if (!confirm('Delete this tax record?')) return;
+  data._deletedIds.push(id);
+  data.taxRecords = (data.taxRecords || []).filter(r => r.id !== id);
+  saveData(data);
+  closeSheet();
+  renderAll();
+  showToast('Tax record deleted');
+}
+
 // ── Render all ────────────────────────────────────────────────────────────────
 function renderAll() {
   renderEventList();
@@ -3512,6 +3916,7 @@ function renderAll() {
   renderInvestments();
   renderAnalysis();
   renderInsurances();
+  renderTaxRecords();
   document.getElementById('fabBtn').style.display = currentTab === 'analysis' ? 'none' : '';
 }
 
