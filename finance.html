@@ -525,6 +525,25 @@
     border: 1px solid rgba(0,0,0,.08);
   }
   .theme-check { margin-left: auto; color: var(--primary); font-weight: 800; }
+
+  /* ── DMY Date Widget ─────────────────────────────────────────────────── */
+  .dmy-wrap { position: relative; display: block; }
+  .dmy-display {
+    display: flex; align-items: center;
+    width: 100%; padding: 11px 12px;
+    border: 1.5px solid var(--border); border-radius: 10px;
+    background: var(--card); color: var(--text);
+    font-size: 1rem; font-variant-numeric: tabular-nums;
+    cursor: text; transition: border-color .15s; user-select: none;
+  }
+  .dmy-display.focused { border-color: var(--primary); }
+  .dmy-d { padding: 1px 2px; min-width: 1.1ch; text-align: center; border-radius: 3px; }
+  .dmy-cur { background: var(--primary); color: #fff; }
+  .dmy-sep { color: var(--muted); padding: 0 3px; }
+  .dmy-cap {
+    position: absolute; inset: 0; opacity: 0; cursor: text;
+    width: 100%; height: 100%; font-size: 16px; border: none;
+  }
 </style>
 </head>
 <body>
@@ -637,7 +656,7 @@
       </div>
       <div class="field">
         <label>Amount</label>
-        <input type="number" id="expAmount" min="0" step="0.01" placeholder="0.00" required>
+        <input type="number" id="expAmount" min="0" step="0.01" placeholder="0.00" inputmode="decimal" required>
       </div>
     </div>
     <div class="field">
@@ -741,7 +760,7 @@
       </div>
       <div class="field">
         <label>Price</label>
-        <input type="number" id="assetValue" min="0" step="0.01" placeholder="0.00" required>
+        <input type="number" id="assetValue" min="0" step="0.01" placeholder="0.00" inputmode="decimal" required>
       </div>
     </div>
     <div class="field">
@@ -774,7 +793,7 @@
       <input type="date" id="insStartDate" required>
     </div>
     <div class="field">
-      <label>Contract ID</label>
+      <label>Policy ID</label>
       <input type="text" id="insContractId" placeholder="Policy / contract number">
     </div>
     <div class="field">
@@ -784,7 +803,7 @@
     <div class="field-row">
       <div class="field">
         <label>Payment Amount</label>
-        <input type="number" id="insPaymentAmount" min="0" step="0.01" placeholder="0.00" required>
+        <input type="number" id="insPaymentAmount" min="0" step="0.01" placeholder="0.00" inputmode="decimal" required>
       </div>
       <div class="field">
         <label>Frequency</label>
@@ -3301,7 +3320,7 @@ function renderInsurances() {
       <div class="ins-meta">
         <span><span class="label">Insured:</span>${esc(ins.personInsured || '—')}</span>
         <span><span class="label">Start:</span>${esc(ins.startDate || '—')}</span>
-        ${ins.contractId ? `<span><span class="label">Contract ID:</span>${esc(ins.contractId)}</span>` : ''}
+        ${ins.contractId ? `<span><span class="label">Policy ID:</span>${esc(ins.contractId)}</span>` : ''}
         ${ins.agentContacts ? `<span><span class="label">Agent:</span>${esc(ins.agentContacts)}</span>` : ''}
         ${ins.details ? `<span><span class="label">Details:</span>${esc(ins.details)}</span>` : ''}
       </div>
@@ -3332,6 +3351,7 @@ function openInsuranceSheet(id) {
     document.getElementById('insuranceDeleteBtn').style.display = '';
   } else {
     document.getElementById('insuranceSheetTitle').textContent = 'Add Insurance';
+    document.getElementById('insStartDate').value = today();
   }
   openSheet('insuranceSheet');
   setTimeout(() => document.getElementById('insName').focus(), 350);
@@ -3396,12 +3416,137 @@ function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// ── DMY Date Widget ───────────────────────────────────────────────────────────
+function makeDmyWidget(dateInput) {
+  const orig = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+
+  const wrap = document.createElement('div');
+  wrap.className = 'dmy-wrap';
+  dateInput.parentNode.insertBefore(wrap, dateInput);
+  wrap.appendChild(dateInput);
+  dateInput.type = 'hidden';
+  dateInput.required = false;
+
+  const display = document.createElement('div');
+  display.className = 'dmy-display';
+  display.innerHTML =
+    '<span class="dmy-d" data-i="0"></span>' +
+    '<span class="dmy-d" data-i="1"></span>' +
+    '<span class="dmy-sep">/</span>' +
+    '<span class="dmy-d" data-i="2"></span>' +
+    '<span class="dmy-d" data-i="3"></span>' +
+    '<span class="dmy-sep">/</span>' +
+    '<span class="dmy-d" data-i="4"></span>' +
+    '<span class="dmy-d" data-i="5"></span>' +
+    '<span class="dmy-d" data-i="6"></span>' +
+    '<span class="dmy-d" data-i="7"></span>';
+
+  const cap = document.createElement('input');
+  cap.className = 'dmy-cap';
+  cap.type = 'text';
+  cap.inputMode = 'numeric';
+  cap.autocomplete = 'off';
+  cap.setAttribute('aria-hidden', 'true');
+
+  wrap.insertBefore(display, dateInput);
+  wrap.insertBefore(cap, dateInput);
+
+  const dEls = display.querySelectorAll('.dmy-d');
+  let digs = [], tmpl = [], cur = 0, focused = false, syncing = false, kdHandled = false;
+
+  function todayDigs() {
+    const n = new Date();
+    return [...String(n.getDate()).padStart(2, '0'),
+            ...String(n.getMonth() + 1).padStart(2, '0'),
+            ...String(n.getFullYear())];
+  }
+
+  function fromIso(s) {
+    if (s && /^\d{4}-\d{2}-\d{2}$/.test(s)) {
+      const [y, m, d] = s.split('-');
+      return [...d, ...m, ...y];
+    }
+    return todayDigs();
+  }
+
+  function toIso() {
+    if (digs.length < 8) return '';
+    const dd = digs[0] + digs[1], mm = digs[2] + digs[3], yy = digs.slice(4).join('');
+    const d = +dd, m = +mm, y = +yy;
+    return (d >= 1 && d <= 31 && m >= 1 && m <= 12 && y >= 1900) ? `${yy}-${mm}-${dd}` : '';
+  }
+
+  function render() {
+    dEls.forEach((el, i) => {
+      el.textContent = digs[i] ?? '_';
+      el.classList.toggle('dmy-cur', focused && i === cur);
+    });
+    const iso = toIso();
+    if (iso) { syncing = true; orig.set.call(dateInput, iso); syncing = false; }
+  }
+
+  function load(iso) {
+    digs = fromIso(iso); tmpl = [...digs]; cur = 0;
+  }
+
+  function fire() {
+    dateInput.dispatchEvent(new Event('input', { bubbles: true }));
+    dateInput.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  load(orig.get.call(dateInput));
+  render();
+
+  const parentForm = dateInput.closest('form');
+  if (parentForm) {
+    parentForm.addEventListener('reset', () => { setTimeout(() => { load(null); render(); }, 0); });
+  }
+
+  Object.defineProperty(dateInput, 'value', {
+    get() { return orig.get.call(dateInput); },
+    set(v) { if (!syncing) { load(v); render(); } },
+    configurable: true
+  });
+
+  display.addEventListener('click', () => cap.focus());
+  display.addEventListener('touchend', e => { e.preventDefault(); cap.focus(); });
+
+  cap.addEventListener('focus', () => {
+    focused = true; cur = 0; cap.value = '';
+    display.classList.add('focused'); render();
+  });
+  cap.addEventListener('blur', () => {
+    focused = false; display.classList.remove('focused'); render();
+  });
+
+  cap.addEventListener('keydown', e => {
+    kdHandled = false;
+    if (e.key >= '0' && e.key <= '9') {
+      e.preventDefault(); kdHandled = true;
+      if (cur < 8) { digs[cur] = e.key; cur++; render(); fire(); }
+    } else if (e.key === 'Backspace') {
+      e.preventDefault(); kdHandled = true;
+      if (cur > 0) { cur--; digs[cur] = tmpl[cur]; render(); }
+    }
+  });
+
+  cap.addEventListener('input', () => {
+    if (kdHandled) { kdHandled = false; cap.value = ''; return; }
+    const v = cap.value.replace(/\D/g, '');
+    cap.value = '';
+    if (!v) return;
+    for (const ch of v) if (cur < 8) { digs[cur] = ch; cur++; }
+    render(); fire();
+  });
+}
+
 // ── Service Worker ────────────────────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js', { scope: '/health/finance.html' });
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
+document.querySelectorAll('input[type="date"]').forEach(makeDmyWidget);
 renderAll();
 updateDriveSyncBtn();
 scheduleEventReminders();
