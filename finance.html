@@ -2893,12 +2893,12 @@ async function refreshBusMapMarkers() {
 
         const posKey = `${stop.code}|${svc.ServiceNo}|${busIdx}`;
         const prev = busMapPrevPositions[posKey];
-        let arrowHtml = '';
+        let arrowHtml = prev?.arrowHtml || '';
         if (prev && (Math.abs(prev.lat - lat) > 0.0001 || Math.abs(prev.lng - lng) > 0.0001)) {
           const bearing = computeBearing(prev.lat, prev.lng, lat, lng);
-          arrowHtml = `<svg class="bus-arrow" width="10" height="13" viewBox="0 0 10 13" style="transform:rotate(${bearing.toFixed(0)}deg)" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"><polyline points="1,8 5,2 9,8"/><polyline points="1,13 5,7 9,13"/></svg>`;
+          arrowHtml = `<svg class="bus-arrow" width="10" height="13" viewBox="0 0 10 13" style="transform:rotate(${bearing.toFixed(0)}deg)" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"><polyline points="1,8 5,2 9,8"/><polyline points="1,13 5,7 9,13"/></svg>`;
         }
-        busMapPrevPositions[posKey] = { lat, lng };
+        busMapPrevPositions[posKey] = { lat, lng, arrowHtml };
 
         const mins = busMinutes(nb.EstimatedArrival);
         const arriving = mins !== null && mins <= 1;
