@@ -461,6 +461,22 @@
     from { box-shadow: 0 2px 5px rgba(34,168,74,.4); }
     to   { box-shadow: 0 0 14px rgba(34,168,74,.85); }
   }
+  .bus-map-location {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #2979ff; border: 3px solid #fff;
+    animation: busLocPulse 2s ease-out infinite;
+  }
+  @keyframes busLocPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(41,121,255,.55), 0 2px 6px rgba(0,0,0,.3); }
+    70%  { box-shadow: 0 0 0 9px rgba(41,121,255,0),  0 2px 6px rgba(0,0,0,.3); }
+    100% { box-shadow: 0 0 0 0 rgba(41,121,255,0),  0 2px 6px rgba(0,0,0,.3); }
+  }
+  .bus-stop-icon {
+    width: 26px; height: 26px;
+    background: var(--primary, #1b3a6b); border: 2px solid #fff;
+    border-radius: 6px; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,.35); cursor: pointer; color: #fff;
+  }
   .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
   .cal-nav-btn {
     background: none; border: none; font-size: 1.5rem; color: var(--text);
@@ -2746,6 +2762,7 @@ function setEventView(mode) {
   document.getElementById('busMapPanel').style.display = mode === 'busmap' ? '' : 'none';
   if (busPollingInterval) { clearInterval(busPollingInterval); busPollingInterval = null; }
   if (busMapPollingInterval) { clearInterval(busMapPollingInterval); busMapPollingInterval = null; }
+  if (mode !== 'busmap') stopLocationTracking();
   renderEventTagFilterPills();
   if (mode === 'calendar') renderEventCalendar();
   if (mode === 'bus') {
@@ -2868,6 +2885,9 @@ let busMapInstance = null;
 let busMapPollingInterval = null;
 let busMapMarkers = [];
 let busMapPrevPositions = {};
+let busMapLocationMarker = null;
+let busMapLocationWatcher = null;
+let busMapStopMarkers = [];
 const BUS_MAP_DEFAULT = [1.3201, 103.9024];
 const BUS_MAP_CENTER_KEY = 'busMapCenter';
 
@@ -2878,6 +2898,87 @@ function getBusMapCenter() {
     if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) return parts;
   }
   return BUS_MAP_DEFAULT;
+}
+
+async function fetchBusStopCoords(apiKey) {
+  const cacheKey = 'finance:busStopCoords';
+  const cached = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+  const missing = BUS_STOPS.map(s => s.code).filter(c => !cached[c]);
+  if (!missing.length) return cached;
+
+  let skip = 0;
+  const found = new Set();
+  while (found.size < missing.length && skip <= 10000) {
+    try {
+      const res = await fetch(
+        `https://datamall2.mytransport.sg/ltaodataservice/BusStops?$skip=${skip}`,
+        { headers: { AccountKey: apiKey } }
+      );
+      const json = await res.json();
+      if (!json.value?.length) break;
+      json.value.forEach(s => {
+        if (missing.includes(s.BusStopCode)) {
+          cached[s.BusStopCode] = { lat: s.Latitude, lng: s.Longitude, name: s.Description };
+          found.add(s.BusStopCode);
+        }
+      });
+      if (found.size === missing.length) break;
+      skip += 500;
+    } catch { break; }
+  }
+  localStorage.setItem(cacheKey, JSON.stringify(cached));
+  return cached;
+}
+
+function placeLocationMarker(lat, lng) {
+  if (!busMapInstance) return;
+  if (busMapLocationMarker) busMapLocationMarker.remove();
+  const icon = L.divIcon({
+    className: '',
+    html: '<div class="bus-map-location"></div>',
+    iconSize: [16, 16],
+    iconAnchor: [8, 8]
+  });
+  busMapLocationMarker = L.marker([lat, lng], { icon, zIndexOffset: 1000 }).addTo(busMapInstance);
+  busMapLocationMarker.bindPopup('You are here');
+}
+
+function startLocationTracking() {
+  if (!navigator.geolocation || !busMapInstance) return;
+  stopLocationTracking();
+  busMapLocationWatcher = navigator.geolocation.watchPosition(
+    pos => placeLocationMarker(pos.coords.latitude, pos.coords.longitude),
+    null, { enableHighAccuracy: true, maximumAge: 10000 }
+  );
+}
+
+function stopLocationTracking() {
+  if (busMapLocationWatcher !== null) {
+    navigator.geolocation.clearWatch(busMapLocationWatcher);
+    busMapLocationWatcher = null;
+  }
+  if (busMapLocationMarker) { busMapLocationMarker.remove(); busMapLocationMarker = null; }
+}
+
+async function placeBusStopMarkers(apiKey) {
+  if (!busMapInstance) return;
+  busMapStopMarkers.forEach(m => m.remove());
+  busMapStopMarkers = [];
+  let coords;
+  try { coords = await fetchBusStopCoords(apiKey); } catch { return; }
+  BUS_STOPS.forEach(stop => {
+    const c = coords[stop.code];
+    if (!c) return;
+    const icon = L.divIcon({
+      className: '',
+      html: `<div class="bus-stop-icon" title="${esc(stop.name)}"><span class="material-symbols-outlined" style="font-size:1rem">directions_bus</span></div>`,
+      iconSize: [26, 26],
+      iconAnchor: [13, 26]
+    });
+    const marker = L.marker([c.lat, c.lng], { icon, zIndexOffset: 500 }).addTo(busMapInstance);
+    marker.bindPopup(`<b>${esc(stop.name)}</b><br>Stop ${stop.code}<br>Routes: ${stop.services.join(', ')}`);
+    busMapStopMarkers.push(marker);
+  });
 }
 
 function computeBearing(lat1, lng1, lat2, lng2) {
@@ -2922,6 +3023,7 @@ function renderBusMapPanel() {
   // If map already initialised, just refresh markers and re-check size
   if (busMapInstance) {
     setTimeout(() => busMapInstance.invalidateSize(), 50);
+    startLocationTracking();
     refreshBusMapMarkers();
     return;
   }
@@ -2957,6 +3059,8 @@ function renderBusMapPanel() {
   });
   setTimeout(() => busMapInstance.invalidateSize(), 50);
 
+  startLocationTracking();
+  placeBusStopMarkers(apiKey);
   refreshBusMapMarkers();
 }
 
@@ -3550,11 +3654,13 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     if (busPollingInterval)    { clearInterval(busPollingInterval);    busPollingInterval    = null; }
     if (busMapPollingInterval) { clearInterval(busMapPollingInterval); busMapPollingInterval = null; }
+    stopLocationTracking();
   } else if (currentTab === 'events') {
     if (eventViewMode === 'bus' && !busPollingInterval) {
       renderBusPanel();
       busPollingInterval = setInterval(renderBusPanel, 60000);
     } else if (eventViewMode === 'busmap' && !busMapPollingInterval) {
+      startLocationTracking();
       refreshBusMapMarkers();
       busMapPollingInterval = setInterval(refreshBusMapMarkers, 30000);
     }
