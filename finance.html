@@ -36,6 +36,7 @@
     transition: background .15s;
   }
   .iconbtn:active { background: rgba(255,255,255,.15); }
+  .tabs .iconbtn { color: rgba(255,255,255,.65); }
   .material-symbols-outlined {
     font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
     vertical-align: middle; user-select: none;
@@ -148,6 +149,25 @@
   .asset-delta.up { color: var(--green); }
   .asset-delta.down { color: var(--red); }
   .asset-delta.flat { color: var(--muted); }
+
+  /* ── Insurance ── */
+  .insurance-card {
+    background: var(--card); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 14px 16px;
+    margin-bottom: 8px; cursor: pointer; transition: background .1s;
+  }
+  .insurance-card:active { background: var(--bg); }
+  .ins-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .ins-name { font-size: 1rem; font-weight: 700; }
+  .ins-badge {
+    font-size: .7rem; font-weight: 700; padding: 3px 8px; border-radius: 12px;
+    background: var(--primary); color: #fff; white-space: nowrap;
+  }
+  .ins-badge.annual { background: var(--green); }
+  .ins-meta { font-size: .82rem; color: var(--muted); margin-top: 6px; display: flex; flex-direction: column; gap: 3px; }
+  .ins-meta span { display: flex; gap: 6px; }
+  .ins-meta .label { font-weight: 700; min-width: 90px; }
+  .ins-amount { font-size: 1.05rem; font-weight: 800; margin-top: 6px; }
 
   /* ── FAB ── */
   .fab {
@@ -516,6 +536,7 @@
   <button class="tab" data-tab="expenses"><span class="material-symbols-outlined">credit_card</span></button>
   <button class="tab" data-tab="investments"><span class="material-symbols-outlined">trending_up</span></button>
   <button class="tab" data-tab="analysis"><span class="material-symbols-outlined">bar_chart</span></button>
+  <button class="tab" data-tab="insurance"><span class="material-symbols-outlined">shield</span></button>
   <div class="menu-wrap" style="display:flex;align-items:center;padding-right:4px">
     <button class="iconbtn" id="menuBtn" title="More options" aria-label="More options">⋯</button>
     <div class="dropdown" id="mainMenu">
@@ -579,6 +600,11 @@
     <div class="portfolio-change" id="portfolioChange"></div>
   </div>
   <div id="assetList"></div>
+</div>
+
+<!-- Insurance Page -->
+<div class="page" id="page-insurance">
+  <div id="insuranceList"></div>
 </div>
 
 <!-- FAB -->
@@ -725,6 +751,56 @@
     <div class="btn-row">
       <button type="submit" class="btn btn-primary btn-block">Save</button>
       <button type="button" class="btn btn-secondary" id="assetDeleteBtn" style="display:none;min-width:60px" onclick="deleteAsset()">Delete</button>
+    </div>
+  </form>
+</div>
+
+<!-- Insurance Sheet -->
+<div class="sheet" id="insuranceSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="insuranceSheetTitle">Add Insurance</div>
+  <form id="insuranceForm">
+    <input type="hidden" id="insuranceId">
+    <div class="field">
+      <label>Policy Name</label>
+      <input type="text" id="insName" placeholder="e.g. Life Insurance, Medical Plan" required>
+    </div>
+    <div class="field">
+      <label>Person Insured</label>
+      <input type="text" id="insPersonInsured" placeholder="Full name" required>
+    </div>
+    <div class="field">
+      <label>Start Date</label>
+      <input type="date" id="insStartDate" required>
+    </div>
+    <div class="field">
+      <label>Contract ID</label>
+      <input type="text" id="insContractId" placeholder="Policy / contract number">
+    </div>
+    <div class="field">
+      <label>Insurance Details</label>
+      <textarea id="insDetails" rows="3" placeholder="Coverage, terms, notes…"></textarea>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Payment Amount</label>
+        <input type="number" id="insPaymentAmount" min="0" step="0.01" placeholder="0.00" required>
+      </div>
+      <div class="field">
+        <label>Frequency</label>
+        <select id="insPaymentFrequency">
+          <option value="monthly">Monthly</option>
+          <option value="annual">Annual</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Agent Contacts</label>
+      <textarea id="insAgentContacts" rows="2" placeholder="Name, phone, email…"></textarea>
+    </div>
+    <div class="btn-row">
+      <button type="submit" class="btn btn-primary btn-block">Save</button>
+      <button type="button" class="btn btn-secondary" id="insuranceDeleteBtn" style="display:none;min-width:60px" onclick="deleteInsurance()">Delete</button>
     </div>
   </form>
 </div>
@@ -880,6 +956,7 @@ function defaultData() {
     expenses: [],
     assets: [],
     events: [],
+    insurances: [],
     _deletedIds: [],
     budgets: {},
     monthlyAgg: {}
@@ -895,6 +972,7 @@ function loadData() {
     if (!d.expenses) d.expenses = [];
     if (!d.assets) d.assets = [];
     if (!d.events) d.events = [];
+    if (!d.insurances) d.insurances = [];
     if (!d._deletedIds) d._deletedIds = [];
     if (!d.budgets) d.budgets = {};
     if (!d.monthlyAgg) d.monthlyAgg = {};
@@ -1039,6 +1117,7 @@ document.getElementById('backdrop').addEventListener('click', closeSheet);
 document.getElementById('fabBtn').addEventListener('click', () => {
   if (currentTab === 'events') openEventSheet(null);
   else if (currentTab === 'expenses') openExpenseSheet(null);
+  else if (currentTab === 'insurance') openInsuranceSheet(null);
   else openAssetSheet(null);
 });
 
@@ -3202,6 +3281,103 @@ function scheduleEventReminders() {
   });
 }
 
+// ── Insurance ─────────────────────────────────────────────────────────────────
+function renderInsurances() {
+  const el = document.getElementById('insuranceList');
+  const list = data.insurances || [];
+  if (!list.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">shield</span></div>No insurance policies yet.<br>Tap + to add one.</div>';
+    return;
+  }
+  el.innerHTML = list.map(ins => {
+    const freq = ins.paymentFrequency === 'annual' ? 'annual' : 'monthly';
+    const freqLabel = freq === 'annual' ? 'Annual' : 'Monthly';
+    const amt = ins.paymentAmount != null ? `$${parseFloat(ins.paymentAmount).toFixed(2)}` : '—';
+    return `<div class="insurance-card" onclick="openInsuranceSheet('${esc(ins.id)}')">
+      <div class="ins-header">
+        <div class="ins-name">${esc(ins.name)}</div>
+        <div class="ins-badge ${freq === 'annual' ? 'annual' : ''}">${freqLabel}</div>
+      </div>
+      <div class="ins-meta">
+        <span><span class="label">Insured:</span>${esc(ins.personInsured || '—')}</span>
+        <span><span class="label">Start:</span>${esc(ins.startDate || '—')}</span>
+        ${ins.contractId ? `<span><span class="label">Contract ID:</span>${esc(ins.contractId)}</span>` : ''}
+        ${ins.agentContacts ? `<span><span class="label">Agent:</span>${esc(ins.agentContacts)}</span>` : ''}
+        ${ins.details ? `<span><span class="label">Details:</span>${esc(ins.details)}</span>` : ''}
+      </div>
+      <div class="ins-amount">${amt} / ${freqLabel.toLowerCase()}</div>
+    </div>`;
+  }).join('');
+}
+
+function openInsuranceSheet(id) {
+  const form = document.getElementById('insuranceForm');
+  form.reset();
+  document.getElementById('insuranceId').value = '';
+  document.getElementById('insuranceDeleteBtn').style.display = 'none';
+
+  if (id) {
+    const ins = (data.insurances || []).find(i => i.id === id);
+    if (!ins) return;
+    document.getElementById('insuranceSheetTitle').textContent = 'Edit Insurance';
+    document.getElementById('insuranceId').value = id;
+    document.getElementById('insName').value = ins.name || '';
+    document.getElementById('insPersonInsured').value = ins.personInsured || '';
+    document.getElementById('insStartDate').value = ins.startDate || '';
+    document.getElementById('insContractId').value = ins.contractId || '';
+    document.getElementById('insDetails').value = ins.details || '';
+    document.getElementById('insPaymentAmount').value = ins.paymentAmount != null ? ins.paymentAmount : '';
+    document.getElementById('insPaymentFrequency').value = ins.paymentFrequency || 'monthly';
+    document.getElementById('insAgentContacts').value = ins.agentContacts || '';
+    document.getElementById('insuranceDeleteBtn').style.display = '';
+  } else {
+    document.getElementById('insuranceSheetTitle').textContent = 'Add Insurance';
+  }
+  openSheet('insuranceSheet');
+  setTimeout(() => document.getElementById('insName').focus(), 350);
+}
+
+document.getElementById('insuranceForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const id = document.getElementById('insuranceId').value;
+  const entry = {
+    id: id || uid(),
+    name: document.getElementById('insName').value.trim(),
+    personInsured: document.getElementById('insPersonInsured').value.trim(),
+    startDate: document.getElementById('insStartDate').value,
+    contractId: document.getElementById('insContractId').value.trim(),
+    details: document.getElementById('insDetails').value.trim(),
+    paymentAmount: parseFloat(document.getElementById('insPaymentAmount').value) || 0,
+    paymentFrequency: document.getElementById('insPaymentFrequency').value,
+    agentContacts: document.getElementById('insAgentContacts').value.trim(),
+    _updatedAt: Date.now()
+  };
+
+  if (!data.insurances) data.insurances = [];
+  if (id) {
+    const idx = data.insurances.findIndex(i => i.id === id);
+    if (idx >= 0) data.insurances[idx] = entry;
+  } else {
+    data.insurances.push(entry);
+  }
+  saveData(data);
+  closeSheet();
+  renderAll();
+  showToast(id ? 'Insurance updated' : 'Insurance added');
+});
+
+function deleteInsurance() {
+  const id = document.getElementById('insuranceId').value;
+  if (!id) return;
+  if (!confirm('Delete this insurance policy?')) return;
+  data._deletedIds.push(id);
+  data.insurances = (data.insurances || []).filter(i => i.id !== id);
+  saveData(data);
+  closeSheet();
+  renderAll();
+  showToast('Insurance deleted');
+}
+
 // ── Render all ────────────────────────────────────────────────────────────────
 function renderAll() {
   renderEventList();
@@ -3211,6 +3387,7 @@ function renderAll() {
 
   renderInvestments();
   renderAnalysis();
+  renderInsurances();
   document.getElementById('fabBtn').style.display = currentTab === 'analysis' ? 'none' : '';
 }
 
