@@ -169,6 +169,44 @@
   .ins-meta .label { font-weight: 700; min-width: 90px; }
   .ins-amount { font-size: 1.05rem; font-weight: 800; margin-top: 6px; }
 
+  /* ── Ongoing Expenses ── */
+  .ongoing-card {
+    background: var(--card); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 12px 14px;
+    margin-bottom: 8px; cursor: pointer; transition: background .1s;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .ongoing-card:active { background: var(--bg); }
+  .ongoing-left { flex: 1; min-width: 0; }
+  .ongoing-name { font-size: .95rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ongoing-meta { display: flex; gap: 6px; margin-top: 3px; align-items: center; flex-wrap: wrap; font-size: .78rem; color: var(--muted); }
+  .ongoing-amount { font-size: 1rem; font-weight: 800; white-space: nowrap; }
+
+  /* ── Mortgage ── */
+  .mortgage-card {
+    background: var(--card); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 14px 16px;
+    margin-bottom: 8px; transition: background .1s;
+  }
+  .mortgage-name { font-size: 1rem; font-weight: 700; }
+  .mortgage-meta { font-size: .82rem; color: var(--muted); margin-top: 4px; }
+  .mortgage-balance { font-size: 1.15rem; font-weight: 800; color: var(--primary); margin-top: 6px; }
+  .entry-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 0; border-top: 1px solid var(--border); font-size: .87rem;
+  }
+  .entry-type-badge {
+    font-size: .68rem; font-weight: 700; padding: 2px 7px; border-radius: 4px;
+    text-transform: uppercase; white-space: nowrap;
+  }
+  .badge-interest { background: #fff3e0; color: #e65100; }
+  .badge-payment { background: #e8f5e9; color: #2e7d32; }
+  .badge-balance { background: #e3f2fd; color: #1565c0; }
+  .projection-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 5px 0; font-size: .88rem; border-top: 1px solid var(--border);
+  }
+
   /* ── FAB ── */
   .fab {
     position: fixed; bottom: calc(24px + env(safe-area-inset-bottom));
@@ -686,7 +724,13 @@
 
 <!-- Expenses Page -->
 <div class="page" id="page-expenses">
-  <div class="section-heading">Expense List</div>
+  <div style="display:flex;align-items:center;justify-content:space-between">
+    <div class="section-heading">Expense List</div>
+    <div style="display:flex;gap:2px;padding-top:20px">
+      <button class="iconbtn" onclick="openOngoingListSheet()" title="Ongoing Expenses"><span class="material-symbols-outlined" style="font-size:1.3rem;color:var(--primary)">repeat</span></button>
+      <button class="iconbtn" onclick="openMortgageListSheet()" title="Mortgage Debt"><span class="material-symbols-outlined" style="font-size:1.3rem;color:var(--primary)">home_work</span></button>
+    </div>
+  </div>
   <div class="filter-bar">
     <div class="filter-pills" id="yearFilterPills"></div>
     <div class="filter-pills" id="accountFilterPills"></div>
@@ -1011,6 +1055,151 @@
 </div>
 
 <!-- Asset History Modal -->
+<!-- Ongoing List Sheet -->
+<div class="sheet" id="ongoingListSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" style="display:flex;justify-content:space-between;align-items:center">
+    <span>Ongoing Expenses</span>
+    <button class="btn btn-primary" style="font-size:.82rem;padding:7px 14px" onclick="openOngoingFormSheet()">+ Add</button>
+  </div>
+  <div id="ongoingList"></div>
+</div>
+
+<!-- Ongoing Expense Form Sheet -->
+<div class="sheet" id="ongoingFormSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="ongoingFormTitle">Add Ongoing Expense</div>
+  <form id="ongoingForm">
+    <input type="hidden" id="ongoingId">
+    <div class="field">
+      <label>Name</label>
+      <input type="text" id="ongoingName" placeholder="e.g. Netflix, Gym membership" required>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Amount</label>
+        <input type="number" id="ongoingAmount" min="0" step="0.01" placeholder="0.00" inputmode="decimal" required>
+      </div>
+      <div class="field">
+        <label>Frequency</label>
+        <select id="ongoingFrequency">
+          <option value="monthly">Monthly</option>
+          <option value="annual">Annual</option>
+          <option value="quarterly">Quarterly</option>
+          <option value="weekly">Weekly</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Category</label>
+        <select id="ongoingCategory"></select>
+      </div>
+      <div class="field">
+        <label>Account</label>
+        <select id="ongoingAccount"></select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Note</label>
+      <input type="text" id="ongoingNote" placeholder="Optional note">
+    </div>
+    <div class="btn-row">
+      <button type="submit" class="btn btn-primary btn-block">Save</button>
+      <button type="button" class="btn btn-danger" id="ongoingDeleteBtn" style="display:none;min-width:60px" onclick="deleteOngoing()">Delete</button>
+    </div>
+  </form>
+</div>
+
+<!-- Mortgage List Sheet -->
+<div class="sheet" id="mortgageListSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" style="display:flex;justify-content:space-between;align-items:center">
+    <span>Mortgage Debt</span>
+    <button class="btn btn-primary" style="font-size:.82rem;padding:7px 14px" onclick="openMortgageFormSheet()">+ Add</button>
+  </div>
+  <div id="mortgageList"></div>
+</div>
+
+<!-- Mortgage Form Sheet -->
+<div class="sheet" id="mortgageFormSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="mortgageFormTitle">Add Mortgage</div>
+  <form id="mortgageForm">
+    <input type="hidden" id="mortgageId">
+    <div class="field">
+      <label>Mortgage Name</label>
+      <input type="text" id="mortgageName" placeholder="e.g. DBS Home Loan" required>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Original Principal ($)</label>
+        <input type="number" id="mortgagePrincipal" min="0" step="0.01" placeholder="0.00" inputmode="decimal" required>
+      </div>
+      <div class="field">
+        <label>Start Date</label>
+        <input type="date" id="mortgageStartDate" required>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Interest Rate (% p.a.)</label>
+        <input type="number" id="mortgageRate" min="0" step="0.001" placeholder="e.g. 3.75" inputmode="decimal" required>
+      </div>
+      <div class="field">
+        <label>Tenor (years)</label>
+        <input type="number" id="mortgageTenor" min="1" step="1" placeholder="e.g. 25" required>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button type="submit" class="btn btn-primary btn-block">Save</button>
+      <button type="button" class="btn btn-danger" id="mortgageDeleteBtn" style="display:none;min-width:60px" onclick="deleteMortgage()">Delete</button>
+    </div>
+  </form>
+</div>
+
+<!-- Mortgage Detail Overlay -->
+<div class="modal-overlay" id="mortgageOverlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeMortgageOverlay()">✕</button>
+    <div class="modal-title" id="mortgageOverlayTitle">Mortgage</div>
+    <div id="mortgageOverlayBody"></div>
+  </div>
+</div>
+
+<!-- Mortgage Entry Sheet -->
+<div class="sheet" id="mortgageEntrySheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="mortgageEntryTitle">Add Entry</div>
+  <form id="mortgageEntryForm">
+    <input type="hidden" id="mortgageEntryMortgageId">
+    <input type="hidden" id="mortgageEntryId">
+    <div class="field">
+      <label>Date</label>
+      <input type="date" id="mortgageEntryDate" required>
+    </div>
+    <div class="field">
+      <label>Type</label>
+      <select id="mortgageEntryType">
+        <option value="balance">Balance Update</option>
+        <option value="interest">Interest Charged</option>
+        <option value="payment">Payment / Deduction</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Amount ($)</label>
+      <input type="number" id="mortgageEntryAmount" min="0" step="0.01" placeholder="0.00" inputmode="decimal" required>
+    </div>
+    <div class="field">
+      <label>Note</label>
+      <input type="text" id="mortgageEntryNote" placeholder="Optional note">
+    </div>
+    <div class="btn-row">
+      <button type="submit" class="btn btn-primary btn-block">Save Entry</button>
+    </div>
+  </form>
+</div>
+
 <div class="modal-overlay" id="historyOverlay">
   <div class="modal">
     <button class="modal-close" onclick="closeHistory()">✕</button>
@@ -1157,7 +1346,9 @@ function defaultData() {
     taxRecords: [],
     _deletedIds: [],
     budgets: {},
-    monthlyAgg: {}
+    monthlyAgg: {},
+    mortgages: [],
+    ongoingExpenses: []
   };
 }
 
@@ -1175,6 +1366,8 @@ function loadData() {
     if (!d._deletedIds) d._deletedIds = [];
     if (!d.budgets) d.budgets = {};
     if (!d.monthlyAgg) d.monthlyAgg = {};
+    if (!d.mortgages) d.mortgages = [];
+    if (!d.ongoingExpenses) d.ongoingExpenses = [];
     d.accounts.forEach(a => { if (!a._updatedAt) a._updatedAt = 0; });
     return d;
   } catch { return defaultData(); }
@@ -2677,6 +2870,100 @@ function renderYearBudgetSummary() {
   </div>`;
 }
 
+// ── Render: Asset & Mortgage Trend Chart ─────────────────────────────────────
+function renderAssetMortgageChart() {
+  const assets = data.assets || [];
+  const mortgages = data.mortgages || [];
+  if (!assets.length && !mortgages.length) return '';
+
+  const monthSet = new Set();
+  assets.forEach(a => a.history.forEach(h => monthSet.add(h.date.slice(0, 7))));
+  mortgages.forEach(m => {
+    if (m.startDate) monthSet.add(m.startDate.slice(0, 7));
+    (m.entries || []).filter(e => e.type === 'balance').forEach(e => monthSet.add(e.date.slice(0, 7)));
+  });
+  if (!monthSet.size) return '';
+
+  const months = [...monthSet].sort();
+
+  const assetTotals = months.map(month => {
+    const cutoff = month + '-31';
+    return assets.reduce((sum, a) => {
+      const units = a.units != null ? a.units : 1;
+      const relevant = a.history.filter(h => h.date <= cutoff).sort((x, y) => y.date.localeCompare(x.date));
+      return sum + (relevant.length ? relevant[0].value * units : 0);
+    }, 0);
+  });
+
+  const mortgageTotals = months.map(month => {
+    const cutoff = month + '-31';
+    return mortgages.reduce((sum, m) => {
+      const balanceEntries = (m.entries || []).filter(e => e.type === 'balance' && e.date <= cutoff).sort((x, y) => y.date.localeCompare(x.date));
+      if (balanceEntries.length) return sum + balanceEntries[0].amount;
+      if (m.startDate && m.startDate.slice(0, 7) <= month) return sum + (m.principal || 0);
+      return sum;
+    }, 0);
+  });
+
+  const hasAsset = assetTotals.some(v => v > 0);
+  const hasMortgage = mortgageTotals.some(v => v > 0);
+  if (!hasAsset && !hasMortgage) return '';
+
+  const COL_W = 64, H = 160, PAD_L = 44, PAD_B = 28, PAD_T = 8, PAD_R = 12;
+  const svgW = PAD_L + months.length * COL_W + PAD_R;
+  const svgH = H + PAD_T + PAD_B;
+
+  const maxVal = Math.max(...assetTotals, ...mortgageTotals, 1);
+  const scale = Math.pow(10, Math.floor(Math.log10(maxVal)));
+  const maxScaled = Math.ceil(maxVal / scale) * scale;
+
+  const xPos = i => PAD_L + i * COL_W + COL_W / 2;
+  const yPos = v => PAD_T + H - Math.min(1, v / maxScaled) * H;
+
+  const ticks = [0, .25, .5, .75, 1].map(f => ({ v: maxScaled * f, y: yPos(maxScaled * f) }));
+  const grid = ticks.map(({ v, y }) =>
+    `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${(svgW - PAD_R).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#e8dece" stroke-width="1"/>` +
+    `<text x="${(PAD_L - 4).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="#7a6a52">${fmtShort(v)}</text>`
+  ).join('');
+
+  const xLabels = months.map((m, i) => {
+    const lbl = new Date(m + '-01T00:00:00').toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
+    return `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="8" fill="#7a6a52">${lbl}</text>`;
+  }).join('');
+
+  const ASSET_COLOR = '#27ae60';
+  const MORTGAGE_COLOR = '#e74c3c';
+
+  const assetLine = (() => {
+    if (!hasAsset) return '';
+    const pts = assetTotals.map((v, i) => [xPos(i), yPos(v)]);
+    const path = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+    const dots = pts.map(([cx, cy]) => `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.5" fill="${ASSET_COLOR}" stroke="#fff" stroke-width="1.5"/>`).join('');
+    return `<path d="${path}" fill="none" stroke="${ASSET_COLOR}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${dots}`;
+  })();
+
+  const mortgageLine = (() => {
+    if (!hasMortgage) return '';
+    const pts = mortgageTotals.map((v, i) => [xPos(i), yPos(v)]);
+    const path = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+    const dots = pts.map(([cx, cy]) => `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.5" fill="${MORTGAGE_COLOR}" stroke="#fff" stroke-width="1.5"/>`).join('');
+    return `<path d="${path}" fill="none" stroke="${MORTGAGE_COLOR}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="5 3"/>${dots}`;
+  })();
+
+  const legend = `<div class="chart-legend">
+    ${hasAsset ? `<div class="legend-item"><div class="legend-dot" style="background:${ASSET_COLOR}"></div><span>Total Assets</span></div>` : ''}
+    ${hasMortgage ? `<div class="legend-item"><div class="legend-dot" style="background:${MORTGAGE_COLOR}"></div><span>Mortgage Balance</span></div>` : ''}
+  </div>`;
+
+  return `<div class="chart-wrap">
+    <div class="chart-title">Asset &amp; Mortgage Trend</div>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+      <svg width="${svgW}" height="${svgH}" style="display:block">${grid}${assetLine}${mortgageLine}${xLabels}</svg>
+    </div>
+    ${legend}
+  </div>`;
+}
+
 function renderAnalysis() {
   const el = document.getElementById('analysisList');
   const allYears = getExpenseYears();
@@ -2698,8 +2985,10 @@ function renderAnalysis() {
     if (Object.keys(filtered).length) byMonth[month] = filtered;
   });
 
+  const assetMortgageChart = `<div id="assetMortgageChart">${renderAssetMortgageChart()}</div>`;
+
   if (!Object.keys(byMonth).length) {
-    el.innerHTML = yearPillsHtml + '<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">bar_chart</span></div>No expense data yet.</div>';
+    el.innerHTML = yearPillsHtml + assetMortgageChart + '<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">bar_chart</span></div>No expense data yet.</div>';
     return;
   }
 
@@ -2743,7 +3032,7 @@ function renderAnalysis() {
 
   const yearlyChart = `<div id="yearlyChart">${renderYearlyChart()}</div>`;
   const budgetSummary = renderYearBudgetSummary();
-  el.innerHTML = yearPillsHtml + chart + yearlyChart + budgetSummary + cards;
+  el.innerHTML = yearPillsHtml + assetMortgageChart + chart + yearlyChart + budgetSummary + cards;
 }
 
 // ── Events ────────────────────────────────────────────────────────────────────
