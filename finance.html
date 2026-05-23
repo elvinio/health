@@ -2814,8 +2814,8 @@ function renderBusMapPanel() {
     </div>`;
 
   busMapInstance = L.map('busMapContainer', { zoomControl: true }).setView(BUS_MAP_DEFAULT, 15);
-  L.tileLayer('https://www.onemap.sg/maps/tiles/Default/{z}/{x}/{y}.png', {
-    attribution: '© <a href="https://www.onemap.gov.sg" target="_blank">OneMap</a> Singapore',
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19, minZoom: 11
   }).addTo(busMapInstance);
   setTimeout(() => busMapInstance.invalidateSize(), 50);
