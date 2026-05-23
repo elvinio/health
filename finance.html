@@ -1084,11 +1084,14 @@
         <label>Frequency</label>
         <select id="ongoingFrequency">
           <option value="monthly">Monthly</option>
-          <option value="annual">Annual</option>
           <option value="quarterly">Quarterly</option>
-          <option value="weekly">Weekly</option>
+          <option value="annual">Annual</option>
         </select>
       </div>
+    </div>
+    <div class="field">
+      <label>Start Date</label>
+      <input type="date" id="ongoingStartDate" required>
     </div>
     <div class="field-row">
       <div class="field">
@@ -3994,12 +3997,13 @@ function renderOngoingList() {
     el.innerHTML = '<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">repeat</span></div>No ongoing expenses yet.<br>Tap + to add one.</div>';
     return;
   }
-  const freqLabel = { monthly: 'mo', annual: 'yr', quarterly: 'qtr', weekly: 'wk' };
-  const annualMult = { monthly: 12, annual: 1, quarterly: 4, weekly: 52 };
+  const freqLabel = { monthly: 'mo', quarterly: 'qtr', annual: 'yr' };
+  const annualMult = { monthly: 12, quarterly: 4, annual: 1 };
   el.innerHTML = list.map(o => {
     const acc = data.accounts.find(a => a.id === o.accountId);
     const freq = freqLabel[o.frequency] || o.frequency;
     const annual = fmtDollar(o.amount * (annualMult[o.frequency] || 12));
+    const nextDue = getOngoingNextDue(o);
     return `<div class="ongoing-card" onclick="openOngoingFormSheet('${o.id}')">
       <div class="ongoing-left">
         <div class="ongoing-name">${esc(o.name)}</div>
@@ -4007,6 +4011,7 @@ function renderOngoingList() {
           <span class="cat-chip">${esc(o.category || '—')}</span>
           ${acc ? `<span class="acc-badge${acc.id === 'acc1' ? '' : ' acc2'}">${esc(acc.name)}</span>` : ''}
           <span>${annual}/yr</span>
+          ${nextDue ? `<span>next: ${formatDate(nextDue)}</span>` : ''}
         </div>
       </div>
       <div class="ongoing-amount">${fmtCurrency(o.amount)}/${freq}</div>
@@ -4018,6 +4023,7 @@ function openOngoingFormSheet(id) {
   document.getElementById('ongoingForm').reset();
   document.getElementById('ongoingId').value = '';
   document.getElementById('ongoingDeleteBtn').style.display = 'none';
+  document.getElementById('ongoingStartDate').value = today();
   const cats = [...new Set([...DEFAULT_CATS, ...allExpenses().map(e => e.cat)])].sort();
   document.getElementById('ongoingCategory').innerHTML = cats.map(c => `<option>${esc(c)}</option>`).join('');
   document.getElementById('ongoingAccount').innerHTML = data.accounts.map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join('');
@@ -4030,6 +4036,7 @@ function openOngoingFormSheet(id) {
     document.getElementById('ongoingName').value = o.name;
     document.getElementById('ongoingAmount').value = o.amount;
     document.getElementById('ongoingFrequency').value = o.frequency || 'monthly';
+    document.getElementById('ongoingStartDate').value = o.startDate || today();
     document.getElementById('ongoingCategory').value = o.category || '';
     document.getElementById('ongoingAccount').value = o.accountId || '';
     document.getElementById('ongoingNote').value = o.note || '';
@@ -4044,14 +4051,19 @@ function openOngoingFormSheet(id) {
 document.getElementById('ongoingForm').addEventListener('submit', e => {
   e.preventDefault();
   const id = document.getElementById('ongoingId').value;
+  const existing = id ? (data.ongoingExpenses || []).find(x => x.id === id) : null;
+  const freq = document.getElementById('ongoingFrequency').value;
+  const startDate = document.getElementById('ongoingStartDate').value;
   const entry = {
     id: id || uid(),
     name: document.getElementById('ongoingName').value.trim(),
     amount: parseFloat(document.getElementById('ongoingAmount').value) || 0,
-    frequency: document.getElementById('ongoingFrequency').value,
+    frequency: freq,
+    startDate,
     category: document.getElementById('ongoingCategory').value,
     accountId: document.getElementById('ongoingAccount').value,
     note: document.getElementById('ongoingNote').value.trim(),
+    lastAutoGenPeriod: existing ? existing.lastAutoGenPeriod : '',
     _updatedAt: Date.now()
   };
   if (!data.ongoingExpenses) data.ongoingExpenses = [];
@@ -4076,6 +4088,128 @@ function deleteOngoing() {
   closeSheet();
   showToast('Deleted');
   setTimeout(() => openOngoingListSheet(), 350);
+}
+
+function getOngoingDueInfo(o, refDate) {
+  if (!o.startDate) return null;
+  const today = refDate || new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+  const start = new Date(o.startDate + 'T00:00:00');
+  const startYear = start.getFullYear();
+  const startMonth = start.getMonth();
+  const startDay = start.getDate();
+  const y = today.getFullYear();
+  const m = today.getMonth();
+
+  let dueYear, dueMonth, periodKey;
+
+  if (o.frequency === 'monthly') {
+    dueYear = y; dueMonth = m;
+    periodKey = `${y}-${String(m + 1).padStart(2, '0')}`;
+  } else if (o.frequency === 'quarterly') {
+    const totalMonths = (y - startYear) * 12 + (m - startMonth);
+    if (totalMonths < 0) return null;
+    if (totalMonths % 3 !== 0) return null;
+    dueYear = y; dueMonth = m;
+    periodKey = `${y}-${String(m + 1).padStart(2, '0')}`;
+  } else if (o.frequency === 'annual') {
+    if (m !== startMonth) return null;
+    if (y < startYear) return null;
+    dueYear = y; dueMonth = startMonth;
+    periodKey = `${y}`;
+  } else {
+    return null;
+  }
+
+  const lastDayOfMonth = new Date(dueYear, dueMonth + 1, 0).getDate();
+  const day = Math.min(startDay, lastDayOfMonth);
+  const dueStr = `${dueYear}-${String(dueMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  if (todayStr < dueStr) return null;
+  return { dueDate: dueStr, periodKey };
+}
+
+function getOngoingNextDue(o) {
+  if (!o.startDate) return null;
+  const start = new Date(o.startDate + 'T00:00:00');
+  const startDay = start.getDate();
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+
+  const nextCandidate = (year, month) => {
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const day = Math.min(startDay, lastDay);
+    return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  };
+
+  if (o.frequency === 'monthly') {
+    const thisMonth = nextCandidate(y, m);
+    if (thisMonth > now.toISOString().slice(0, 10)) return thisMonth;
+    const nm = m === 11 ? 0 : m + 1;
+    const ny = m === 11 ? y + 1 : y;
+    return nextCandidate(ny, nm);
+  }
+  if (o.frequency === 'quarterly') {
+    const start2 = new Date(o.startDate + 'T00:00:00');
+    const startM = start2.getMonth();
+    const startY = start2.getFullYear();
+    let candidate = new Date(startY, startM, 1);
+    while (candidate <= now) candidate = new Date(candidate.getFullYear(), candidate.getMonth() + 3, 1);
+    return nextCandidate(candidate.getFullYear(), candidate.getMonth());
+  }
+  if (o.frequency === 'annual') {
+    const startM = start.getMonth();
+    const cand = nextCandidate(y, startM);
+    if (cand > now.toISOString().slice(0, 10)) return cand;
+    return nextCandidate(y + 1, startM);
+  }
+  return null;
+}
+
+function autoGenOngoingExpenses() {
+  const list = data.ongoingExpenses || [];
+  if (!list.length) return;
+  const today = new Date();
+  const curYear = String(today.getFullYear());
+  let anyAdded = false;
+
+  list.forEach(o => {
+    const info = getOngoingDueInfo(o, today);
+    if (!info) return;
+    if (o.lastAutoGenPeriod === info.periodKey) return;
+
+    const exp = {
+      id: uid(),
+      date: info.dueDate,
+      desc: o.name + (o.note ? ' · ' + o.note : ''),
+      amount: o.amount,
+      cat: o.category || 'Bills',
+      ac: o.accountId || (data.accounts[0] ? data.accounts[0].id : 'acc1'),
+      _ts: Date.now()
+    };
+
+    const expYear = info.dueDate.slice(0, 4);
+    if (expYear === curYear) {
+      data.expenses.push(exp);
+    } else {
+      historyData.expenses.push(exp);
+      saveHistory(historyData);
+    }
+
+    const month = info.dueDate.slice(0, 7);
+    if (!data.monthlyAgg[month]) data.monthlyAgg[month] = {};
+    data.monthlyAgg[month][exp.cat] = (data.monthlyAgg[month][exp.cat] || 0) + exp.amount;
+
+    o.lastAutoGenPeriod = info.periodKey;
+    anyAdded = true;
+  });
+
+  if (anyAdded) {
+    recalcBalances(data, allExpenses());
+    saveData(data);
+    showToast('Recurring expenses auto-added');
+    renderAll();
+  }
 }
 
 // ── Mortgages ─────────────────────────────────────────────────────────────────
@@ -4693,6 +4827,7 @@ document.addEventListener('visibilitychange', () => {
 
 document.querySelectorAll('input[type="date"]').forEach(makeDmyWidget);
 renderAll();
+autoGenOngoingExpenses();
 updateDriveSyncBtn();
 scheduleEventReminders();
 if (new URLSearchParams(location.search).get('add') === '1') {
