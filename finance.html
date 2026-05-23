@@ -3546,6 +3546,21 @@ if ('serviceWorker' in navigator) {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (busPollingInterval)    { clearInterval(busPollingInterval);    busPollingInterval    = null; }
+    if (busMapPollingInterval) { clearInterval(busMapPollingInterval); busMapPollingInterval = null; }
+  } else if (currentTab === 'events') {
+    if (eventViewMode === 'bus' && !busPollingInterval) {
+      renderBusPanel();
+      busPollingInterval = setInterval(renderBusPanel, 60000);
+    } else if (eventViewMode === 'busmap' && !busMapPollingInterval) {
+      refreshBusMapMarkers();
+      busMapPollingInterval = setInterval(refreshBusMapMarkers, 30000);
+    }
+  }
+});
+
 document.querySelectorAll('input[type="date"]').forEach(makeDmyWidget);
 renderAll();
 updateDriveSyncBtn();
