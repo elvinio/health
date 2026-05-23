@@ -428,6 +428,14 @@
     background: #22a84a;
     animation: busMapPulse .9s ease-in-out infinite alternate;
   }
+  .bus-arrow {
+    display: inline-block;
+    font-size: .55rem;
+    margin-left: 3px;
+    vertical-align: middle;
+    line-height: 1;
+    opacity: .9;
+  }
   @keyframes busMapPulse {
     from { box-shadow: 0 2px 5px rgba(34,168,74,.4); }
     to   { box-shadow: 0 0 14px rgba(34,168,74,.85); }
@@ -2755,8 +2763,27 @@ async function renderBusPanel() {
 let busMapInstance = null;
 let busMapPollingInterval = null;
 let busMapMarkers = [];
-// Default center: Eunos / Marine Parade corridor (covers user's bus stops)
+let busMapPrevPositions = {};
 const BUS_MAP_DEFAULT = [1.3201, 103.9024];
+const BUS_MAP_CENTER_KEY = 'busMapCenter';
+
+function getBusMapCenter() {
+  const saved = localStorage.getItem(BUS_MAP_CENTER_KEY);
+  if (saved) {
+    const parts = saved.split(',').map(Number);
+    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) return parts;
+  }
+  return BUS_MAP_DEFAULT;
+}
+
+function computeBearing(lat1, lng1, lat2, lng2) {
+  const toRad = d => d * Math.PI / 180;
+  const φ1 = toRad(lat1), φ2 = toRad(lat2);
+  const Δλ = toRad(lng2 - lng1);
+  const y = Math.sin(Δλ) * Math.cos(φ2);
+  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
 
 function loadLeaflet(cb) {
   if (window.L) { cb(); return; }
@@ -2795,11 +2822,12 @@ function renderBusMapPanel() {
     return;
   }
 
+  const center = getBusMapCenter();
   panel.innerHTML = `
     <div class="bus-map-controls">
       <input type="text" id="busMapCoordInput" class="bus-map-coord-input"
         placeholder="lat, lng  e.g. 1.3201, 103.9024"
-        value="${BUS_MAP_DEFAULT[0].toFixed(4)}, ${BUS_MAP_DEFAULT[1].toFixed(4)}" />
+        value="${center[0].toFixed(4)}, ${center[1].toFixed(4)}" />
       <button class="bus-refresh-btn" title="Centre map" onclick="busMapSetCenter()">
         <span class="material-symbols-outlined" style="font-size:.95rem">my_location</span>
       </button>
@@ -2810,14 +2838,19 @@ function renderBusMapPanel() {
     <div id="busMapContainer"></div>
     <div class="bus-refresh-row" style="margin-top:8px">
       <span class="bus-last-updated" id="busMapLastUpdated">Fetching…</span>
-      <button class="bus-refresh-btn" onclick="saveBusApiKey('');busMapInstance=null;busMapMarkers=[];renderBusMapPanel()" style="font-size:.75rem">Change key</button>
+      <button class="bus-refresh-btn" onclick="saveBusApiKey('');busMapInstance=null;busMapMarkers=[];busMapPrevPositions={};renderBusMapPanel()" style="font-size:.75rem">Change key</button>
     </div>`;
 
-  busMapInstance = L.map('busMapContainer', { zoomControl: true }).setView(BUS_MAP_DEFAULT, 15);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  busMapPrevPositions = {};
+  busMapInstance = L.map('busMapContainer', { zoomControl: true }).setView(center, 15);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
     maxZoom: 19, minZoom: 11
   }).addTo(busMapInstance);
+  busMapInstance.on('moveend', () => {
+    const c = busMapInstance.getCenter();
+    localStorage.setItem(BUS_MAP_CENTER_KEY, `${c.lat.toFixed(6)},${c.lng.toFixed(6)}`);
+  });
   setTimeout(() => busMapInstance.invalidateSize(), 50);
 
   refreshBusMapMarkers();
@@ -2851,7 +2884,7 @@ async function refreshBusMapMarkers() {
     if (res.status !== 'fulfilled') return;
     (res.value.Services || []).forEach(svc => {
       if (!stop.services.includes(svc.ServiceNo)) return;
-      [svc.NextBus, svc.NextBus2].forEach(nb => {
+      [svc.NextBus, svc.NextBus2].forEach((nb, busIdx) => {
         if (!nb) return;
         const lat = parseFloat(nb.Latitude);
         const lng = parseFloat(nb.Longitude);
@@ -2860,11 +2893,20 @@ async function refreshBusMapMarkers() {
         if (seen.has(key)) return;
         seen.add(key);
 
+        const posKey = `${stop.code}|${svc.ServiceNo}|${busIdx}`;
+        const prev = busMapPrevPositions[posKey];
+        let arrowHtml = '';
+        if (prev && (Math.abs(prev.lat - lat) > 0.0001 || Math.abs(prev.lng - lng) > 0.0001)) {
+          const bearing = computeBearing(prev.lat, prev.lng, lat, lng);
+          arrowHtml = `<span class="bus-arrow" style="transform:rotate(${bearing.toFixed(0)}deg)">▲</span>`;
+        }
+        busMapPrevPositions[posKey] = { lat, lng };
+
         const mins = busMinutes(nb.EstimatedArrival);
         const arriving = mins !== null && mins <= 1;
         const icon = L.divIcon({
           className: '',
-          html: `<div class="bus-map-marker${arriving ? ' arriving' : ''}">${svc.ServiceNo}</div>`,
+          html: `<div class="bus-map-marker${arriving ? ' arriving' : ''}">${svc.ServiceNo}${arrowHtml}</div>`,
           iconSize: null,
           iconAnchor: [22, 13]
         });
