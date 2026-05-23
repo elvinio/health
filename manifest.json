@@ -5,8 +5,8 @@
   "start_url": "/health/finance.html",
   "scope": "/health/finance.html",
   "display": "standalone",
-  "background_color": "#faf6ee",
-  "theme_color": "#8b5e3c",
+  "background_color": "#f0f4f8",
+  "theme_color": "#1b3a6b",
   "icons": [
     { "src": "/health/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "/health/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
