@@ -430,11 +430,9 @@
   }
   .bus-arrow {
     display: inline-block;
-    font-size: .55rem;
-    margin-left: 3px;
+    margin-left: 4px;
     vertical-align: middle;
-    line-height: 1;
-    opacity: .9;
+    opacity: .95;
   }
   @keyframes busMapPulse {
     from { box-shadow: 0 2px 5px rgba(34,168,74,.4); }
@@ -2898,7 +2896,7 @@ async function refreshBusMapMarkers() {
         let arrowHtml = '';
         if (prev && (Math.abs(prev.lat - lat) > 0.0001 || Math.abs(prev.lng - lng) > 0.0001)) {
           const bearing = computeBearing(prev.lat, prev.lng, lat, lng);
-          arrowHtml = `<span class="bus-arrow" style="transform:rotate(${bearing.toFixed(0)}deg)">▲</span>`;
+          arrowHtml = `<svg class="bus-arrow" width="10" height="13" viewBox="0 0 10 13" style="transform:rotate(${bearing.toFixed(0)}deg)" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"><polyline points="1,8 5,2 9,8"/><polyline points="1,13 5,7 9,13"/></svg>`;
         }
         busMapPrevPositions[posKey] = { lat, lng };
 
