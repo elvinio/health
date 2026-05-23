@@ -169,6 +169,44 @@
   .ins-meta .label { font-weight: 700; min-width: 90px; }
   .ins-amount { font-size: 1.05rem; font-weight: 800; margin-top: 6px; }
 
+  /* ── Ongoing Expenses ── */
+  .ongoing-card {
+    background: var(--card); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 12px 14px;
+    margin-bottom: 8px; cursor: pointer; transition: background .1s;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .ongoing-card:active { background: var(--bg); }
+  .ongoing-left { flex: 1; min-width: 0; }
+  .ongoing-name { font-size: .95rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ongoing-meta { display: flex; gap: 6px; margin-top: 3px; align-items: center; flex-wrap: wrap; font-size: .78rem; color: var(--muted); }
+  .ongoing-amount { font-size: 1rem; font-weight: 800; white-space: nowrap; }
+
+  /* ── Mortgage ── */
+  .mortgage-card {
+    background: var(--card); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 14px 16px;
+    margin-bottom: 8px; transition: background .1s;
+  }
+  .mortgage-name { font-size: 1rem; font-weight: 700; }
+  .mortgage-meta { font-size: .82rem; color: var(--muted); margin-top: 4px; }
+  .mortgage-balance { font-size: 1.15rem; font-weight: 800; color: var(--primary); margin-top: 6px; }
+  .entry-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 0; border-top: 1px solid var(--border); font-size: .87rem;
+  }
+  .entry-type-badge {
+    font-size: .68rem; font-weight: 700; padding: 2px 7px; border-radius: 4px;
+    text-transform: uppercase; white-space: nowrap;
+  }
+  .badge-interest { background: #fff3e0; color: #e65100; }
+  .badge-payment { background: #e8f5e9; color: #2e7d32; }
+  .badge-balance { background: #e3f2fd; color: #1565c0; }
+  .projection-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 5px 0; font-size: .88rem; border-top: 1px solid var(--border);
+  }
+
   /* ── FAB ── */
   .fab {
     position: fixed; bottom: calc(24px + env(safe-area-inset-bottom));
@@ -686,7 +724,13 @@
 
 <!-- Expenses Page -->
 <div class="page" id="page-expenses">
-  <div class="section-heading">Expense List</div>
+  <div style="display:flex;align-items:center;justify-content:space-between">
+    <div class="section-heading">Expense List</div>
+    <div style="display:flex;gap:2px;padding-top:20px">
+      <button class="iconbtn" onclick="openOngoingListSheet()" title="Ongoing Expenses"><span class="material-symbols-outlined" style="font-size:1.3rem;color:var(--primary)">repeat</span></button>
+      <button class="iconbtn" onclick="openMortgageListSheet()" title="Mortgage Debt"><span class="material-symbols-outlined" style="font-size:1.3rem;color:var(--primary)">home_work</span></button>
+    </div>
+  </div>
   <div class="filter-bar">
     <div class="filter-pills" id="yearFilterPills"></div>
     <div class="filter-pills" id="accountFilterPills"></div>
@@ -1011,6 +1055,151 @@
 </div>
 
 <!-- Asset History Modal -->
+<!-- Ongoing List Sheet -->
+<div class="sheet" id="ongoingListSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" style="display:flex;justify-content:space-between;align-items:center">
+    <span>Ongoing Expenses</span>
+    <button class="btn btn-primary" style="font-size:.82rem;padding:7px 14px" onclick="openOngoingFormSheet()">+ Add</button>
+  </div>
+  <div id="ongoingList"></div>
+</div>
+
+<!-- Ongoing Expense Form Sheet -->
+<div class="sheet" id="ongoingFormSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="ongoingFormTitle">Add Ongoing Expense</div>
+  <form id="ongoingForm">
+    <input type="hidden" id="ongoingId">
+    <div class="field">
+      <label>Name</label>
+      <input type="text" id="ongoingName" placeholder="e.g. Netflix, Gym membership" required>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Amount</label>
+        <input type="number" id="ongoingAmount" min="0" step="0.01" placeholder="0.00" inputmode="decimal" required>
+      </div>
+      <div class="field">
+        <label>Frequency</label>
+        <select id="ongoingFrequency">
+          <option value="monthly">Monthly</option>
+          <option value="annual">Annual</option>
+          <option value="quarterly">Quarterly</option>
+          <option value="weekly">Weekly</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Category</label>
+        <select id="ongoingCategory"></select>
+      </div>
+      <div class="field">
+        <label>Account</label>
+        <select id="ongoingAccount"></select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Note</label>
+      <input type="text" id="ongoingNote" placeholder="Optional note">
+    </div>
+    <div class="btn-row">
+      <button type="submit" class="btn btn-primary btn-block">Save</button>
+      <button type="button" class="btn btn-danger" id="ongoingDeleteBtn" style="display:none;min-width:60px" onclick="deleteOngoing()">Delete</button>
+    </div>
+  </form>
+</div>
+
+<!-- Mortgage List Sheet -->
+<div class="sheet" id="mortgageListSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" style="display:flex;justify-content:space-between;align-items:center">
+    <span>Mortgage Debt</span>
+    <button class="btn btn-primary" style="font-size:.82rem;padding:7px 14px" onclick="openMortgageFormSheet()">+ Add</button>
+  </div>
+  <div id="mortgageList"></div>
+</div>
+
+<!-- Mortgage Form Sheet -->
+<div class="sheet" id="mortgageFormSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="mortgageFormTitle">Add Mortgage</div>
+  <form id="mortgageForm">
+    <input type="hidden" id="mortgageId">
+    <div class="field">
+      <label>Mortgage Name</label>
+      <input type="text" id="mortgageName" placeholder="e.g. DBS Home Loan" required>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Original Principal ($)</label>
+        <input type="number" id="mortgagePrincipal" min="0" step="0.01" placeholder="0.00" inputmode="decimal" required>
+      </div>
+      <div class="field">
+        <label>Start Date</label>
+        <input type="date" id="mortgageStartDate" required>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Interest Rate (% p.a.)</label>
+        <input type="number" id="mortgageRate" min="0" step="0.001" placeholder="e.g. 3.75" inputmode="decimal" required>
+      </div>
+      <div class="field">
+        <label>Tenor (years)</label>
+        <input type="number" id="mortgageTenor" min="1" step="1" placeholder="e.g. 25" required>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button type="submit" class="btn btn-primary btn-block">Save</button>
+      <button type="button" class="btn btn-danger" id="mortgageDeleteBtn" style="display:none;min-width:60px" onclick="deleteMortgage()">Delete</button>
+    </div>
+  </form>
+</div>
+
+<!-- Mortgage Detail Overlay -->
+<div class="modal-overlay" id="mortgageOverlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeMortgageOverlay()">✕</button>
+    <div class="modal-title" id="mortgageOverlayTitle">Mortgage</div>
+    <div id="mortgageOverlayBody"></div>
+  </div>
+</div>
+
+<!-- Mortgage Entry Sheet -->
+<div class="sheet" id="mortgageEntrySheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="mortgageEntryTitle">Add Entry</div>
+  <form id="mortgageEntryForm">
+    <input type="hidden" id="mortgageEntryMortgageId">
+    <input type="hidden" id="mortgageEntryId">
+    <div class="field">
+      <label>Date</label>
+      <input type="date" id="mortgageEntryDate" required>
+    </div>
+    <div class="field">
+      <label>Type</label>
+      <select id="mortgageEntryType">
+        <option value="balance">Balance Update</option>
+        <option value="interest">Interest Charged</option>
+        <option value="payment">Payment / Deduction</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Amount ($)</label>
+      <input type="number" id="mortgageEntryAmount" min="0" step="0.01" placeholder="0.00" inputmode="decimal" required>
+    </div>
+    <div class="field">
+      <label>Note</label>
+      <input type="text" id="mortgageEntryNote" placeholder="Optional note">
+    </div>
+    <div class="btn-row">
+      <button type="submit" class="btn btn-primary btn-block">Save Entry</button>
+    </div>
+  </form>
+</div>
+
 <div class="modal-overlay" id="historyOverlay">
   <div class="modal">
     <button class="modal-close" onclick="closeHistory()">✕</button>
@@ -1157,7 +1346,9 @@ function defaultData() {
     taxRecords: [],
     _deletedIds: [],
     budgets: {},
-    monthlyAgg: {}
+    monthlyAgg: {},
+    mortgages: [],
+    ongoingExpenses: []
   };
 }
 
@@ -1175,6 +1366,8 @@ function loadData() {
     if (!d._deletedIds) d._deletedIds = [];
     if (!d.budgets) d.budgets = {};
     if (!d.monthlyAgg) d.monthlyAgg = {};
+    if (!d.mortgages) d.mortgages = [];
+    if (!d.ongoingExpenses) d.ongoingExpenses = [];
     d.accounts.forEach(a => { if (!a._updatedAt) a._updatedAt = 0; });
     return d;
   } catch { return defaultData(); }
@@ -2677,6 +2870,100 @@ function renderYearBudgetSummary() {
   </div>`;
 }
 
+// ── Render: Asset & Mortgage Trend Chart ─────────────────────────────────────
+function renderAssetMortgageChart() {
+  const assets = data.assets || [];
+  const mortgages = data.mortgages || [];
+  if (!assets.length && !mortgages.length) return '';
+
+  const monthSet = new Set();
+  assets.forEach(a => a.history.forEach(h => monthSet.add(h.date.slice(0, 7))));
+  mortgages.forEach(m => {
+    if (m.startDate) monthSet.add(m.startDate.slice(0, 7));
+    (m.entries || []).filter(e => e.type === 'balance').forEach(e => monthSet.add(e.date.slice(0, 7)));
+  });
+  if (!monthSet.size) return '';
+
+  const months = [...monthSet].sort();
+
+  const assetTotals = months.map(month => {
+    const cutoff = month + '-31';
+    return assets.reduce((sum, a) => {
+      const units = a.units != null ? a.units : 1;
+      const relevant = a.history.filter(h => h.date <= cutoff).sort((x, y) => y.date.localeCompare(x.date));
+      return sum + (relevant.length ? relevant[0].value * units : 0);
+    }, 0);
+  });
+
+  const mortgageTotals = months.map(month => {
+    const cutoff = month + '-31';
+    return mortgages.reduce((sum, m) => {
+      const balanceEntries = (m.entries || []).filter(e => e.type === 'balance' && e.date <= cutoff).sort((x, y) => y.date.localeCompare(x.date));
+      if (balanceEntries.length) return sum + balanceEntries[0].amount;
+      if (m.startDate && m.startDate.slice(0, 7) <= month) return sum + (m.principal || 0);
+      return sum;
+    }, 0);
+  });
+
+  const hasAsset = assetTotals.some(v => v > 0);
+  const hasMortgage = mortgageTotals.some(v => v > 0);
+  if (!hasAsset && !hasMortgage) return '';
+
+  const COL_W = 64, H = 160, PAD_L = 44, PAD_B = 28, PAD_T = 8, PAD_R = 12;
+  const svgW = PAD_L + months.length * COL_W + PAD_R;
+  const svgH = H + PAD_T + PAD_B;
+
+  const maxVal = Math.max(...assetTotals, ...mortgageTotals, 1);
+  const scale = Math.pow(10, Math.floor(Math.log10(maxVal)));
+  const maxScaled = Math.ceil(maxVal / scale) * scale;
+
+  const xPos = i => PAD_L + i * COL_W + COL_W / 2;
+  const yPos = v => PAD_T + H - Math.min(1, v / maxScaled) * H;
+
+  const ticks = [0, .25, .5, .75, 1].map(f => ({ v: maxScaled * f, y: yPos(maxScaled * f) }));
+  const grid = ticks.map(({ v, y }) =>
+    `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${(svgW - PAD_R).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#e8dece" stroke-width="1"/>` +
+    `<text x="${(PAD_L - 4).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="#7a6a52">${fmtShort(v)}</text>`
+  ).join('');
+
+  const xLabels = months.map((m, i) => {
+    const lbl = new Date(m + '-01T00:00:00').toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
+    return `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="8" fill="#7a6a52">${lbl}</text>`;
+  }).join('');
+
+  const ASSET_COLOR = '#27ae60';
+  const MORTGAGE_COLOR = '#e74c3c';
+
+  const assetLine = (() => {
+    if (!hasAsset) return '';
+    const pts = assetTotals.map((v, i) => [xPos(i), yPos(v)]);
+    const path = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+    const dots = pts.map(([cx, cy]) => `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.5" fill="${ASSET_COLOR}" stroke="#fff" stroke-width="1.5"/>`).join('');
+    return `<path d="${path}" fill="none" stroke="${ASSET_COLOR}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${dots}`;
+  })();
+
+  const mortgageLine = (() => {
+    if (!hasMortgage) return '';
+    const pts = mortgageTotals.map((v, i) => [xPos(i), yPos(v)]);
+    const path = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+    const dots = pts.map(([cx, cy]) => `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.5" fill="${MORTGAGE_COLOR}" stroke="#fff" stroke-width="1.5"/>`).join('');
+    return `<path d="${path}" fill="none" stroke="${MORTGAGE_COLOR}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="5 3"/>${dots}`;
+  })();
+
+  const legend = `<div class="chart-legend">
+    ${hasAsset ? `<div class="legend-item"><div class="legend-dot" style="background:${ASSET_COLOR}"></div><span>Total Assets</span></div>` : ''}
+    ${hasMortgage ? `<div class="legend-item"><div class="legend-dot" style="background:${MORTGAGE_COLOR}"></div><span>Mortgage Balance</span></div>` : ''}
+  </div>`;
+
+  return `<div class="chart-wrap">
+    <div class="chart-title">Asset &amp; Mortgage Trend</div>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+      <svg width="${svgW}" height="${svgH}" style="display:block">${grid}${assetLine}${mortgageLine}${xLabels}</svg>
+    </div>
+    ${legend}
+  </div>`;
+}
+
 function renderAnalysis() {
   const el = document.getElementById('analysisList');
   const allYears = getExpenseYears();
@@ -2698,8 +2985,10 @@ function renderAnalysis() {
     if (Object.keys(filtered).length) byMonth[month] = filtered;
   });
 
+  const assetMortgageChart = `<div id="assetMortgageChart">${renderAssetMortgageChart()}</div>`;
+
   if (!Object.keys(byMonth).length) {
-    el.innerHTML = yearPillsHtml + '<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">bar_chart</span></div>No expense data yet.</div>';
+    el.innerHTML = yearPillsHtml + assetMortgageChart + '<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">bar_chart</span></div>No expense data yet.</div>';
     return;
   }
 
@@ -2743,7 +3032,7 @@ function renderAnalysis() {
 
   const yearlyChart = `<div id="yearlyChart">${renderYearlyChart()}</div>`;
   const budgetSummary = renderYearBudgetSummary();
-  el.innerHTML = yearPillsHtml + chart + yearlyChart + budgetSummary + cards;
+  el.innerHTML = yearPillsHtml + assetMortgageChart + chart + yearlyChart + budgetSummary + cards;
 }
 
 // ── Events ────────────────────────────────────────────────────────────────────
@@ -3691,6 +3980,336 @@ function deleteInsurance() {
   renderAll();
   showToast('Insurance deleted');
 }
+
+// ── Ongoing Expenses ──────────────────────────────────────────────────────────
+function openOngoingListSheet() {
+  renderOngoingList();
+  openSheet('ongoingListSheet');
+}
+
+function renderOngoingList() {
+  const el = document.getElementById('ongoingList');
+  const list = data.ongoingExpenses || [];
+  if (!list.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">repeat</span></div>No ongoing expenses yet.<br>Tap + to add one.</div>';
+    return;
+  }
+  const freqLabel = { monthly: 'mo', annual: 'yr', quarterly: 'qtr', weekly: 'wk' };
+  const annualMult = { monthly: 12, annual: 1, quarterly: 4, weekly: 52 };
+  el.innerHTML = list.map(o => {
+    const acc = data.accounts.find(a => a.id === o.accountId);
+    const freq = freqLabel[o.frequency] || o.frequency;
+    const annual = fmtDollar(o.amount * (annualMult[o.frequency] || 12));
+    return `<div class="ongoing-card" onclick="openOngoingFormSheet('${o.id}')">
+      <div class="ongoing-left">
+        <div class="ongoing-name">${esc(o.name)}</div>
+        <div class="ongoing-meta">
+          <span class="cat-chip">${esc(o.category || '—')}</span>
+          ${acc ? `<span class="acc-badge${acc.id === 'acc1' ? '' : ' acc2'}">${esc(acc.name)}</span>` : ''}
+          <span>${annual}/yr</span>
+        </div>
+      </div>
+      <div class="ongoing-amount">${fmtCurrency(o.amount)}/${freq}</div>
+    </div>`;
+  }).join('');
+}
+
+function openOngoingFormSheet(id) {
+  document.getElementById('ongoingForm').reset();
+  document.getElementById('ongoingId').value = '';
+  document.getElementById('ongoingDeleteBtn').style.display = 'none';
+  const cats = [...new Set([...DEFAULT_CATS, ...allExpenses().map(e => e.cat)])].sort();
+  document.getElementById('ongoingCategory').innerHTML = cats.map(c => `<option>${esc(c)}</option>`).join('');
+  document.getElementById('ongoingAccount').innerHTML = data.accounts.map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join('');
+
+  if (id) {
+    const o = (data.ongoingExpenses || []).find(x => x.id === id);
+    if (!o) return;
+    document.getElementById('ongoingFormTitle').textContent = 'Edit Ongoing Expense';
+    document.getElementById('ongoingId').value = id;
+    document.getElementById('ongoingName').value = o.name;
+    document.getElementById('ongoingAmount').value = o.amount;
+    document.getElementById('ongoingFrequency').value = o.frequency || 'monthly';
+    document.getElementById('ongoingCategory').value = o.category || '';
+    document.getElementById('ongoingAccount').value = o.accountId || '';
+    document.getElementById('ongoingNote').value = o.note || '';
+    document.getElementById('ongoingDeleteBtn').style.display = '';
+  } else {
+    document.getElementById('ongoingFormTitle').textContent = 'Add Ongoing Expense';
+  }
+  openSheet('ongoingFormSheet');
+  setTimeout(() => document.getElementById('ongoingName').focus(), 350);
+}
+
+document.getElementById('ongoingForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const id = document.getElementById('ongoingId').value;
+  const entry = {
+    id: id || uid(),
+    name: document.getElementById('ongoingName').value.trim(),
+    amount: parseFloat(document.getElementById('ongoingAmount').value) || 0,
+    frequency: document.getElementById('ongoingFrequency').value,
+    category: document.getElementById('ongoingCategory').value,
+    accountId: document.getElementById('ongoingAccount').value,
+    note: document.getElementById('ongoingNote').value.trim(),
+    _updatedAt: Date.now()
+  };
+  if (!data.ongoingExpenses) data.ongoingExpenses = [];
+  if (id) {
+    const idx = data.ongoingExpenses.findIndex(x => x.id === id);
+    if (idx >= 0) data.ongoingExpenses[idx] = entry;
+  } else {
+    data.ongoingExpenses.push(entry);
+  }
+  saveData(data);
+  closeSheet();
+  showToast(id ? 'Updated' : 'Added');
+  setTimeout(() => openOngoingListSheet(), 350);
+});
+
+function deleteOngoing() {
+  const id = document.getElementById('ongoingId').value;
+  if (!id) return;
+  if (!confirm('Delete this ongoing expense?')) return;
+  data.ongoingExpenses = (data.ongoingExpenses || []).filter(x => x.id !== id);
+  saveData(data);
+  closeSheet();
+  showToast('Deleted');
+  setTimeout(() => openOngoingListSheet(), 350);
+}
+
+// ── Mortgages ─────────────────────────────────────────────────────────────────
+function mortgageCurrentBalance(m) {
+  const entries = (m.entries || []).filter(e => e.type === 'balance').sort((a, b) => b.date.localeCompare(a.date) || b._ts - a._ts);
+  return entries.length ? entries[0].amount : (m.principal || 0);
+}
+
+function mortgageMonthlyInstallment(m) {
+  const P = m.principal || 0;
+  const r = (m.interestRate || 0) / 100 / 12;
+  const n = (m.tenorYears || 0) * 12;
+  if (!r || !n || !P) return 0;
+  return P * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1);
+}
+
+let _currentMortgageId = null;
+
+function openMortgageListSheet() {
+  renderMortgageList();
+  openSheet('mortgageListSheet');
+}
+
+function renderMortgageList() {
+  const el = document.getElementById('mortgageList');
+  const list = data.mortgages || [];
+  if (!list.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">home_work</span></div>No mortgages yet.<br>Tap + to add one.</div>';
+    return;
+  }
+  el.innerHTML = list.map(m => {
+    const bal = mortgageCurrentBalance(m);
+    const monthlyPmt = mortgageMonthlyInstallment(m);
+    return `<div class="mortgage-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <div class="mortgage-name">${esc(m.name)}</div>
+        <div style="display:flex;gap:4px">
+          <button class="iconbtn" onclick="openMortgageFormSheet('${m.id}')" title="Edit"><span class="material-symbols-outlined" style="font-size:1rem">edit</span></button>
+          <button class="iconbtn" onclick="openMortgageOverlay('${m.id}')" title="Entries"><span class="material-symbols-outlined" style="font-size:1rem">history</span></button>
+        </div>
+      </div>
+      <div class="mortgage-meta">${m.interestRate}% p.a. fixed · ${m.tenorYears}yr · ${fmtCurrency(monthlyPmt)}/mo installment</div>
+      <div class="mortgage-balance">Balance: ${fmtDollar(bal)}</div>
+    </div>`;
+  }).join('');
+}
+
+function openMortgageFormSheet(id) {
+  document.getElementById('mortgageForm').reset();
+  document.getElementById('mortgageId').value = '';
+  document.getElementById('mortgageDeleteBtn').style.display = 'none';
+  document.getElementById('mortgageStartDate').value = today();
+
+  if (id) {
+    const m = (data.mortgages || []).find(x => x.id === id);
+    if (!m) return;
+    document.getElementById('mortgageFormTitle').textContent = 'Edit Mortgage';
+    document.getElementById('mortgageId').value = id;
+    document.getElementById('mortgageName').value = m.name;
+    document.getElementById('mortgagePrincipal').value = m.principal;
+    document.getElementById('mortgageStartDate').value = m.startDate || today();
+    document.getElementById('mortgageRate').value = m.interestRate;
+    document.getElementById('mortgageTenor').value = m.tenorYears;
+    document.getElementById('mortgageDeleteBtn').style.display = '';
+  } else {
+    document.getElementById('mortgageFormTitle').textContent = 'Add Mortgage';
+  }
+  openSheet('mortgageFormSheet');
+  setTimeout(() => document.getElementById('mortgageName').focus(), 350);
+}
+
+document.getElementById('mortgageForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const id = document.getElementById('mortgageId').value;
+  const entry = {
+    id: id || uid(),
+    name: document.getElementById('mortgageName').value.trim(),
+    principal: parseFloat(document.getElementById('mortgagePrincipal').value) || 0,
+    startDate: document.getElementById('mortgageStartDate').value,
+    interestRate: parseFloat(document.getElementById('mortgageRate').value) || 0,
+    tenorYears: parseInt(document.getElementById('mortgageTenor').value) || 0,
+    entries: [],
+    _updatedAt: Date.now()
+  };
+  if (!data.mortgages) data.mortgages = [];
+  if (id) {
+    const idx = data.mortgages.findIndex(x => x.id === id);
+    if (idx >= 0) {
+      entry.entries = data.mortgages[idx].entries || [];
+      data.mortgages[idx] = entry;
+    }
+  } else {
+    data.mortgages.push(entry);
+  }
+  saveData(data);
+  renderAll();
+  closeSheet();
+  showToast(id ? 'Mortgage updated' : 'Mortgage added');
+  setTimeout(() => openMortgageListSheet(), 350);
+});
+
+function deleteMortgage() {
+  const id = document.getElementById('mortgageId').value;
+  if (!id) return;
+  if (!confirm('Delete this mortgage and all its entries?')) return;
+  data._deletedIds.push(id);
+  data.mortgages = (data.mortgages || []).filter(x => x.id !== id);
+  saveData(data);
+  renderAll();
+  closeSheet();
+  showToast('Mortgage deleted');
+  setTimeout(() => openMortgageListSheet(), 350);
+}
+
+function openMortgageOverlay(id) {
+  const m = (data.mortgages || []).find(x => x.id === id);
+  if (!m) return;
+  _currentMortgageId = id;
+  document.getElementById('mortgageOverlayTitle').textContent = m.name;
+  renderMortgageOverlayBody(m);
+  document.getElementById('mortgageOverlay').classList.add('open');
+}
+
+function renderMortgageOverlayBody(m) {
+  const entries = [...(m.entries || [])].sort((a, b) => b.date.localeCompare(a.date) || b._ts - a._ts);
+  const monthlyPmt = mortgageMonthlyInstallment(m);
+  const bal = mortgageCurrentBalance(m);
+  const yearlyInterest = bal * (m.interestRate / 100);
+
+  const r = (m.interestRate || 0) / 100 / 12;
+  const n = (m.tenorYears || 0) * 12;
+  const startMs = m.startDate ? new Date(m.startDate + 'T00:00:00').getTime() : Date.now();
+  const monthsElapsed = Math.max(0, Math.floor((Date.now() - startMs) / (30.44 * 24 * 3600 * 1000)));
+  const monthsRemaining = Math.max(0, n - monthsElapsed);
+
+  const projYears = [1, 2, 3, 5, 10].filter(yr => yr * 12 <= monthsRemaining + 6);
+  const projRows = projYears.map(yr => {
+    let b = bal;
+    for (let i = 0; i < yr * 12 && b > 0; i++) {
+      const int = b * r;
+      b = Math.max(0, b + int - monthlyPmt);
+    }
+    const totalInterest = monthlyPmt * yr * 12 - (bal - b);
+    return `<div class="projection-row">
+      <span style="color:var(--muted)">In ${yr} year${yr > 1 ? 's' : ''}</span>
+      <span style="font-weight:700">${fmtDollar(Math.max(0, b))}</span>
+      <span style="color:var(--red);font-size:.8rem">int: ${fmtDollar(Math.max(0, totalInterest))}</span>
+    </div>`;
+  }).join('');
+
+  const entryRows = entries.length ? entries.map(e => {
+    const typeClass = e.type === 'interest' ? 'badge-interest' : e.type === 'payment' ? 'badge-payment' : 'badge-balance';
+    const typeLabel = e.type === 'interest' ? 'Interest' : e.type === 'payment' ? 'Payment' : 'Balance';
+    return `<div class="entry-row">
+      <span class="entry-type-badge ${typeClass}">${typeLabel}</span>
+      <span style="color:var(--muted);font-size:.8rem;white-space:nowrap">${formatDate(e.date)}</span>
+      <span style="flex:1;text-align:right;font-weight:700">${fmtCurrency(e.amount)}</span>
+      ${e.note ? `<span style="color:var(--muted);font-size:.8rem;margin-left:4px">${esc(e.note)}</span>` : ''}
+    </div>`;
+  }).join('') : '<div style="color:var(--muted);font-size:.88rem;padding:12px 0">No entries yet. Add a balance update to get started.</div>';
+
+  document.getElementById('mortgageOverlayBody').innerHTML = `
+    <div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span style="color:var(--muted);font-size:.85rem">Current Balance</span>
+        <span style="font-weight:800;font-size:1.1rem;color:var(--primary)">${fmtDollar(bal)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="color:var(--muted);font-size:.85rem">Monthly Installment</span>
+        <span style="font-weight:700">${fmtCurrency(monthlyPmt)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:var(--muted);font-size:.85rem">Est. Yearly Interest</span>
+        <span style="font-weight:700;color:#e74c3c">${fmtDollar(yearlyInterest)}</span>
+      </div>
+    </div>
+    ${projRows ? `<div style="background:var(--bg);border-radius:10px;padding:10px 12px;margin-bottom:14px">
+      <div style="font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Projected Balance</div>
+      ${projRows}
+    </div>` : ''}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-size:.82rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Entries</span>
+      <button class="btn btn-primary" style="font-size:.78rem;padding:5px 12px" onclick="openMortgageEntryFromOverlay('${m.id}')">+ Add Entry</button>
+    </div>
+    ${entryRows}`;
+}
+
+function closeMortgageOverlay() {
+  document.getElementById('mortgageOverlay').classList.remove('open');
+  _currentMortgageId = null;
+}
+
+function openMortgageEntryFromOverlay(mortgageId) {
+  closeMortgageOverlay();
+  setTimeout(() => openMortgageEntrySheet(mortgageId), 200);
+}
+
+function openMortgageEntrySheet(mortgageId) {
+  document.getElementById('mortgageEntryMortgageId').value = mortgageId;
+  document.getElementById('mortgageEntryId').value = '';
+  document.getElementById('mortgageEntryDate').value = today();
+  document.getElementById('mortgageEntryType').value = 'balance';
+  document.getElementById('mortgageEntryAmount').value = '';
+  document.getElementById('mortgageEntryNote').value = '';
+  document.getElementById('mortgageEntryTitle').textContent = 'Add Entry';
+  openSheet('mortgageEntrySheet');
+  setTimeout(() => document.getElementById('mortgageEntryAmount').focus(), 350);
+}
+
+document.getElementById('mortgageEntryForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const mortgageId = document.getElementById('mortgageEntryMortgageId').value;
+  const m = (data.mortgages || []).find(x => x.id === mortgageId);
+  if (!m) return;
+  const entry = {
+    id: uid(),
+    date: document.getElementById('mortgageEntryDate').value,
+    type: document.getElementById('mortgageEntryType').value,
+    amount: parseFloat(document.getElementById('mortgageEntryAmount').value) || 0,
+    note: document.getElementById('mortgageEntryNote').value.trim(),
+    _ts: Date.now()
+  };
+  if (!m.entries) m.entries = [];
+  m.entries.push(entry);
+  saveData(data);
+  renderAll();
+  closeSheet();
+  showToast('Entry added');
+  setTimeout(() => openMortgageOverlay(mortgageId), 350);
+});
+
+document.getElementById('mortgageOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('mortgageOverlay')) closeMortgageOverlay();
+});
 
 // ── Render: Tax Records ───────────────────────────────────────────────────────
 function calcEffectiveTax(r) {
