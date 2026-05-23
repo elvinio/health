@@ -136,17 +136,18 @@
 
   .asset-card {
     background: var(--card); border-radius: var(--radius);
-    box-shadow: var(--shadow); padding: 14px 16px;
-    margin-bottom: 10px; cursor: pointer; transition: background .1s;
+    box-shadow: var(--shadow); padding: 10px 14px;
+    margin-bottom: 6px; cursor: pointer; transition: background .1s;
   }
   .asset-card:active { background: var(--bg); }
-  .asset-name { font-size: 1rem; font-weight: 700; }
-  .asset-value { font-size: 1.4rem; font-weight: 800; margin-top: 2px; }
-  .asset-delta { font-size: .82rem; font-weight: 600; margin-top: 2px; }
+  .asset-row-main { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .asset-name { font-size: .95rem; font-weight: 700; }
+  .asset-value { font-size: 1.05rem; font-weight: 800; }
+  .asset-meta { font-size: .78rem; margin-top: 3px; }
+  .asset-delta { font-weight: 600; }
   .asset-delta.up { color: var(--green); }
   .asset-delta.down { color: var(--red); }
   .asset-delta.flat { color: var(--muted); }
-  .asset-date { font-size: .75rem; color: var(--muted); margin-top: 2px; }
 
   /* ── FAB ── */
   .fab {
@@ -700,13 +701,17 @@
     </div>
     <div class="field-row">
       <div class="field">
-        <label>Current Value</label>
-        <input type="number" id="assetValue" min="0" step="0.01" placeholder="0.00" required>
+        <label>Units</label>
+        <input type="number" id="assetUnits" min="0" step="any" placeholder="1">
       </div>
       <div class="field">
-        <label>Date</label>
-        <input type="date" id="assetDate" required>
+        <label>Price</label>
+        <input type="number" id="assetValue" min="0" step="0.01" placeholder="0.00" required>
       </div>
+    </div>
+    <div class="field">
+      <label>Date</label>
+      <input type="date" id="assetDate" required>
     </div>
     <div class="btn-row">
       <button type="submit" class="btn btn-primary btn-block">Save</button>
@@ -1472,14 +1477,14 @@ function saveAccountSettings() {
 // ── Render: Investments ───────────────────────────────────────────────────────
 function renderInvestments() {
   const total = data.assets.reduce((s, a) => s + currentValue(a), 0);
-  document.getElementById('portfolioTotal').textContent = fmtCurrency(total);
+  document.getElementById('portfolioTotal').textContent = fmtDollar(total);
 
   const prevTotal = data.assets.reduce((s, a) => s + prevValue(a), 0);
   const diff = total - prevTotal;
   const pct = prevTotal ? (diff / prevTotal * 100) : 0;
   const changeEl = document.getElementById('portfolioChange');
   if (data.assets.length && prevTotal !== total) {
-    changeEl.textContent = `${diff >= 0 ? '+' : ''}${fmtCurrency(diff)} (${diff >= 0 ? '+' : ''}${pct.toFixed(2)}%) from last update`;
+    changeEl.textContent = `${diff >= 0 ? '+' : ''}${fmtDollar(diff)} (${diff >= 0 ? '+' : ''}${pct.toFixed(2)}%) from last update`;
   } else {
     changeEl.textContent = '';
   }
@@ -1496,30 +1501,34 @@ function renderInvestments() {
     const pct = prev ? (diff / prev * 100) : 0;
     const deltaClass = diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat';
     const deltaText = prev > 0
-      ? `${diff >= 0 ? '+' : ''}${fmtCurrency(diff)} (${diff >= 0 ? '+' : ''}${pct.toFixed(2)}%)`
+      ? `${diff >= 0 ? '+' : ''}${fmtDollar(diff)} (${diff >= 0 ? '+' : ''}${pct.toFixed(2)}%)`
       : 'No prior value';
     const lastDate = a.history.length ? a.history[a.history.length - 1].date : '';
+    const unitsLabel = (a.units != null && a.units !== 1) ? `<span style="color:var(--muted);font-size:.75rem;font-weight:500"> ×${a.units}</span>` : '';
     return `
       <div class="asset-card" onclick="openAssetSheet('${a.id}')">
-        <div class="card-row">
-          <div>
-            <div class="asset-name">${esc(a.name)}</div>
-            <div class="asset-value">${fmtCurrency(cur)}</div>
-            <div class="asset-delta ${deltaClass}">${deltaText}</div>
-            <div class="asset-date">${lastDate ? 'Updated ' + formatDate(lastDate) : ''}</div>
+        <div class="asset-row-main">
+          <div class="asset-name">${esc(a.name)}${unitsLabel}</div>
+          <div style="display:flex;align-items:center;gap:4px">
+            <div class="asset-value">${fmtDollar(cur)}</div>
+            <button class="iconbtn" style="font-size:.9rem;color:var(--muted)" onclick="event.stopPropagation();openHistory('${a.id}')"><span class="material-symbols-outlined">history</span></button>
           </div>
-          <button class="iconbtn" style="font-size:1rem;color:var(--muted)" onclick="event.stopPropagation();openHistory('${a.id}')"><span class="material-symbols-outlined">history</span></button>
+        </div>
+        <div class="asset-meta">
+          <span class="asset-delta ${deltaClass}">${deltaText}</span>${lastDate ? ` <span style="color:var(--muted)">· ${formatDate(lastDate)}</span>` : ''}
         </div>
       </div>`;
   }).join('');
 }
 
 function currentValue(a) {
-  return a.history.length ? a.history[a.history.length - 1].value : 0;
+  const units = a.units != null ? a.units : 1;
+  return a.history.length ? a.history[a.history.length - 1].value * units : 0;
 }
 
 function prevValue(a) {
-  return a.history.length > 1 ? a.history[a.history.length - 2].value : currentValue(a);
+  const units = a.units != null ? a.units : 1;
+  return a.history.length > 1 ? a.history[a.history.length - 2].value * units : currentValue(a);
 }
 
 // ── Asset Sheet ───────────────────────────────────────────────────────────────
@@ -1528,6 +1537,7 @@ function openAssetSheet(id) {
   form.reset();
   document.getElementById('assetId').value = '';
   document.getElementById('assetDate').value = today();
+  document.getElementById('assetUnits').value = '';
   document.getElementById('assetDeleteBtn').style.display = 'none';
 
   if (id) {
@@ -1536,7 +1546,9 @@ function openAssetSheet(id) {
     document.getElementById('assetSheetTitle').textContent = 'Update Asset';
     document.getElementById('assetId').value = id;
     document.getElementById('assetName').value = asset.name;
-    document.getElementById('assetValue').value = currentValue(asset) || '';
+    document.getElementById('assetUnits').value = asset.units != null ? asset.units : 1;
+    const lastEntry = asset.history[asset.history.length - 1];
+    document.getElementById('assetValue').value = lastEntry ? lastEntry.value : '';
     document.getElementById('assetDeleteBtn').style.display = '';
   } else {
     document.getElementById('assetSheetTitle').textContent = 'Add Asset';
@@ -1550,18 +1562,21 @@ document.getElementById('assetForm').addEventListener('submit', e => {
   const id = document.getElementById('assetId').value;
   const name = document.getElementById('assetName').value.trim();
   const value = parseFloat(document.getElementById('assetValue').value);
+  const unitsRaw = document.getElementById('assetUnits').value;
+  const units = unitsRaw !== '' ? parseFloat(unitsRaw) : 1;
   const date = document.getElementById('assetDate').value;
 
   if (id) {
     const asset = data.assets.find(a => a.id === id);
     if (!asset) return;
     asset.name = name;
+    asset.units = units;
     const last = asset.history[asset.history.length - 1];
     if (!last || last.value !== value || last.date !== date) {
       asset.history.push({ date, value, _ts: Date.now() });
     }
   } else {
-    data.assets.push({ id: uid(), name, history: [{ date, value, _ts: Date.now() }] });
+    data.assets.push({ id: uid(), name, units, history: [{ date, value, _ts: Date.now() }] });
   }
   saveData(data);
   closeSheet();
@@ -1905,7 +1920,7 @@ function mergeData(local, remote) {
       assetMap.set(a.id, { ...a, history: [] });
     }
     assetMap.get(a.id).history.push(...(a.history || []));
-    // keep latest name
+    // keep latest name and units
     const existing = assetMap.get(a.id);
     const localAsset = local.assets && local.assets.find(x => x.id === a.id);
     const remoteAsset = remote.assets && remote.assets.find(x => x.id === a.id);
@@ -1913,6 +1928,8 @@ function mergeData(local, remote) {
       ? (localAsset._nameTs || 0) >= (remoteAsset._nameTs || 0) ? localAsset.name : remoteAsset.name
       : (localAsset || remoteAsset || a).name;
     existing.name = latestName;
+    if (localAsset && localAsset.units != null) existing.units = localAsset.units;
+    else if (remoteAsset && remoteAsset.units != null) existing.units = remoteAsset.units;
   });
   // Deduplicate history by _ts within each asset, sort ascending
   assetMap.forEach(a => {
