@@ -1241,10 +1241,11 @@ const DAYS = [
 
 /* List of weighted exercises that need a Week-1 baseline.
    Walks DAYS, dedupes by exercise.id, keeps only weightType ≠ 'none'.       */
-function listWeightedExercises() {
+function listWeightedExercises(prog) {
+  prog = prog || getActiveProgram();
   const seen = new Set();
   const out = [];
-  for (const d of DAYS) {
+  for (const d of prog.days) {
     if (!d.blocks) continue;
     for (const b of d.blocks) {
       if (!b.exercises) continue;
@@ -1272,6 +1273,34 @@ const WEIGHT_HINTS = {
 };
 
 /* ════════════════════════════════════════════════════════════════
+   PROGRAMME REGISTRY
+   Built-in programmes are defined here. Imported programmes are
+   stored in Storage.importedPrograms and loaded at runtime.
+   ════════════════════════════════════════════════════════════════ */
+const BUILT_IN_PROGRAMS = [
+  {
+    id: 'strength-40-male',
+    name: 'Strength + Cardio (40s, Male)',
+    description: '4-week progressive overload cycle for adults 40–50. Mon–Fri strength, Sat rucking, Sun active recovery.',
+    weeks: WEEKS,
+    weekDefaultReps: WEEK_DEFAULT_REPS,
+    days: DAYS,
+  },
+];
+
+function getActiveProgram() {
+  const cfg = Storage.getConfig() || {};
+  const id = cfg.programId;
+  if (id) {
+    const builtin = BUILT_IN_PROGRAMS.find(p => p.id === id);
+    if (builtin) return builtin;
+    const imp = Storage.getImportedProgram(id);
+    if (imp) return imp;
+  }
+  return BUILT_IN_PROGRAMS[0];
+}
+
+/* ════════════════════════════════════════════════════════════════
    STORAGE  (multi-profile: health:v1)
    ════════════════════════════════════════════════════════════════ */
 const STORAGE_KEY = 'health:v1';
@@ -1286,6 +1315,7 @@ const Storage = {
         p2: { name: 'Person 2', gender: 'female' },
       },
       activeProfile: 'p1',
+      importedPrograms: {},
       perProfile: {
         p1: { config: null, baselines: {}, sessions: {}, doctorVisits: [], healthReports: [] },
         p2: { config: null, baselines: {}, sessions: {}, doctorVisits: [], healthReports: [] },
@@ -1317,6 +1347,7 @@ const Storage = {
     if (!this._data.profiles) this._data.profiles = { p1: { name: 'Person 1', gender: 'male' }, p2: { name: 'Person 2', gender: 'female' } };
     if (!this._data.perProfile) this._data.perProfile = {};
     if (!this._data.activeProfile) this._data.activeProfile = 'p1';
+    if (!this._data.importedPrograms) this._data.importedPrograms = {};
     this._ensureProfile('p1');
     this._ensureProfile('p2');
     return this._data;
@@ -1340,6 +1371,12 @@ const Storage = {
     this._ensureProfile(id);
     return this.load().perProfile[id];
   },
+
+  /* ── Imported programmes ────────────────────────────── */
+  getImportedPrograms() { return this.load().importedPrograms || {}; },
+  getImportedProgram(id) { return (this.load().importedPrograms || {})[id] || null; },
+  saveImportedProgram(prog) { this.load().importedPrograms[prog.id] = prog; this.save(); },
+  deleteImportedProgram(id) { delete this.load().importedPrograms[id]; this.save(); },
 
   /* ── Workout config ─────────────────────────────────── */
   getConfig(pid) { return this._pd(pid).config; },
@@ -1476,6 +1513,33 @@ function importData(fileInput) {
       location.reload();
     } catch {
       alert('Could not read the file — make sure it is a valid JSON backup.');
+    }
+    fileInput.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function importProgram(fileInput) {
+  const file = fileInput.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const prog = JSON.parse(e.target.result);
+      if (!prog.id || !prog.name || !prog.weeks || !prog.weekDefaultReps || !Array.isArray(prog.days)) {
+        alert('Invalid programme file. Must have: id, name, weeks, weekDefaultReps, days.');
+        return;
+      }
+      if (BUILT_IN_PROGRAMS.some(p => p.id === prog.id)) {
+        alert(`"${prog.id}" matches a built-in programme ID. Use a different id in your JSON.`);
+        return;
+      }
+      Storage.saveImportedProgram(prog);
+      const cfg = Storage.getConfig() || { startDate: todayISO(), cycleNumber: 1 };
+      Storage.setConfig({ ...cfg, programId: prog.id });
+      renderSetup(false);
+    } catch {
+      alert('Could not read the file — make sure it is valid JSON.');
     }
     fileInput.value = '';
   };
@@ -1810,19 +1874,22 @@ function todaySessionFromConfig(cfg) {
   const now = parseISO(todayISO());
   const dayIdx = Math.floor((now - start) / 86400000);
   if (dayIdx < 0) return { state: 'not-started', start: cfg.startDate };
+  const prog = getActiveProgram();
+  const numWeeks = Object.keys(prog.weeks).length;
   const week = Math.floor(dayIdx / 7) + 1;
   const day  = (dayIdx % 7) + 1;
-  if (week > 4) return { state: 'cycle-complete', week, day };
+  if (week > numWeeks) return { state: 'cycle-complete', week, day };
   return { state: 'ok', week, day };
 }
 
 /* ════════════════════════════════════════════════════════════════
    PROGRAMME LOOKUPS
    ════════════════════════════════════════════════════════════════ */
-function dayDef(dayNum) { return DAYS.find(d => d.day === dayNum); }
+function dayDef(dayNum) { return getActiveProgram().days.find(d => d.day === dayNum); }
 
 function setSpec(block, exercise, week) {
   // Returns { sets, reps (string|number), rest (seconds), perRoundReps (array|null) }
+  const prog = getActiveProgram();
   const sets =
     (exercise.setsByWeek && exercise.setsByWeek[week]) ??
     exercise.sets ??
@@ -1840,14 +1907,14 @@ function setSpec(block, exercise, week) {
   } else if (exercise.reps != null) {
     reps = exercise.reps;
   } else if (block.kind === 'main' || block.kind === 'finisher') {
-    reps = WEEK_DEFAULT_REPS[week];
+    reps = prog.weekDefaultReps[week];
   } else {
     reps = '';
   }
   const rest =
     (exercise.restByWeek && exercise.restByWeek[week]) ??
     (block.restByWeek && block.restByWeek[week]) ??
-    WEEKS[week].rest;
+    prog.weeks[week].rest;
   return { sets, reps, perRoundReps, rest };
 }
 
@@ -2109,7 +2176,9 @@ function route() {
   if (path === '/health') return renderHealth();
   if (path === '/day') {
     const w = Number(params.w), d = Number(params.d);
-    if (!w || !d || w < 1 || w > 4 || d < 1 || d > 7) return renderSetup(true);
+    const numW = Object.keys(getActiveProgram().weeks).length;
+    const numD = getActiveProgram().days.length;
+    if (!w || !d || w < 1 || w > numW || d < 1 || d > numD) return renderSetup(true);
     return renderDay(w, d);
   }
   // fallback
@@ -2156,6 +2225,36 @@ function renderSetup(isFirstRun) {
         <input type="text" id="p2-name" value="${escapeHtml(profiles.p2?.name || 'Person 2')}" placeholder="Name">
       </div>
       <button class="btn secondary sm" id="save-names-btn">Save names</button>
+    </div>
+
+    <div class="card">
+      <h2>Programme</h2>
+      ${(() => {
+        const activeProg = getActiveProgram();
+        const imported = Storage.getImportedPrograms();
+        const allProgs = [
+          ...BUILT_IN_PROGRAMS,
+          ...Object.values(imported),
+        ];
+        const opts = allProgs.map(p =>
+          `<option value="${escapeHtml(p.id)}" ${p.id === activeProg.id ? 'selected' : ''}>${escapeHtml(p.name)}</option>`
+        ).join('');
+        const numWeeks = Object.keys(activeProg.weeks).length;
+        const numDays  = activeProg.days.length;
+        const activeIsImported = !!imported[activeProg.id];
+        return `
+          <div class="field">
+            <label for="prog-select">Active programme</label>
+            <select id="prog-select" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:0.9rem;">${opts}</select>
+          </div>
+          <div class="text-xs text-muted mb-2" id="prog-desc">${escapeHtml(activeProg.description || '')}</div>
+          <div class="text-xs text-muted mb-2">${numWeeks} weeks · ${numDays} days</div>
+          <div class="row">
+            <button class="btn secondary sm" id="import-prog-btn">Import programme JSON</button>
+            <input type="file" id="import-prog-file" accept=".json" style="display:none">
+            ${activeIsImported ? `<button class="btn secondary sm" id="delete-prog-btn" data-id="${escapeHtml(activeProg.id)}">Remove this programme</button>` : ''}
+          </div>`;
+      })()}
     </div>
 
     <div class="card">
@@ -2290,8 +2389,10 @@ function renderSetup(isFirstRun) {
       if (inp.value !== '') weights[inp.dataset.ex] = Number(inp.value);
     });
     const recoveryHrRaw = document.getElementById('recovery-hr').value;
-    const newCfg = { startDate, cycleNumber: cycle };
+    const existingCfg = Storage.getConfig() || {};
+    const newCfg = { ...existingCfg, startDate, cycleNumber: cycle };
     if (recoveryHrRaw !== '') newCfg.recoveryHrTarget = Number(recoveryHrRaw);
+    else delete newCfg.recoveryHrTarget;
     Storage.setConfig(newCfg);
     Storage.setBaselines(cycle, weights);
     go('/today');
@@ -2318,6 +2419,27 @@ function renderSetup(isFirstRun) {
   const importFile = document.getElementById('import-file');
   document.getElementById('import-btn').onclick = () => importFile.click();
   importFile.onchange = () => importData(importFile);
+
+  // Programme card
+  document.getElementById('prog-select').onchange = e => {
+    const existingCfg = Storage.getConfig() || { startDate: todayISO(), cycleNumber: 1 };
+    Storage.setConfig({ ...existingCfg, programId: e.target.value });
+    renderSetup(false);
+  };
+  const importProgFile = document.getElementById('import-prog-file');
+  document.getElementById('import-prog-btn').onclick = () => importProgFile.click();
+  importProgFile.onchange = () => importProgram(importProgFile);
+  const deleteProg = document.getElementById('delete-prog-btn');
+  if (deleteProg) {
+    deleteProg.onclick = () => {
+      const id = deleteProg.dataset.id;
+      if (!confirm(`Remove imported programme "${id}"?`)) return;
+      Storage.deleteImportedProgram(id);
+      const existingCfg = Storage.getConfig() || {};
+      Storage.setConfig({ ...existingCfg, programId: BUILT_IN_PROGRAMS[0].id });
+      renderSetup(false);
+    };
+  }
 
   document.getElementById('drive-cred-btn').onclick = () => {
     const clientId = document.getElementById('drive-client-id').value.trim();
@@ -2421,15 +2543,16 @@ function renderDay(week, day, opts) {
     };
   }
 
+  const prog = getActiveProgram();
   document.getElementById('topbar-title').textContent = `Week ${week} · Day ${day}`;
   document.getElementById('topbar-sub').textContent =
-    `${WEEKS[week].phase} · RPE ${WEEKS[week].rpe} · ${WEEKS[week].rest}s rest`;
+    `${prog.weeks[week].phase} · RPE ${prog.weeks[week].rpe} · ${prog.weeks[week].rest}s rest`;
 
   const isRestType = d.type !== 'strength';
 
   let html = `
     <div class="day-header">
-      <div class="week-label">${escapeHtml(WEEKS[week].phase)} · Week ${week}</div>
+      <div class="week-label">${escapeHtml(prog.weeks[week].phase)} · Week ${week}</div>
       <div class="day-title">${escapeHtml(d.name)}</div>
       <div class="day-date">${escapeHtml(fmtDate(dateISO))}</div>
     </div>
@@ -2697,7 +2820,7 @@ function renderBlock(block, week, bi) {
   const meta = [];
   if (block.roundsByWeek) meta.push(`${block.roundsByWeek[week]} rounds`);
   if (block.kind === 'main' || block.kind === 'finisher') {
-    const r = (block.exercises[0] && block.exercises[0].restByWeek && block.exercises[0].restByWeek[week]) || WEEKS[week].rest;
+    const r = (block.exercises[0] && block.exercises[0].restByWeek && block.exercises[0].restByWeek[week]) || getActiveProgram().weeks[week].rest;
     meta.push(`${r}s rest`);
   }
   if (block.superset) meta.push('superset');
@@ -3129,7 +3252,7 @@ function renderHistory() {
 }
 
 function findExerciseName(id) {
-  for (const d of DAYS) {
+  for (const d of getActiveProgram().days) {
     if (!d.blocks) continue;
     for (const b of d.blocks) {
       if (!b.exercises) continue;
