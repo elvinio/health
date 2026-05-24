@@ -123,9 +123,9 @@
   }
   .expense-item:last-child { border-bottom: none; }
   .expense-item:active { opacity: .65; }
+  .cat-emoji { font-size: 1rem; flex: 0 0 auto; line-height: 1; width: 1.4rem; text-align: center; }
   .expense-left { flex: 1; min-width: 0; }
-  .expense-desc-row { display: flex; align-items: center; gap: 5px; min-width: 0; }
-  .expense-desc { font-size: .92rem; font-weight: 600; flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .expense-desc { font-size: .92rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
   .acc-badge {
     font-size: .7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;
     background: var(--primary); color: #fff; flex: 0 0 auto;
@@ -136,6 +136,9 @@
     background: var(--border); color: var(--muted); font-weight: 600; flex: 0 0 auto;
   }
   .expense-amount { font-size: .92rem; font-weight: 700; color: var(--red); white-space: nowrap; }
+  .acc-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+  .acc-dot.acc1 { background: #5b8af7; }
+  .acc-dot.acc2 { background: #f472b6; }
 
   /* ── Investment ── */
   .portfolio-banner {
@@ -1349,6 +1352,29 @@ function renderThemePicker() {
 
 const DEFAULT_CATS = ['Grocery', 'Travel'];
 
+function parseCatEmojis() {
+  const map = {};
+  (data.expenseCats || '').split(',').forEach(part => {
+    const s = part.trim();
+    if (!s) return;
+    const sp = s.indexOf(' ');
+    if (sp < 1) return;
+    const emoji = s.slice(0, sp).trim();
+    const name = s.slice(sp + 1).trim();
+    if (emoji && name) map[name] = emoji;
+  });
+  return map;
+}
+
+function expenseCatDefaults() {
+  const names = (data.expenseCats || '').split(',').map(part => {
+    const s = part.trim();
+    const sp = s.indexOf(' ');
+    return sp > 0 ? s.slice(sp + 1).trim() : s;
+  }).filter(Boolean);
+  return names.length ? names : DEFAULT_CATS;
+}
+
 // ── Storage ──────────────────────────────────────────────────────────────────
 const STORAGE_KEY = 'finance:v1';
 const DRIVE_FILE_KEY = 'finance:driveFileId';
@@ -1402,6 +1428,7 @@ function loadData() {
     if (!d.monthlyAgg) d.monthlyAgg = {};
     if (!d.mortgages) d.mortgages = [];
     if (!d.ongoingExpenses) d.ongoingExpenses = [];
+    if (!('expenseCats' in d)) d.expenseCats = '';
     d.accounts.forEach(a => { if (!a._updatedAt) a._updatedAt = 0; });
     return d;
   } catch { return defaultData(); }
@@ -1627,22 +1654,20 @@ function renderExpenseList() {
       headerRight = spendDiv;
     }
 
+    const emojiMap = parseCatEmojis();
     const dateRows = Object.entries(dateGroups).sort(([a], [b]) => b.localeCompare(a)).map(([date, exps]) => `
       <div class="date-group">
         <div class="date-label">${formatDate(date)}</div>
         ${exps.map(e => {
-          const acc = data.accounts.find(a => a.id === e.ac);
-          const badgeClass = e.ac === 'acc1' ? '' : ' acc2';
+          const emoji = emojiMap[e.cat] || '';
           return `
             <div class="expense-item" onclick="openExpenseSheet('${e.id}')">
+              <span class="cat-emoji">${emoji}</span>
               <div class="expense-left">
-                <div class="expense-desc-row">
-                  <span class="expense-desc">${esc(e.desc)}</span>
-                  <span class="acc-badge${badgeClass}">${esc(acc ? acc.name : '?')}</span>
-                  <span class="cat-chip">${esc(e.cat)}</span>
-                </div>
+                <span class="expense-desc">${esc(e.desc)}</span>
               </div>
               <div class="expense-amount" style="color:${e.cat === 'TopUp' ? 'var(--green)' : 'var(--red)'}">${e.cat === 'TopUp' ? '+' : '-'}${fmtCurrency(e.amount)}</div>
+              <div class="acc-dot ${e.ac === 'acc1' ? 'acc1' : 'acc2'}"></div>
             </div>`;
         }).join('')}
       </div>`).join('');
@@ -1678,7 +1703,7 @@ function openExpenseSheet(id, preAcct) {
   sel.innerHTML = data.accounts.map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join('');
 
   // Populate category select from existing data, TopUp first then alphabetical
-  const cats = [...new Set([...DEFAULT_CATS, ...allExpenses().map(e => e.cat)])].sort();
+  const cats = [...new Set([...expenseCatDefaults(), ...allExpenses().map(e => e.cat)])].sort();
   if (!cats.includes('TopUp')) cats.unshift('TopUp'); else { cats.splice(cats.indexOf('TopUp'), 1); cats.unshift('TopUp'); }
   document.getElementById('expCat').innerHTML = cats.map(c => `<option>${esc(c)}</option>`).join('');
 
@@ -1925,7 +1950,7 @@ function openAccountSettings() {
   document.getElementById('mainMenu').classList.remove('open');
   const body = document.getElementById('accountSettingsBody');
   const allCats = [...new Set([
-    ...DEFAULT_CATS,
+    ...expenseCatDefaults(),
     ...allExpenses().filter(e => e.cat !== 'TopUp').map(e => e.cat),
     ...Object.keys(data.budgets || {})
   ])].sort();
@@ -1953,11 +1978,18 @@ function openAccountSettings() {
           <input type="date" id="termDate${n}" value="${esc(td['t'+n] || '')}">
         </div>`).join('')}
     </div>
-    <div style="padding-top:4px">
+    <div style="padding-top:4px;padding-bottom:16px;border-bottom:1px solid var(--border)">
       <div class="section-heading">Event Tags</div>
       <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Comma-separated list of tags for events (e.g. Work, Personal, Travel).</p>
       <div class="field">
         <input type="text" id="eventTagsInput" value="${esc((data.eventTags || []).join(', '))}" placeholder="Work, Personal, Travel">
+      </div>
+    </div>
+    <div style="padding-top:4px">
+      <div class="section-heading">Expense Categories</div>
+      <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Comma-separated, emoji first. Sets the emoji shown per category in the expense list. E.g. 🎬 Entertainment, 🛒 Grocery</p>
+      <div class="field">
+        <input type="text" id="expenseCatsInput" value="${esc(data.expenseCats || '')}" placeholder="🎬 Entertainment, 🛒 Grocery, 🚗 Transport">
       </div>
     </div>`;
 
@@ -1996,8 +2028,11 @@ function saveAccountSettings() {
   data.eventTags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
   data._eventTagsTs = Date.now();
 
+  data.expenseCats = (document.getElementById('expenseCatsInput').value || '').trim();
+  data._expenseCatsTs = Date.now();
+
   const allCats = [...new Set([
-    ...DEFAULT_CATS,
+    ...expenseCatDefaults(),
     ...allExpenses().filter(e => e.cat !== 'TopUp').map(e => e.cat),
     ...Object.keys(data.budgets || {})
   ])].sort();
@@ -2515,6 +2550,12 @@ function mergeData(local, remote) {
     : (remote.eventTags || local.eventTags || []);
   const eventTagsTs = Math.max(local._eventTagsTs || 0, remote._eventTagsTs || 0);
 
+  // expenseCats: prefer whichever side was saved most recently
+  const expenseCats = (local._expenseCatsTs || 0) >= (remote._expenseCatsTs || 0)
+    ? (local.expenseCats ?? remote.expenseCats ?? '')
+    : (remote.expenseCats ?? local.expenseCats ?? '');
+  const expenseCatsTs = Math.max(local._expenseCatsTs || 0, remote._expenseCatsTs || 0);
+
   // Insurances: union by id, prefer higher _updatedAt, exclude deleted
   const insMap = new Map();
   [...(remote.insurances || []), ...(local.insurances || [])].forEach(i => {
@@ -2566,7 +2607,9 @@ function mergeData(local, remote) {
     termDates,
     _termDatesTs: termDatesTs,
     eventTags,
-    _eventTagsTs: eventTagsTs
+    _eventTagsTs: eventTagsTs,
+    expenseCats,
+    _expenseCatsTs: expenseCatsTs
   };
   recalcBalances(merged, merged.expenses);
   recalcMonthlyAgg(merged, merged.expenses);
@@ -4109,7 +4152,7 @@ function openOngoingFormSheet(id) {
   document.getElementById('ongoingId').value = '';
   document.getElementById('ongoingDeleteBtn').style.display = 'none';
   document.getElementById('ongoingStartDate').value = today();
-  const cats = [...new Set([...DEFAULT_CATS, ...allExpenses().map(e => e.cat)])].sort();
+  const cats = [...new Set([...expenseCatDefaults(), ...allExpenses().map(e => e.cat)])].sort();
   document.getElementById('ongoingCategory').innerHTML = cats.map(c => `<option>${esc(c)}</option>`).join('');
   document.getElementById('ongoingAccount').innerHTML = data.accounts.map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join('');
 
