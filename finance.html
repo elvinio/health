@@ -1016,6 +1016,7 @@
         <div class="tax-preview-row"><span>Tax Before Rebate</span><span id="pvTaxBefore">—</span></div>
         <div class="tax-preview-row deduction"><span>Less Rebate</span><span id="pvRebate">—</span></div>
         <div class="tax-preview-row total"><span>Tax Payable</span><span id="pvTaxPayable">—</span></div>
+        <div class="tax-preview-row"><span>Effective Rate</span><span id="pvEffectiveRate">—</span></div>
       </div>
     </div>
 
@@ -4505,8 +4506,8 @@ function renderTaxRecords() {
   const estimated = records.find(r => !r.isHistorical);
   const filed = records.find(r => r.isHistorical);
   let stripHtml = '';
-  if (estimated) stripHtml += `<div class="tax-summary-item"><div class="tax-summary-label">YA ${estimated.year + 1} Est. Tax</div><div class="tax-summary-value">${fmtCurrency(calcEffectiveTax(estimated))}</div></div>`;
-  if (filed) stripHtml += `<div class="tax-summary-item"><div class="tax-summary-label">YA ${filed.year + 1} Filed Tax</div><div class="tax-summary-value">${fmtCurrency(filed.taxPaid || 0)}</div></div>`;
+  if (estimated) stripHtml += `<div class="tax-summary-item"><div class="tax-summary-label">YA ${estimated.year + 1} Est. Tax</div><div class="tax-summary-value">${fmtDollar(calcEffectiveTax(estimated))}</div></div>`;
+  if (filed) stripHtml += `<div class="tax-summary-item"><div class="tax-summary-label">YA ${filed.year + 1} Filed Tax</div><div class="tax-summary-value">${fmtDollar(filed.taxPaid || 0)}</div></div>`;
   stripEl.innerHTML = stripHtml ? `<div class="tax-summary-strip">${stripHtml}</div>` : '';
 
   if (!records.length) {
@@ -4515,29 +4516,37 @@ function renderTaxRecords() {
   }
 
   listEl.innerHTML = records.map(r => {
-    let assessable, chargeable, taxPayable;
+    let assessable, chargeable, taxPayable, taxBeforeRebate, effectiveRate;
     if (r.isHistorical) {
       assessable = r.totalIncome || 0;
       chargeable = Math.max(0, assessable - (r.totalRelief || 0));
       taxPayable = r.taxPaid || 0;
+      taxBeforeRebate = taxPayable + (r.taxRebate || 0);
+      effectiveRate = assessable > 0 ? (taxPayable / assessable * 100).toFixed(1) : '0.0';
     } else {
       assessable = (r.basicSalary || 0) + (r.bonus || 0) + (r.otherIncome || 0);
       const totalRelief = (r.cpfEmployee || 0) + (r.reliefs || []).reduce((s, x) => s + (x.amount || 0), 0);
       chargeable = Math.max(0, assessable - totalRelief);
-      taxPayable = Math.max(0, calcSGTax(chargeable) - (r.taxRebate || 0));
+      taxBeforeRebate = calcSGTax(chargeable);
+      taxPayable = Math.max(0, taxBeforeRebate - (r.taxRebate || 0));
+      effectiveRate = assessable > 0 ? (taxPayable / assessable * 100).toFixed(1) : '0.0';
     }
     const badgeClass = r.isHistorical ? ' filed' : '';
     const badgeLabel = r.isHistorical ? 'Filed' : 'Estimate';
+    const metaHtml = r.isHistorical
+      ? `<span><span class="label">Income:</span>${fmtDollar(assessable)}</span>
+         <span><span class="label">Relief:</span>${fmtDollar(r.totalRelief || 0)}</span>
+         <span><span class="label">Tax Before Rebate:</span>${fmtDollar(taxBeforeRebate)}</span>
+         <span><span class="label">Tax Rebate:</span>${fmtDollar(r.taxRebate || 0)}</span>`
+      : `<span><span class="label">Assessable Income:</span>${fmtDollar(assessable)}</span>
+         <span><span class="label">Chargeable Income:</span>${fmtDollar(chargeable)}</span>`;
     return `<div class="tax-card" onclick="openTaxSheet('${esc(r.id)}')">
       <div class="tax-card-header">
         <div class="tax-year">YA ${r.year + 1} <span style="font-size:.85rem;font-weight:600;color:var(--muted)">(${r.year} income)</span></div>
         <div class="tax-badge${badgeClass}">${badgeLabel}</div>
       </div>
-      <div class="tax-meta">
-        <span><span class="label">Assessable Income:</span>${fmtCurrency(assessable)}</span>
-        <span><span class="label">Chargeable Income:</span>${fmtCurrency(chargeable)}</span>
-      </div>
-      <div class="tax-payable">Tax Payable: ${fmtCurrency(taxPayable)}</div>
+      <div class="tax-meta">${metaHtml}</div>
+      <div class="tax-payable">Tax Payable: ${fmtDollar(taxPayable)} <span style="font-size:.85rem;font-weight:600;color:var(--muted)">(${effectiveRate}% effective)</span></div>
     </div>`;
   }).join('');
 }
@@ -4631,14 +4640,16 @@ function updateTaxPreview() {
   const taxBefore   = calcSGTax(chargeable);
   const taxPayable  = Math.max(0, taxBefore - rebate);
   if (!(salary || bonus || other || cpf || totalReliefs || rebate)) { preview.style.display = 'none'; return; }
+  const effectiveRate = assessable > 0 ? (taxPayable / assessable * 100).toFixed(1) : '0.0';
   preview.style.display = '';
-  document.getElementById('pvAssessable').textContent  = fmtCurrency(assessable);
-  document.getElementById('pvCpf').textContent         = '−' + fmtCurrency(cpf);
-  document.getElementById('pvReliefs').textContent     = '−' + fmtCurrency(totalReliefs);
-  document.getElementById('pvChargeable').textContent  = fmtCurrency(chargeable);
-  document.getElementById('pvTaxBefore').textContent   = fmtCurrency(taxBefore);
-  document.getElementById('pvRebate').textContent      = '−' + fmtCurrency(rebate);
-  document.getElementById('pvTaxPayable').textContent  = fmtCurrency(taxPayable);
+  document.getElementById('pvAssessable').textContent  = fmtDollar(assessable);
+  document.getElementById('pvCpf').textContent         = '−' + fmtDollar(cpf);
+  document.getElementById('pvReliefs').textContent     = '−' + fmtDollar(totalReliefs);
+  document.getElementById('pvChargeable').textContent  = fmtDollar(chargeable);
+  document.getElementById('pvTaxBefore').textContent   = fmtDollar(taxBefore);
+  document.getElementById('pvRebate').textContent      = '−' + fmtDollar(rebate);
+  document.getElementById('pvTaxPayable').textContent  = fmtDollar(taxPayable);
+  document.getElementById('pvEffectiveRate').textContent = effectiveRate + '%';
 }
 
 document.getElementById('taxForm').addEventListener('submit', e => {
