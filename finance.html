@@ -1955,6 +1955,7 @@ function openAccountSettings() {
     ...Object.keys(data.budgets || {})
   ])].sort();
   const budgets = data.budgets || {};
+  const catEmojis = parseCatEmojis();
 
   const budgetSection = allCats.length ? `
     <div style="padding-top:4px">
@@ -1963,7 +1964,10 @@ function openAccountSettings() {
       ${allCats.map((cat, ci) => `
         <div class="field">
           <label><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${catColor(cat, ci)};margin-right:6px;vertical-align:middle"></span>${esc(cat)}</label>
-          <input type="number" id="budgetCat${ci}" value="${budgets[cat] || ''}" step="0.01" min="0" placeholder="No limit">
+          <div style="display:flex;gap:8px">
+            <input type="text" id="budgetEmoji${ci}" value="${esc(catEmojis[cat] || '')}" placeholder="😀" style="width:3.2rem;text-align:center;font-size:1.1rem;padding:8px 4px">
+            <input type="number" id="budgetCat${ci}" value="${budgets[cat] || ''}" step="0.01" min="0" placeholder="No limit" style="flex:1">
+          </div>
         </div>`).join('')}
     </div>` : '';
 
@@ -2028,14 +2032,35 @@ function saveAccountSettings() {
   data.eventTags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
   data._eventTagsTs = Date.now();
 
-  data.expenseCats = (document.getElementById('expenseCatsInput').value || '').trim();
-  data._expenseCatsTs = Date.now();
-
+  // allCats must match what was rendered (computed from unchanged data)
   const allCats = [...new Set([
     ...expenseCatDefaults(),
     ...allExpenses().filter(e => e.cat !== 'TopUp').map(e => e.cat),
     ...Object.keys(data.budgets || {})
   ])].sort();
+
+  // Merge expenseCatsInput text + per-row budget emoji inputs into data.expenseCats
+  const expCatsRaw = (document.getElementById('expenseCatsInput').value || '').trim();
+  const entries = expCatsRaw.split(',').map(p => {
+    const s = p.trim(); if (!s) return null;
+    const sp = s.indexOf(' ');
+    return sp > 0 ? { emoji: s.slice(0, sp).trim(), name: s.slice(sp + 1).trim() } : { emoji: '', name: s };
+  }).filter(e => e && e.name);
+  const entryMap = Object.fromEntries(entries.map(e => [e.name, e]));
+  allCats.forEach((cat, ci) => {
+    const em = (document.getElementById(`budgetEmoji${ci}`)?.value || '').trim();
+    if (!em) return;
+    if (entryMap[cat]) entryMap[cat].emoji = em;
+    else entryMap[cat] = { emoji: em, name: cat };
+  });
+  const seen = new Set();
+  const rebuilt = entries.map(e => { seen.add(e.name); return entryMap[e.name] || e; });
+  allCats.forEach(cat => { if (!seen.has(cat) && entryMap[cat]) rebuilt.push(entryMap[cat]); });
+  data.expenseCats = rebuilt.length
+    ? rebuilt.map(e => e.emoji ? `${e.emoji} ${e.name}` : e.name).join(', ')
+    : expCatsRaw;
+  data._expenseCatsTs = Date.now();
+
   if (!data.budgets) data.budgets = {};
   allCats.forEach((cat, ci) => {
     const input = document.getElementById('budgetCat' + ci);
