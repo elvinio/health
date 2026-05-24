@@ -1678,7 +1678,18 @@ const CPF_ALLOC = [
 const CPF_INT_OA = 0.025, CPF_INT_SA = 0.04, CPF_INT_RA = 0.04, CPF_INT_MA = 0.04;
 const CPF_BHS = 75500;    // Basic Healthcare Sum (MA cap)
 const CPF_FRS = 213000;   // Full Retirement Sum (RA transfer cap at 55)
+const CPF_ERS = Math.round(CPF_FRS * 1.5); // Enhanced Retirement Sum = 1.5× FRS
 const CPF_OW_CAP = 6800;  // Ordinary Wage monthly ceiling
+
+// CPF LIFE Standard Plan: monthly payout per $1 of RA at a given retirement age.
+// Uses standard annuity formula (4% annual, Singapore life expectancy ~85) plus
+// a 1.345× mortality-credit multiplier, calibrated so age 65 → ~0.0082, matching
+// CPF Board published estimates (2025): FRS $213k → ~$1,660–$1,830/mo.
+function cpfLifeMonthlyFactor(retireAge) {
+  const r = 0.04 / 12;
+  const n = Math.max(60, (85 - retireAge) * 12);
+  return (r / (1 - Math.pow(1 + r, -n))) * 1.345;
+}
 
 function cpfContrib(age) {
   for (const [max, emp, er] of CPF_CONTRIB) if (age < max) return { emp, er };
@@ -4957,9 +4968,12 @@ function calcCpfProjection() {
   }
 
   const finalPoint = points[points.length - 1] || {};
-  const lifePayout = Math.round((finalPoint.ra || 0) / 240);
+  const factor = cpfLifeMonthlyFactor(retireAge);
+  const lifePayout = Math.round((finalPoint.ra || 0) * factor);
+  const frsRefPayout = Math.round(CPF_FRS * factor);
+  const ersRefPayout = Math.round(CPF_ERS * factor);
 
-  return { points, lifePayout, retireYear, retireAge, dobYear };
+  return { points, lifePayout, frsRefPayout, ersRefPayout, retireYear, retireAge, dobYear };
 }
 
 function renderCpfChart(proj) {
@@ -5028,7 +5042,7 @@ function renderCpfChart(proj) {
       </svg>
     </div>
     ${legend}
-    <div style="font-size:.72rem;color:var(--muted);margin-top:4px;padding:0 4px">Rates: OA 2.5% · SA/RA/MA 4% · No contribution after retirement age. BHS cap $${CPF_BHS.toLocaleString()} · FRS $${CPF_FRS.toLocaleString()}.</div>
+    <div style="font-size:.72rem;color:var(--muted);margin-top:4px;padding:0 4px">Rates: OA 2.5% · SA/RA/MA 4% · No contribution after retirement age. BHS cap $${CPF_BHS.toLocaleString()} · FRS $${CPF_FRS.toLocaleString()} · ERS $${CPF_ERS.toLocaleString()}.</div>
   </div>`;
 }
 
@@ -5057,9 +5071,21 @@ function renderCpf() {
   if (proj && proj.lifePayout > 0) {
     const retPt = proj.points[proj.points.length - 1] || {};
     milestoneHtml = `<div class="cpf-milestone">
-      <div class="cpf-milestone-title">Estimated CPF LIFE payout from age ${proj.retireAge}</div>
+      <div class="cpf-milestone-title">Your CPF LIFE payout · Standard Plan · from age ${proj.retireAge}</div>
       <div class="cpf-milestone-value">~${fmtDollar(proj.lifePayout)} / month</div>
-      <div class="cpf-milestone-sub">RA at retirement: ${fmtDollar(retPt.ra || 0)} · 20-yr annuity estimate</div>
+      <div class="cpf-milestone-sub">RA at retirement: ${fmtDollar(retPt.ra || 0)} · CPF LIFE estimate</div>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:12px">
+      <div style="flex:1;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px;border-left:3px solid var(--primary)">
+        <div style="font-size:.7rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em">FRS (Standard Plan)</div>
+        <div style="font-size:1.15rem;font-weight:800;margin-top:4px">~${fmtDollar(proj.frsRefPayout)} / mo</div>
+        <div style="font-size:.78rem;color:var(--muted);margin-top:2px">RA: ${fmtDollar(CPF_FRS)}</div>
+      </div>
+      <div style="flex:1;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px;border-left:3px solid var(--primary)">
+        <div style="font-size:.7rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em">ERS (Standard Plan)</div>
+        <div style="font-size:1.15rem;font-weight:800;margin-top:4px">~${fmtDollar(proj.ersRefPayout)} / mo</div>
+        <div style="font-size:.78rem;color:var(--muted);margin-top:2px">RA: ${fmtDollar(CPF_ERS)}</div>
+      </div>
     </div>`;
   }
 
