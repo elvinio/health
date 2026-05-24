@@ -1,4 +1,4 @@
-const CACHE = 'finance-v30';
+const CACHE = 'finance-v31';
 const ASSETS = [
   '/health/finance.html',
   '/health/themes.css',

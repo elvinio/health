@@ -4975,7 +4975,6 @@ function calcCpfProjection() {
   const ersGrowthRate = parseFloat(s.ersGrowthRate) || 3.5;
   const factor = cpfLifeMonthlyFactor(retireAge, lifeExp, mortalityFactor);
   const lifePayout = Math.round((finalPoint.ra || 0) * factor);
-  const currentYear = new Date().getFullYear();
   const yearsToRetire = Math.max(0, retireYear - currentYear);
   const projFRS = Math.round(CPF_FRS * Math.pow(1 + ersGrowthRate / 100, yearsToRetire));
   const projERS = Math.round(CPF_ERS * Math.pow(1 + ersGrowthRate / 100, yearsToRetire));
