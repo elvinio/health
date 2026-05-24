@@ -93,12 +93,14 @@ function calcCpfProjection() {
   }
 
   const retireYear = dobYear + retireAge;
-  if (startYear > retireYear) return null;
+  const payoutStartYear = dobYear + 65; // CPF LIFE always starts at 65
+  const endYear = Math.max(retireYear, payoutStartYear);
+  if (startYear > endYear) return null;
 
   const points = [];
   let ra = 0, raFormed = false;
 
-  for (let y = startYear; y <= retireYear; y++) {
+  for (let y = startYear; y <= endYear; y++) {
     const age = y - dobYear;
 
     if (age < 55) {
@@ -151,19 +153,21 @@ function calcCpfProjection() {
     points.push({ year: y, age, oa: Math.round(oa), sa: Math.round(sa), ma: Math.round(ma), ra: Math.round(ra) });
   }
 
-  const finalPoint = points[points.length - 1] || {};
+  // CPF LIFE always starts at 65; use RA at age 65 for payout calculation
+  const pt65 = points.find(p => p.age === 65) || points[points.length - 1] || {};
   const lifeExp = parseFloat(s.lifeExpectancy) || 85;
-  const mortalityFactor = parseFloat(s.mortalityFactor) || 1.345;
+  const mortalityFactor = parseFloat(s.mortalityFactor) || 1.35;
   const ersGrowthRate = parseFloat(s.ersGrowthRate) || 3.5;
-  const factor = cpfLifeMonthlyFactor(retireAge, lifeExp, mortalityFactor);
-  const lifePayout = Math.round((finalPoint.ra || 0) * factor);
-  const yearsToRetire = Math.max(0, retireYear - currentYear);
+  const factor = cpfLifeMonthlyFactor(lifeExp, mortalityFactor);
+  const lifePayout = Math.round((pt65.ra || 0) * factor);
+  const yearsToRetire = Math.max(0, payoutStartYear - currentYear); // years until CPF LIFE starts at 65
   const projFRS = Math.round(CPF_FRS * Math.pow(1 + ersGrowthRate / 100, yearsToRetire));
   const projERS = Math.round(CPF_ERS * Math.pow(1 + ersGrowthRate / 100, yearsToRetire));
   const frsRefPayout = Math.round(projFRS * factor);
   const ersRefPayout = Math.round(projERS * factor);
+  const ra65 = pt65.ra || 0;
 
-  return { points, lifePayout, frsRefPayout, ersRefPayout, projFRS, projERS, yearsToRetire, retireYear, retireAge, dobYear };
+  return { points, lifePayout, frsRefPayout, ersRefPayout, projFRS, projERS, yearsToRetire, retireYear, retireAge, dobYear, ra65 };
 }
 
 function renderCpfChart(proj) {
@@ -197,11 +201,12 @@ function renderCpfChart(proj) {
     return `<path d="${d}" fill="none" stroke="${color}" stroke-width="2"${da} stroke-linejoin="round" stroke-linecap="round"/>${dots}`;
   }
 
-  // Vertical milestone lines at age 55 and retirement
+  // Vertical milestone lines at age 55, retirement, and 65 (CPF LIFE start)
   const milestones = points.map((p, i) => {
-    if (p.age !== 55 && p.age !== proj.retireAge) return '';
+    const isMilestone = p.age === 55 || p.age === proj.retireAge || p.age === 65;
+    if (!isMilestone) return '';
     const x = xPos(i);
-    const lbl = p.age === 55 ? 'Age 55' : `Retire ${p.age}`;
+    const lbl = p.age === 55 ? 'Age 55' : p.age === 65 ? 'CPF LIFE 65' : `Retire ${p.age}`;
     return `<line x1="${x.toFixed(1)}" y1="${PAD_T}" x2="${x.toFixed(1)}" y2="${(PAD_T + H).toFixed(1)}" stroke="#aaa" stroke-width="1" stroke-dasharray="3 3"/>` +
            `<text x="${x.toFixed(1)}" y="${(PAD_T - 3).toFixed(1)}" text-anchor="middle" font-size="7" fill="#aaa">${lbl}</text>`;
   }).join('');
@@ -252,39 +257,51 @@ function renderCpf() {
   const settingsBar = `<div class="cpf-settings-bar">
     <div>
       <div style="font-size:.95rem;font-weight:700">Projection Settings</div>
-      <div class="cpf-settings-bar-meta">DOB: ${dobDisplay} · Retire: ${s.retirementAge || 65} · Salary: ${fmtDollar((s.monthlySalary || 0))} /mo</div>
+      <div class="cpf-settings-bar-meta">DOB: ${dobDisplay} · Retire: ${s.retirementAge || 60} · Salary: ${fmtDollar((s.monthlySalary || 0))} /mo</div>
     </div>
     <button class="btn btn-secondary" style="font-size:.78rem;padding:6px 10px" onclick="openAccountSettings()">Edit</button>
   </div>`;
 
-  const lifeExp     = s.lifeExpectancy   ?? 85;
-  const ersGrowth   = s.ersGrowthRate    ?? 3.5;
-  const mortFactor  = s.mortalityFactor  ?? 1.345;
-  const inputStyle  = 'padding:5px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.9rem;font-weight:700;-moz-appearance:textfield';
+  const retireAgeVal = s.retirementAge   ?? 60;
+  const lifeExp      = s.lifeExpectancy  ?? 85;
+  const ersGrowth    = s.ersGrowthRate   ?? 3.5;
+  const mortFactor   = s.mortalityFactor ?? 1.35;
+  const sliderLblStyle = 'font-size:.8rem;font-weight:700;min-width:3.2em;text-align:right';
 
   const assumptionsCard = `<div style="background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;margin-bottom:12px">
-    <div style="font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">CPF LIFE Assumptions</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+    <div style="font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">CPF LIFE Assumptions</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px 20px">
       <div>
-        <div style="font-size:.72rem;color:var(--muted);margin-bottom:4px">Life Expectancy</div>
-        <div style="display:flex;align-items:center;gap:4px">
-          <input type="number" id="cpfLifeExp" min="75" max="100" step="1" value="${lifeExp}" oninput="saveCpfAssumptions()" style="${inputStyle};width:54px">
-          <span style="font-size:.78rem;color:var(--muted)">yrs</span>
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <span style="font-size:.72rem;color:var(--muted)">Retirement Age</span>
+          <span id="cpfRetireAgeVal" style="${sliderLblStyle}">${retireAgeVal} yrs</span>
         </div>
+        <input type="range" id="cpfRetireAgeSlider" min="55" max="65" step="1" value="${retireAgeVal}" oninput="updateCpfSlider(this,'cpfRetireAgeVal',' yrs');saveCpfAssumptions()" style="width:100%;accent-color:var(--primary)">
+        <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted);margin-top:1px"><span>55</span><span>65</span></div>
       </div>
       <div>
-        <div style="font-size:.72rem;color:var(--muted);margin-bottom:4px">ERS Growth / yr</div>
-        <div style="display:flex;align-items:center;gap:4px">
-          <input type="number" id="cpfErsGrowth" min="0" max="8" step="0.1" value="${ersGrowth}" oninput="saveCpfAssumptions()" style="${inputStyle};width:50px">
-          <span style="font-size:.78rem;color:var(--muted)">%</span>
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <span style="font-size:.72rem;color:var(--muted)">Life Expectancy</span>
+          <span id="cpfLifeExpVal" style="${sliderLblStyle}">${lifeExp} yrs</span>
         </div>
+        <input type="range" id="cpfLifeExpSlider" min="82" max="92" step="1" value="${lifeExp}" oninput="updateCpfSlider(this,'cpfLifeExpVal',' yrs');saveCpfAssumptions()" style="width:100%;accent-color:var(--primary)">
+        <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted);margin-top:1px"><span>82</span><span>92</span></div>
       </div>
       <div>
-        <div style="font-size:.72rem;color:var(--muted);margin-bottom:4px">Mortality Credit</div>
-        <div style="display:flex;align-items:center;gap:4px">
-          <input type="number" id="cpfMortFactor" min="1.0" max="2.0" step="0.01" value="${mortFactor}" oninput="saveCpfAssumptions()" style="${inputStyle};width:58px">
-          <span style="font-size:.78rem;color:var(--muted)">×</span>
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <span style="font-size:.72rem;color:var(--muted)">ERS Growth / yr</span>
+          <span id="cpfErsGrowthVal" style="${sliderLblStyle}">${ersGrowth}%</span>
         </div>
+        <input type="range" id="cpfErsGrowthSlider" min="1" max="5" step="0.5" value="${ersGrowth}" oninput="updateCpfSlider(this,'cpfErsGrowthVal','%');saveCpfAssumptions()" style="width:100%;accent-color:var(--primary)">
+        <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted);margin-top:1px"><span>1%</span><span>5%</span></div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <span style="font-size:.72rem;color:var(--muted)">Mortality Credit</span>
+          <span id="cpfMortFactorVal" style="${sliderLblStyle}">${mortFactor}×</span>
+        </div>
+        <input type="range" id="cpfMortFactorSlider" min="1" max="1.5" step="0.05" value="${mortFactor}" oninput="updateCpfSlider(this,'cpfMortFactorVal','×');saveCpfAssumptions()" style="width:100%;accent-color:var(--primary)">
+        <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted);margin-top:1px"><span>1.00×</span><span>1.50×</span></div>
       </div>
     </div>
   </div>`;
@@ -296,7 +313,7 @@ function renderCpf() {
     </summary>
     <div style="margin-top:12px;font-size:.82rem;color:var(--text);line-height:1.6;display:flex;flex-direction:column;gap:10px">
       <div><span style="font-weight:700">Life expectancy</span> sets the assumed payout duration. A longer life means the pool must sustain payments for more years, so each monthly amount is lower. Singapore's current average is ~85, but planners often use 88–90 to be conservative. If your life expectancy assumption rises, your projected payout falls.</div>
-      <div><span style="font-weight:700">Mortality credits</span> are a bonus unique to life annuities. When a CPF LIFE member passes away before exhausting their premiums, the remainder is redistributed to surviving members as extra monthly income. This is why CPF LIFE pays significantly more than a simple fixed-term drawdown — the multiplier represents that boost (1.0 = no credits / pure annuity, typical CPF LIFE Standard Plan ≈ 1.3–1.4×). As life expectancy rises and fewer members die early, this multiplier shrinks.</div>
+      <div><span style="font-weight:700">Mortality credits</span> are a bonus unique to life annuities. When a CPF LIFE member passes away before exhausting their premiums, the remainder is redistributed to surviving members as extra monthly income. This is why CPF LIFE pays significantly more than a simple fixed-term drawdown — the multiplier represents that boost (1.0 = no credits / pure annuity, typical CPF LIFE ≈ 1.3–1.4×). As life expectancy rises and fewer members die early, this multiplier shrinks.</div>
       <div><span style="font-weight:700">ERS annual growth</span> projects how much the Enhanced Retirement Sum will grow by the time you retire. CPF has historically raised it ~3–3.5% per year in line with wages. The FRS and ERS reference payouts are shown at their projected values at your retirement age.</div>
       <div style="color:var(--muted);font-size:.78rem;border-top:1px solid var(--border);padding-top:8px;margin-top:2px">These are estimates only. CPF Board's actual actuarial tables are not public. At age 65 the defaults here closely match CPF's 2025 indicative payout ranges. The mortality credit multiplier will decrease if life expectancy continues to improve.</div>
     </div>
@@ -304,7 +321,6 @@ function renderCpf() {
 
   let milestoneHtml = '';
   if (proj && proj.lifePayout > 0) {
-    const retPt = proj.points[proj.points.length - 1] || {};
     const frsSubLabel = proj.yearsToRetire > 0
       ? `Projected RA ~${fmtDollar(proj.projFRS)} in ${proj.yearsToRetire} yrs`
       : `RA: ${fmtDollar(CPF_FRS)}`;
@@ -312,18 +328,18 @@ function renderCpf() {
       ? `Projected RA ~${fmtDollar(proj.projERS)} in ${proj.yearsToRetire} yrs`
       : `RA: ${fmtDollar(CPF_ERS)}`;
     milestoneHtml = `<div class="cpf-milestone">
-      <div class="cpf-milestone-title">Your CPF LIFE payout · Standard Plan · from age ${proj.retireAge}</div>
+      <div class="cpf-milestone-title">Your CPF LIFE payout · from age 65</div>
       <div class="cpf-milestone-value">~${fmtDollar(proj.lifePayout)} / month</div>
-      <div class="cpf-milestone-sub">RA at retirement: ${fmtDollar(retPt.ra || 0)} · CPF LIFE estimate</div>
+      <div class="cpf-milestone-sub">RA at age 65: ${fmtDollar(proj.ra65)} · CPF LIFE estimate</div>
     </div>
     <div style="display:flex;gap:10px;margin-bottom:12px">
       <div style="flex:1;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px;border-left:3px solid var(--primary)">
-        <div style="font-size:.7rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em">FRS Standard Plan</div>
+        <div style="font-size:.7rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em">FRS Plan</div>
         <div style="font-size:1.15rem;font-weight:800;margin-top:4px">~${fmtDollar(proj.frsRefPayout)} / mo</div>
         <div style="font-size:.78rem;color:var(--muted);margin-top:2px">${frsSubLabel}</div>
       </div>
       <div style="flex:1;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px;border-left:3px solid var(--primary)">
-        <div style="font-size:.7rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em">ERS Standard Plan</div>
+        <div style="font-size:.7rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em">ERS Plan</div>
         <div style="font-size:1.15rem;font-weight:800;margin-top:4px">~${fmtDollar(proj.ersRefPayout)} / mo</div>
         <div style="font-size:.78rem;color:var(--muted);margin-top:2px">${ersSubLabel}</div>
       </div>
@@ -373,14 +389,21 @@ function renderCpf() {
     `<div class="section-heading">Recorded Balances</div>` + addBtn + listHtml;
 }
 
+function updateCpfSlider(el, labelId, suffix) {
+  const lbl = document.getElementById(labelId);
+  if (lbl) lbl.textContent = el.value + suffix;
+}
+
 function saveCpfAssumptions() {
   if (!data.cpfSettings) data.cpfSettings = {};
-  const lifeExp = parseFloat(document.getElementById('cpfLifeExp')?.value);
-  const ersGrowth = parseFloat(document.getElementById('cpfErsGrowth')?.value);
-  const mortFactor = parseFloat(document.getElementById('cpfMortFactor')?.value);
-  if (!isNaN(lifeExp) && lifeExp >= 75 && lifeExp <= 100) data.cpfSettings.lifeExpectancy = lifeExp;
-  if (!isNaN(ersGrowth) && ersGrowth >= 0 && ersGrowth <= 8) data.cpfSettings.ersGrowthRate = ersGrowth;
-  if (!isNaN(mortFactor) && mortFactor >= 1.0 && mortFactor <= 2.0) data.cpfSettings.mortalityFactor = mortFactor;
+  const retireAge = parseInt(document.getElementById('cpfRetireAgeSlider')?.value);
+  const lifeExp   = parseFloat(document.getElementById('cpfLifeExpSlider')?.value);
+  const ersGrowth = parseFloat(document.getElementById('cpfErsGrowthSlider')?.value);
+  const mortFactor = parseFloat(document.getElementById('cpfMortFactorSlider')?.value);
+  if (!isNaN(retireAge) && retireAge >= 55 && retireAge <= 65) data.cpfSettings.retirementAge = retireAge;
+  if (!isNaN(lifeExp) && lifeExp >= 82 && lifeExp <= 92) data.cpfSettings.lifeExpectancy = lifeExp;
+  if (!isNaN(ersGrowth) && ersGrowth >= 1 && ersGrowth <= 5) data.cpfSettings.ersGrowthRate = ersGrowth;
+  if (!isNaN(mortFactor) && mortFactor >= 1.0 && mortFactor <= 1.5) data.cpfSettings.mortalityFactor = mortFactor;
   saveData(data);
   renderCpf();
 }

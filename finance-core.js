@@ -96,7 +96,7 @@ function defaultData() {
     insurances: [],
     taxRecords: [],
     cpfRecords: [],
-    cpfSettings: { dateOfBirth: '', retirementAge: 65, monthlySalary: 0 },
+    cpfSettings: { dateOfBirth: '', retirementAge: 60, monthlySalary: 0 },
     _deletedIds: [],
     budgets: {},
     monthlyAgg: {},
@@ -117,12 +117,12 @@ function loadData() {
     if (!d.insurances) d.insurances = [];
     if (!d.taxRecords) d.taxRecords = [];
     if (!d.cpfRecords) d.cpfRecords = [];
-    if (!d.cpfSettings) d.cpfSettings = { dateOfBirth: '', retirementAge: 65, monthlySalary: 0 };
-    if (d.cpfSettings.retirementAge == null) d.cpfSettings.retirementAge = 65;
+    if (!d.cpfSettings) d.cpfSettings = { dateOfBirth: '', retirementAge: 60, monthlySalary: 0 };
+    if (d.cpfSettings.retirementAge == null) d.cpfSettings.retirementAge = 60;
     if (d.cpfSettings.monthlySalary == null) d.cpfSettings.monthlySalary = 0;
     if (d.cpfSettings.lifeExpectancy == null) d.cpfSettings.lifeExpectancy = 85;
     if (d.cpfSettings.ersGrowthRate == null) d.cpfSettings.ersGrowthRate = 3.5;
-    if (d.cpfSettings.mortalityFactor == null) d.cpfSettings.mortalityFactor = 1.345;
+    if (d.cpfSettings.mortalityFactor == null) d.cpfSettings.mortalityFactor = 1.35;
     if (!d._deletedIds) d._deletedIds = [];
     if (!d.budgets) d.budgets = {};
     if (!d.monthlyAgg) d.monthlyAgg = {};
@@ -271,12 +271,11 @@ const CPF_FRS = 213000;   // Full Retirement Sum (RA transfer cap at 55)
 const CPF_ERS = Math.round(CPF_FRS * 1.5); // Enhanced Retirement Sum = 1.5× FRS
 const CPF_OW_CAP = 6800;  // Ordinary Wage monthly ceiling
 
-// CPF LIFE Standard Plan: monthly payout per $1 of RA at a given retirement age.
-// Uses standard annuity formula (4% annual) with configurable life expectancy and
-// mortality-credit multiplier. Defaults calibrated to CPF Board 2025 estimates.
-function cpfLifeMonthlyFactor(retireAge, lifeExp, mortalityFactor) {
+// CPF LIFE monthly payout factor per $1 of RA. Payout always starts at age 65.
+// Uses annuity formula (4% annual) with configurable life expectancy and mortality-credit multiplier.
+function cpfLifeMonthlyFactor(lifeExp, mortalityFactor) {
   const r = 0.04 / 12;
-  const n = Math.max(60, (lifeExp - retireAge) * 12);
+  const n = Math.max(60, (lifeExp - 65) * 12);
   return (r / (1 - Math.pow(1 + r, -n))) * mortalityFactor;
 }
 
