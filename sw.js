@@ -1,6 +1,15 @@
 const CACHE = 'finance-v32';
 const ASSETS = [
   '/health/finance.html',
+  '/health/finance.css',
+  '/health/finance-core.js',
+  '/health/finance-drive.js',
+  '/health/finance-expenses.js',
+  '/health/finance-investments.js',
+  '/health/finance-events.js',
+  '/health/finance-insurance.js',
+  '/health/finance-tax.js',
+  '/health/finance-app.js',
   '/health/themes.css',
   '/health/icons/icon-192.png',
   '/health/icons/icon-512.png',

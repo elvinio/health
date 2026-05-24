@@ -6,7 +6,16 @@ Personal health and finance tools, all served as static files under `/health/`.
 
 | File | Purpose |
 |---|---|
-| `finance.html` | Finance PWA — single-file, ~3300 lines, vanilla JS |
+| `finance.html` | Finance PWA shell — ~705 lines, HTML only (no inline CSS or JS) |
+| `finance.css` | Finance PWA styles (~716 lines) |
+| `finance-core.js` | Constants, data layer, utilities, sheet/tab helpers |
+| `finance-drive.js` | Google Drive sync + CSV/history import/export |
+| `finance-expenses.js` | Expenses tab — render, CRUD, filters |
+| `finance-investments.js` | Accounts, investments, history modal |
+| `finance-events.js` | Events tab, calendar, reminders, bus panel + map |
+| `finance-insurance.js` | Insurance, ongoing expenses, mortgages |
+| `finance-tax.js` | Income tax and CPF projection |
+| `finance-app.js` | Analysis tab, renderAll, theme picker, init |
 | `sw.js` | Service worker for `finance.html` |
 | `tracker.html` | Health tracker PWA |
 | `sw-tracker.js` | Service worker for `tracker.html` |
@@ -17,27 +26,32 @@ Personal health and finance tools, all served as static files under `/health/`.
 | `finance-data-structure.md` | Full data schema reference |
 | `finance-import-format.md` | CSV/JSON import format spec |
 
+### JS load order (plain `<script src>` tags, no ES modules)
+
+```
+finance-core.js → finance-drive.js → finance-expenses.js → finance-investments.js
+→ finance-events.js → finance-insurance.js → finance-tax.js → finance-app.js
+```
+
+All files share a global scope. Each file may reference globals defined in files that load before it.
+
 ---
 
 ## IMPORTANT: Service worker versioning
 
-**Whenever `finance.html` or `themes.css` is modified, bump the cache version in `sw.js`.**
+**Bump the cache version in `sw.js` whenever any finance file in the ASSETS list is modified.**
 
 ```js
 // sw.js line 1
-const CACHE = 'finance-v14';  // increment this number
+const CACHE = 'finance-v32';  // increment this number
 ```
 
-Without bumping, users will keep serving the old cached file even after deployment. The service worker caches these assets:
+Files that require a version bump when changed:
+`finance.html`, `finance.css`, `finance-core.js`, `finance-drive.js`, `finance-expenses.js`,
+`finance-investments.js`, `finance-events.js`, `finance-insurance.js`, `finance-tax.js`,
+`finance-app.js`, `themes.css`
 
-```js
-const ASSETS = [
-  '/health/finance.html',
-  '/health/themes.css',
-  '/health/icons/icon-192.png',
-  '/health/icons/icon-512.png',
-];
-```
+Without bumping, users will keep serving old cached files even after deployment.
 
 Same rule applies to `tracker.html` — bump the version in `sw-tracker.js` if that file changes.
 
@@ -45,7 +59,7 @@ Same rule applies to `tracker.html` — bump the version in `sw-tracker.js` if t
 
 ## Finance PWA architecture
 
-- **Single-file app**: all HTML, CSS, and JS live in `finance.html`. No build step, no bundler.
+- **Split-file app**: HTML in `finance.html`, CSS in `finance.css`, JS split across 8 domain files. No build step, no bundler.
 - **Icons**: Google Material Symbols Outlined (loaded from Google Fonts CDN).
 - **Offline-first**: service worker caches all assets; Drive sync is optional.
 - **No frameworks**: vanilla JS, no React/Vue/etc.
