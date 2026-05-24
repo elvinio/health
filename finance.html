@@ -97,33 +97,45 @@
   }
   .filter-search:focus { border-color: var(--primary-light); }
 
+  /* ── Expense sub-tabs ── */
+  .exp-sub-tabs {
+    display: flex; border-bottom: 2px solid var(--border); margin-bottom: 12px; margin-top: 10px;
+  }
+  .exp-sub-tab {
+    display: flex; align-items: center; gap: 4px; padding: 8px 14px;
+    font-size: .82rem; font-weight: 600; color: var(--muted);
+    background: none; border: none; border-bottom: 2px solid transparent;
+    margin-bottom: -2px; cursor: pointer; transition: color .15s, border-color .15s; white-space: nowrap;
+  }
+  .exp-sub-tab .material-symbols-outlined { font-size: 1rem; }
+  .exp-sub-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
   /* ── Expense list ── */
-  .date-group { margin-bottom: 4px; }
+  .date-group { margin-bottom: 0; }
   .date-label {
-    font-size: .75rem; font-weight: 700; color: var(--muted);
+    font-size: .72rem; font-weight: 700; color: var(--muted);
     text-transform: uppercase; letter-spacing: .06em;
-    padding: 8px 0 4px;
+    padding: 6px 0 2px;
   }
   .expense-item {
-    background: var(--card); border-radius: 10px;
-    box-shadow: var(--shadow); padding: 12px 14px;
-    margin-bottom: 6px; display: flex; align-items: flex-start; gap: 10px;
-    cursor: pointer; transition: background .1s;
+    padding: 7px 0; display: flex; align-items: center; gap: 10px;
+    cursor: pointer; border-bottom: 1px solid var(--border);
   }
-  .expense-item:active { background: var(--bg); }
+  .expense-item:last-child { border-bottom: none; }
+  .expense-item:active { opacity: .65; }
   .expense-left { flex: 1; min-width: 0; }
-  .expense-desc { font-size: .95rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .expense-meta { display: flex; gap: 6px; margin-top: 3px; align-items: center; flex-wrap: wrap; }
+  .expense-desc-row { display: flex; align-items: center; gap: 5px; min-width: 0; }
+  .expense-desc { font-size: .92rem; font-weight: 600; flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .acc-badge {
     font-size: .7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;
-    background: var(--primary); color: #fff;
+    background: var(--primary); color: #fff; flex: 0 0 auto;
   }
   .acc-badge.acc2 { background: var(--green); }
   .cat-chip {
     font-size: .7rem; padding: 2px 6px; border-radius: 4px;
-    background: var(--border); color: var(--muted); font-weight: 600;
+    background: var(--border); color: var(--muted); font-weight: 600; flex: 0 0 auto;
   }
-  .expense-amount { font-size: 1rem; font-weight: 700; color: var(--red); white-space: nowrap; }
+  .expense-amount { font-size: .92rem; font-weight: 700; color: var(--red); white-space: nowrap; }
 
   /* ── Investment ── */
   .portfolio-banner {
@@ -724,19 +736,37 @@
 
 <!-- Expenses Page -->
 <div class="page" id="page-expenses">
-  <div style="display:flex;align-items:center;justify-content:space-between">
-    <div class="section-heading">Expense List</div>
-    <div style="display:flex;gap:2px;padding-top:20px">
-      <button class="iconbtn" onclick="openOngoingListSheet()" title="Ongoing Expenses"><span class="material-symbols-outlined" style="font-size:1.3rem;color:var(--primary)">repeat</span></button>
-      <button class="iconbtn" onclick="openMortgageListSheet()" title="Mortgage Debt"><span class="material-symbols-outlined" style="font-size:1.3rem;color:var(--primary)">home_work</span></button>
+  <div class="exp-sub-tabs">
+    <button class="exp-sub-tab active" id="expSubTab-expenses" onclick="switchExpSubTab('expenses')">
+      <span class="material-symbols-outlined">list</span>Expenses
+    </button>
+    <button class="exp-sub-tab" id="expSubTab-recurring" onclick="switchExpSubTab('recurring')">
+      <span class="material-symbols-outlined">repeat</span>Recurring
+    </button>
+    <button class="exp-sub-tab" id="expSubTab-mortgage" onclick="switchExpSubTab('mortgage')">
+      <span class="material-symbols-outlined">home_work</span>Mortgage
+    </button>
+  </div>
+  <div id="expSubContent-expenses">
+    <div class="filter-bar">
+      <div class="filter-pills" id="yearFilterPills"></div>
+      <div class="filter-pills" id="accountFilterPills"></div>
+      <input class="filter-search" id="expenseSearch" type="search" placeholder="Search by description…" oninput="onSearchInput()">
     </div>
+    <div id="expenseList"></div>
   </div>
-  <div class="filter-bar">
-    <div class="filter-pills" id="yearFilterPills"></div>
-    <div class="filter-pills" id="accountFilterPills"></div>
-    <input class="filter-search" id="expenseSearch" type="search" placeholder="Search by description…" oninput="onSearchInput()">
+  <div id="expSubContent-recurring" style="display:none">
+    <div style="display:flex;justify-content:flex-end;margin:8px 0 12px">
+      <button class="btn btn-primary" style="font-size:.82rem;padding:7px 14px" onclick="openOngoingFormSheet()">+ Add</button>
+    </div>
+    <div id="ongoingListInline"></div>
   </div>
-  <div id="expenseList"></div>
+  <div id="expSubContent-mortgage" style="display:none">
+    <div style="display:flex;justify-content:flex-end;margin:8px 0 12px">
+      <button class="btn btn-primary" style="font-size:.82rem;padding:7px 14px" onclick="openMortgageFormSheet()">+ Add</button>
+    </div>
+    <div id="mortgageListInline"></div>
+  </div>
 </div>
 
 <!-- Analysis Page -->
@@ -1605,8 +1635,8 @@ function renderExpenseList() {
           return `
             <div class="expense-item" onclick="openExpenseSheet('${e.id}')">
               <div class="expense-left">
-                <div class="expense-desc">${esc(e.desc)}</div>
-                <div class="expense-meta">
+                <div class="expense-desc-row">
+                  <span class="expense-desc">${esc(e.desc)}</span>
                   <span class="acc-badge${badgeClass}">${esc(acc ? acc.name : '?')}</span>
                   <span class="cat-chip">${esc(e.cat)}</span>
                 </div>
@@ -1746,6 +1776,7 @@ function deleteExpense() {
 let filterAccount = null;
 let filterSearch = '';
 let filterYear = String(new Date().getFullYear());
+let currentExpSubTab = 'expenses';
 let filterEventTag = null;
 let eventViewMode = 'list';
 let calYear = new Date().getFullYear();
@@ -1774,9 +1805,6 @@ function renderYearFilterPills() {
     return source.map(e => e.date.slice(0, 7)).filter((m, i, a) => a.indexOf(m) === i).every(m => collapsedMonths.has(m));
   });
   const collapseLabel = allCollapsed ? 'Expand All' : 'Collapse All';
-  const cutoff = new Date().toISOString().slice(0, 10);
-  const ytd = data.expenses.filter(e => e.cat !== 'TopUp' && e.date <= cutoff).reduce((s, e) => s + e.amount, 0);
-  const ytdPill = `<span class="filter-pill" style="cursor:default">YTD: ${balanceHidden ? '••••' : fmtDollar(ytd)}</span>`;
   const historyActive = showHistoryPills && filterYear !== curYear;
   const historyPill = prevYears.length > 0
     ? `<button class="filter-pill${historyActive ? ' active' : ''}" onclick="toggleHistoryPills()">History ${showHistoryPills ? '▲' : '▼'}</button>`
@@ -1787,7 +1815,7 @@ function renderYearFilterPills() {
   container.innerHTML =
     `<button class="filter-pill${filterYear === curYear ? ' active' : ''}" onclick="setYearFilter('${curYear}')">${curYear}</button>` +
     historyPill + prevPills +
-    `<button class="filter-pill" onclick="toggleCollapseAll()">${collapseLabel}</button>${ytdPill}`;
+    `<button class="filter-pill" onclick="toggleCollapseAll()">${collapseLabel}</button>`;
 }
 
 function toggleHistoryPills() {
@@ -1829,10 +1857,13 @@ function toggleAnalysisYear(y) {
 function renderAccountFilterPills() {
   const container = document.getElementById('accountFilterPills');
   if (!container) return;
+  const cutoff = new Date().toISOString().slice(0, 10);
+  const ytd = data.expenses.filter(e => e.cat !== 'TopUp' && e.date <= cutoff).reduce((s, e) => s + e.amount, 0);
+  const ytdPill = `<span class="filter-pill" style="cursor:default">YTD: ${balanceHidden ? '••••' : fmtDollar(ytd)}</span>`;
   const pills = [{ id: null, name: 'All' }, ...data.accounts.map(a => ({ id: a.id, name: a.name }))];
   container.innerHTML = pills.map(p =>
     `<button class="filter-pill${filterAccount === p.id ? ' active' : ''}" onclick="setAccountFilter(${p.id === null ? 'null' : `'${p.id}'`})">${esc(p.name)}</button>`
-  ).join('');
+  ).join('') + ytdPill;
 }
 
 function setAccountFilter(id) {
@@ -1844,6 +1875,16 @@ function setAccountFilter(id) {
 function onSearchInput() {
   filterSearch = document.getElementById('expenseSearch').value.toLowerCase();
   renderExpenseList();
+}
+
+function switchExpSubTab(tab) {
+  currentExpSubTab = tab;
+  ['expenses', 'recurring', 'mortgage'].forEach(t => {
+    document.getElementById(`expSubTab-${t}`).classList.toggle('active', t === tab);
+    document.getElementById(`expSubContent-${t}`).style.display = t === tab ? '' : 'none';
+  });
+  if (tab === 'recurring') renderOngoingListInline();
+  if (tab === 'mortgage') renderMortgageListInline();
 }
 
 // ── Balance visibility ────────────────────────────────────────────────────────
@@ -1875,7 +1916,7 @@ function toggleBalanceVisibility() {
     : '<span class="material-symbols-outlined">visibility_off</span> Hide Balances';
   document.getElementById('mainMenu').classList.remove('open');
   renderExpenseList();
-
+  renderAccountFilterPills();
 }
 
 // ── Account Settings ──────────────────────────────────────────────────────────
@@ -4030,8 +4071,9 @@ function openOngoingListSheet() {
   openSheet('ongoingListSheet');
 }
 
-function renderOngoingList() {
-  const el = document.getElementById('ongoingList');
+function renderOngoingListInto(elId) {
+  const el = document.getElementById(elId);
+  if (!el) return;
   const list = data.ongoingExpenses || [];
   if (!list.length) {
     el.innerHTML = '<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">repeat</span></div>No ongoing expenses yet.<br>Tap + to add one.</div>';
@@ -4058,6 +4100,8 @@ function renderOngoingList() {
     </div>`;
   }).join('');
 }
+function renderOngoingList() { renderOngoingListInto('ongoingList'); }
+function renderOngoingListInline() { renderOngoingListInto('ongoingListInline'); }
 
 function openOngoingFormSheet(id) {
   document.getElementById('ongoingForm').reset();
@@ -4116,7 +4160,7 @@ document.getElementById('ongoingForm').addEventListener('submit', e => {
   saveData(data);
   closeSheet();
   showToast(id ? 'Updated' : 'Added');
-  setTimeout(() => openOngoingListSheet(), 350);
+  if (currentExpSubTab === 'recurring') { renderOngoingListInline(); } else { setTimeout(() => openOngoingListSheet(), 350); }
 });
 
 function deleteOngoing() {
@@ -4127,7 +4171,7 @@ function deleteOngoing() {
   saveData(data);
   closeSheet();
   showToast('Deleted');
-  setTimeout(() => openOngoingListSheet(), 350);
+  if (currentExpSubTab === 'recurring') { renderOngoingListInline(); } else { setTimeout(() => openOngoingListSheet(), 350); }
 }
 
 function getOngoingDueInfo(o, refDate) {
@@ -4274,8 +4318,9 @@ function openMortgageListSheet() {
   openSheet('mortgageListSheet');
 }
 
-function renderMortgageList() {
-  const el = document.getElementById('mortgageList');
+function renderMortgageListInto(elId) {
+  const el = document.getElementById(elId);
+  if (!el) return;
   const list = data.mortgages || [];
   if (!list.length) {
     el.innerHTML = '<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">home_work</span></div>No mortgages yet.<br>Tap + to add one.</div>';
@@ -4297,6 +4342,8 @@ function renderMortgageList() {
     </div>`;
   }).join('');
 }
+function renderMortgageList() { renderMortgageListInto('mortgageList'); }
+function renderMortgageListInline() { renderMortgageListInto('mortgageListInline'); }
 
 function openMortgageFormSheet(id) {
   document.getElementById('mortgageForm').reset();
@@ -4349,7 +4396,7 @@ document.getElementById('mortgageForm').addEventListener('submit', e => {
   renderAll();
   closeSheet();
   showToast(id ? 'Mortgage updated' : 'Mortgage added');
-  setTimeout(() => openMortgageListSheet(), 350);
+  if (currentExpSubTab === 'mortgage') { renderMortgageListInline(); } else { setTimeout(() => openMortgageListSheet(), 350); }
 });
 
 function deleteMortgage() {
@@ -4362,7 +4409,7 @@ function deleteMortgage() {
   renderAll();
   closeSheet();
   showToast('Mortgage deleted');
-  setTimeout(() => openMortgageListSheet(), 350);
+  if (currentExpSubTab === 'mortgage') { renderMortgageListInline(); } else { setTimeout(() => openMortgageListSheet(), 350); }
 }
 
 function openMortgageOverlay(id) {
@@ -4706,6 +4753,8 @@ function renderAll() {
   renderAccountFilterPills();
   renderYearFilterPills();
   renderExpenseList();
+  if (currentExpSubTab === 'recurring') renderOngoingListInline();
+  if (currentExpSubTab === 'mortgage') renderMortgageListInline();
 
   renderInvestments();
   renderAnalysis();
