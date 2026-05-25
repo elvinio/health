@@ -68,6 +68,31 @@ function renderTaxChart() {
 }
 
 // ── CPF Projection ────────────────────────────────────────────────────────────
+function simulateSAOAto65(oa55, sa55, ma55, raTarget, retireAge, annualSalary) {
+  const raFromSA = Math.min(sa55, raTarget);
+  const raFromOA = Math.min(oa55, Math.max(0, raTarget - raFromSA));
+  let sa = sa55 - raFromSA;
+  let oa = oa55 - raFromOA;
+  let ma = ma55;
+
+  for (let age = 56; age <= 65; age++) {
+    if (age < retireAge) {
+      const alloc = cpfAlloc(age);
+      let oaAdd = annualSalary * alloc.oa;
+      let maAdd = annualSalary * alloc.ma;
+      const newMA = (ma + maAdd) * (1 + CPF_INT_MA);
+      if (newMA > CPF_BHS) { oaAdd += (newMA - CPF_BHS); ma = CPF_BHS; } else { ma = newMA; }
+      oa = (oa + oaAdd) * (1 + CPF_INT_OA);
+      sa = sa * (1 + CPF_INT_SA);
+    } else {
+      oa = oa * (1 + CPF_INT_OA);
+      sa = sa * (1 + CPF_INT_SA);
+      ma = ma * (1 + CPF_INT_MA);
+    }
+  }
+  return Math.round(sa + oa);
+}
+
 function calcCpfProjection() {
   const s = data.cpfSettings || {};
   if (!s.dateOfBirth) return null;
@@ -99,6 +124,7 @@ function calcCpfProjection() {
 
   const points = [];
   let ra = 0, raFormed = false;
+  let oa55pre = null, sa55pre = null, ma55pre = null;
 
   for (let y = startYear; y <= endYear; y++) {
     const age = y - dobYear;
@@ -126,13 +152,14 @@ function calcCpfProjection() {
       sa = (sa + saAdd) * (1 + CPF_INT_SA);
       oa = (oa + oaAdd) * (1 + CPF_INT_OA);
 
+      oa55pre = oa; sa55pre = sa; ma55pre = ma;
       const transfer = Math.min(sa, CPF_FRS);
       ra = transfer;
       sa -= transfer;
       raFormed = true;
 
     } else if (age < retireAge) {
-      // Post-55: contributions to OA and MA only; RA earns interest on existing balance
+      // Post-55: contributions to OA and MA only; SA earns interest on existing balance, RA grows at RA rate
       const alloc = cpfAlloc(age);
       let oaAdd = annualSalary * alloc.oa;
       let maAdd = annualSalary * alloc.ma;
@@ -140,6 +167,7 @@ function calcCpfProjection() {
       const newMA = (ma + maAdd) * (1 + CPF_INT_MA);
       if (newMA > CPF_BHS) { oaAdd += (newMA - CPF_BHS); ma = CPF_BHS; } else { ma = newMA; }
       oa = (oa + oaAdd) * (1 + CPF_INT_OA);
+      sa = sa * (1 + CPF_INT_SA);
       ra = ra * (1 + CPF_INT_RA);
 
     } else {
@@ -167,7 +195,14 @@ function calcCpfProjection() {
   const ersRefPayout = Math.round(projERS * factor);
   const ra65 = pt65.ra || 0;
 
-  return { points, lifePayout, frsRefPayout, ersRefPayout, projFRS, projERS, yearsToRetire, retireYear, retireAge, dobYear, ra65 };
+  // SA+OA at 65 for FRS and ERS scenarios (for retirement withdrawal)
+  let frsOASA65 = null, ersOASA65 = null;
+  if (oa55pre !== null) {
+    frsOASA65 = simulateSAOAto65(oa55pre, sa55pre, ma55pre, CPF_FRS, retireAge, annualSalary);
+    ersOASA65 = simulateSAOAto65(oa55pre, sa55pre, ma55pre, CPF_ERS, retireAge, annualSalary);
+  }
+
+  return { points, lifePayout, frsRefPayout, ersRefPayout, projFRS, projERS, yearsToRetire, retireYear, retireAge, dobYear, ra65, frsOASA65, ersOASA65 };
 }
 
 function renderCpfChart(proj) {
@@ -337,11 +372,13 @@ function renderCpf() {
         <div style="font-size:.7rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em">FRS Plan</div>
         <div style="font-size:1.15rem;font-weight:800;margin-top:4px">~${fmtDollar(proj.frsRefPayout)} / mo</div>
         <div style="font-size:.78rem;color:var(--muted);margin-top:2px">${frsSubLabel}</div>
+        ${proj.frsOASA65 !== null ? `<div style="font-size:.78rem;color:var(--text);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">SA+OA at 65: <strong>${fmtDollar(proj.frsOASA65)}</strong></div>` : ''}
       </div>
       <div style="flex:1;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px;border-left:3px solid var(--primary)">
         <div style="font-size:.7rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em">ERS Plan</div>
         <div style="font-size:1.15rem;font-weight:800;margin-top:4px">~${fmtDollar(proj.ersRefPayout)} / mo</div>
         <div style="font-size:.78rem;color:var(--muted);margin-top:2px">${ersSubLabel}</div>
+        ${proj.ersOASA65 !== null ? `<div style="font-size:.78rem;color:var(--text);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">SA+OA at 65: <strong>${fmtDollar(proj.ersOASA65)}</strong></div>` : ''}
       </div>
     </div>
     ${assumptionsCard}${explanationCard}`;
