@@ -68,9 +68,12 @@ function renderTaxChart() {
 }
 
 // ── CPF Projection ────────────────────────────────────────────────────────────
-function simulateSAOAto65(oa55, sa55, ma55, raTarget, retireAge, annualSalary) {
+// Projects OA and SA separately from age 56 to 65 given state after RA formation at 55.
+// FRS scenario: RA funded from SA only (OA untouched).
+// ERS scenario: RA funded from SA first, then OA for the shortfall.
+function simulateSAOAto65(oa55, sa55, ma55, raTarget, retireAge, annualSalary, topupFromOA) {
   const raFromSA = Math.min(sa55, raTarget);
-  const raFromOA = Math.min(oa55, Math.max(0, raTarget - raFromSA));
+  const raFromOA = topupFromOA ? Math.min(oa55, Math.max(0, raTarget - raFromSA)) : 0;
   let sa = sa55 - raFromSA;
   let oa = oa55 - raFromOA;
   let ma = ma55;
@@ -90,7 +93,7 @@ function simulateSAOAto65(oa55, sa55, ma55, raTarget, retireAge, annualSalary) {
       ma = ma * (1 + CPF_INT_MA);
     }
   }
-  return Math.round(sa + oa);
+  return { sa: Math.round(sa), oa: Math.round(oa) };
 }
 
 function calcCpfProjection() {
@@ -195,14 +198,16 @@ function calcCpfProjection() {
   const ersRefPayout = Math.round(projERS * factor);
   const ra65 = pt65.ra || 0;
 
-  // SA+OA at 65 for FRS and ERS scenarios (for retirement withdrawal)
-  let frsOASA65 = null, ersOASA65 = null;
+  // SA and OA at 65 for FRS and ERS scenarios (retirement withdrawal amount)
+  let frsSA65 = null, frsOA65 = null, ersSA65 = null, ersOA65 = null;
   if (oa55pre !== null) {
-    frsOASA65 = simulateSAOAto65(oa55pre, sa55pre, ma55pre, CPF_FRS, retireAge, annualSalary);
-    ersOASA65 = simulateSAOAto65(oa55pre, sa55pre, ma55pre, CPF_ERS, retireAge, annualSalary);
+    const frsRes = simulateSAOAto65(oa55pre, sa55pre, ma55pre, CPF_FRS, retireAge, annualSalary, false);
+    const ersRes = simulateSAOAto65(oa55pre, sa55pre, ma55pre, CPF_ERS, retireAge, annualSalary, true);
+    frsSA65 = frsRes.sa; frsOA65 = frsRes.oa;
+    ersSA65 = ersRes.sa; ersOA65 = ersRes.oa;
   }
 
-  return { points, lifePayout, frsRefPayout, ersRefPayout, projFRS, projERS, yearsToRetire, retireYear, retireAge, dobYear, ra65, frsOASA65, ersOASA65 };
+  return { points, lifePayout, frsRefPayout, ersRefPayout, projFRS, projERS, yearsToRetire, retireYear, retireAge, dobYear, ra65, frsSA65, frsOA65, ersSA65, ersOA65 };
 }
 
 function renderCpfChart(proj) {
@@ -372,13 +377,13 @@ function renderCpf() {
         <div style="font-size:.7rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em">FRS Plan</div>
         <div style="font-size:1.15rem;font-weight:800;margin-top:4px">~${fmtDollar(proj.frsRefPayout)} / mo</div>
         <div style="font-size:.78rem;color:var(--muted);margin-top:2px">${frsSubLabel}</div>
-        ${proj.frsOASA65 !== null ? `<div style="font-size:.78rem;color:var(--text);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">SA+OA at 65: <strong>${fmtDollar(proj.frsOASA65)}</strong></div>` : ''}
+        ${proj.frsSA65 !== null ? `<div style="font-size:.78rem;color:var(--text);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)"><div>SA at 65: <strong>${fmtDollar(proj.frsSA65)}</strong></div><div style="margin-top:2px">OA at 65: <strong>${fmtDollar(proj.frsOA65)}</strong></div></div>` : ''}
       </div>
       <div style="flex:1;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px;border-left:3px solid var(--primary)">
         <div style="font-size:.7rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em">ERS Plan</div>
         <div style="font-size:1.15rem;font-weight:800;margin-top:4px">~${fmtDollar(proj.ersRefPayout)} / mo</div>
         <div style="font-size:.78rem;color:var(--muted);margin-top:2px">${ersSubLabel}</div>
-        ${proj.ersOASA65 !== null ? `<div style="font-size:.78rem;color:var(--text);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">SA+OA at 65: <strong>${fmtDollar(proj.ersOASA65)}</strong></div>` : ''}
+        ${proj.ersSA65 !== null ? `<div style="font-size:.78rem;color:var(--text);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)"><div>SA at 65: <strong>${fmtDollar(proj.ersSA65)}</strong></div><div style="margin-top:2px">OA at 65: <strong>${fmtDollar(proj.ersOA65)}</strong></div></div>` : ''}
       </div>
     </div>
     ${assumptionsCard}${explanationCard}`;
