@@ -210,7 +210,7 @@ function calcCpfProjection() {
     ersRaFromSA = ersRes.raFromSA; ersRaFromOA = ersRes.raFromOA;
   }
 
-  return { points, lifePayout, frsRefPayout, ersRefPayout, projFRS, projERS, yearsToRetire, retireYear, retireAge, dobYear, ra65, frsSA65, frsOA65, ersSA65, ersOA65, frsRaFromSA, frsRaFromOA, ersRaFromSA, ersRaFromOA };
+  return { points, lifePayout, frsRefPayout, ersRefPayout, projFRS, projERS, yearsToRetire, retireYear, retireAge, dobYear, ra65, frsSA65, frsOA65, ersSA65, ersOA65, frsRaFromSA, frsRaFromOA, ersRaFromSA, ersRaFromOA, oa55pre, sa55pre };
 }
 
 function renderCpfChart(proj) {
@@ -380,13 +380,13 @@ function renderCpf() {
         <div style="font-size:.7rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em">FRS Plan</div>
         <div style="font-size:1.15rem;font-weight:800;margin-top:4px">~${fmtDollar(proj.frsRefPayout)} / mo</div>
         <div style="font-size:.78rem;color:var(--muted);margin-top:2px">${frsSubLabel}</div>
-        ${proj.frsRaFromSA !== null ? `<div style="font-size:.78rem;color:var(--text);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
-            <div style="font-size:.7rem;color:var(--muted);margin-bottom:3px;font-weight:600">AT 55 → RA</div>
-            <div>SA: <strong>${fmtDollar(proj.frsRaFromSA)}</strong></div>
-            <div style="margin-top:2px">OA: <strong>—</strong></div>
+        ${proj.oa55pre !== null ? `<div style="font-size:.78rem;color:var(--text);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
+            <div style="font-size:.7rem;color:var(--muted);margin-bottom:3px;font-weight:600">AT 55</div>
+            <div>SA: <strong>${fmtDollar(proj.sa55pre)}</strong> <span style="color:var(--muted)">(${fmtDollar(proj.frsRaFromSA)} → RA)</span></div>
+            <div style="margin-top:2px">OA: <strong>${fmtDollar(proj.oa55pre)}</strong> <span style="color:var(--muted)">(untouched)</span></div>
           </div>` : ''}
         ${proj.frsSA65 !== null ? `<div style="font-size:.78rem;color:var(--text);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
-            <div style="font-size:.7rem;color:var(--muted);margin-bottom:3px;font-weight:600">REMAINING AT 65</div>
+            <div style="font-size:.7rem;color:var(--muted);margin-bottom:3px;font-weight:600">AT 65</div>
             <div>SA: <strong>${fmtDollar(proj.frsSA65)}</strong></div>
             <div style="margin-top:2px">OA: <strong>${fmtDollar(proj.frsOA65)}</strong></div>
           </div>` : ''}
@@ -395,13 +395,13 @@ function renderCpf() {
         <div style="font-size:.7rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em">ERS Plan</div>
         <div style="font-size:1.15rem;font-weight:800;margin-top:4px">~${fmtDollar(proj.ersRefPayout)} / mo</div>
         <div style="font-size:.78rem;color:var(--muted);margin-top:2px">${ersSubLabel}</div>
-        ${proj.ersRaFromSA !== null ? `<div style="font-size:.78rem;color:var(--text);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
-            <div style="font-size:.7rem;color:var(--muted);margin-bottom:3px;font-weight:600">AT 55 → RA</div>
-            <div>SA: <strong>${fmtDollar(proj.ersRaFromSA)}</strong></div>
-            <div style="margin-top:2px">OA: <strong>${fmtDollar(proj.ersRaFromOA)}</strong></div>
+        ${proj.oa55pre !== null ? `<div style="font-size:.78rem;color:var(--text);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
+            <div style="font-size:.7rem;color:var(--muted);margin-bottom:3px;font-weight:600">AT 55</div>
+            <div>SA: <strong>${fmtDollar(proj.sa55pre)}</strong> <span style="color:var(--muted)">(${fmtDollar(proj.ersRaFromSA)} → RA)</span></div>
+            <div style="margin-top:2px">OA: <strong>${fmtDollar(proj.oa55pre)}</strong> <span style="color:var(--muted)">${proj.ersRaFromOA > 0 ? `(${fmtDollar(proj.ersRaFromOA)} → RA)` : '(untouched)'}</span></div>
           </div>` : ''}
         ${proj.ersSA65 !== null ? `<div style="font-size:.78rem;color:var(--text);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
-            <div style="font-size:.7rem;color:var(--muted);margin-bottom:3px;font-weight:600">REMAINING AT 65</div>
+            <div style="font-size:.7rem;color:var(--muted);margin-bottom:3px;font-weight:600">AT 65</div>
             <div>SA: <strong>${fmtDollar(proj.ersSA65)}</strong></div>
             <div style="margin-top:2px">OA: <strong>${fmtDollar(proj.ersOA65)}</strong></div>
           </div>` : ''}
