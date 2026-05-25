@@ -575,3 +575,20 @@ if (new URLSearchParams(location.search).get('addevent') === '1') {
   history.replaceState(null, '', location.pathname);
   setTimeout(() => openEventSheet(null), 100);
 }
+
+async function refreshPwaCache() {
+  document.getElementById('mainMenu').classList.remove('open');
+  showToast('Clearing cache…');
+  try {
+    const keys = await caches.keys();
+    await Promise.all(keys.map(k => caches.delete(k)));
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) await reg.unregister();
+    }
+    showToast('Cache cleared — reloading…');
+    setTimeout(() => location.reload(true), 800);
+  } catch (e) {
+    showToast('Error clearing cache: ' + e.message);
+  }
+}
