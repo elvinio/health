@@ -267,7 +267,7 @@ const CPF_ALLOC = [
 ];
 const CPF_INT_OA = 0.025, CPF_INT_SA = 0.04, CPF_INT_RA = 0.04, CPF_INT_MA = 0.04;
 const CPF_BHS = 75500;    // Basic Healthcare Sum (MA cap)
-const CPF_FRS = 213000;   // Full Retirement Sum (RA transfer cap at 55)
+const CPF_FRS = 220400;   // Full Retirement Sum 2026
 const CPF_ERS = Math.round(CPF_FRS * 1.5); // Enhanced Retirement Sum = 1.5× FRS
 const CPF_OW_CAP = 6800;  // Ordinary Wage monthly ceiling
 

@@ -125,6 +125,11 @@ function calcCpfProjection() {
   const endYear = Math.max(retireYear, payoutStartYear);
   if (startYear > endYear) return null;
 
+  const ersGrowthRate = parseFloat(s.ersGrowthRate) || 3.5;
+  const yearsTurn55 = Math.max(0, dobYear + 55 - currentYear);
+  const frsAt55 = Math.round(CPF_FRS * Math.pow(1 + ersGrowthRate / 100, yearsTurn55));
+  const ersAt55 = Math.round(CPF_ERS * Math.pow(1 + ersGrowthRate / 100, yearsTurn55));
+
   const points = [];
   let ra = 0, raFormed = false;
   let oa55pre = null, sa55pre = null, ma55pre = null;
@@ -156,7 +161,7 @@ function calcCpfProjection() {
       oa = (oa + oaAdd) * (1 + CPF_INT_OA);
 
       oa55pre = oa; sa55pre = sa; ma55pre = ma;
-      const transfer = Math.min(sa, CPF_FRS);
+      const transfer = Math.min(sa, frsAt55);
       ra = transfer;
       sa -= transfer;
       raFormed = true;
@@ -188,7 +193,6 @@ function calcCpfProjection() {
   const pt65 = points.find(p => p.age === 65) || points[points.length - 1] || {};
   const lifeExp = parseFloat(s.lifeExpectancy) || 85;
   const mortalityFactor = parseFloat(s.mortalityFactor) || 1.35;
-  const ersGrowthRate = parseFloat(s.ersGrowthRate) || 3.5;
   const factor = cpfLifeMonthlyFactor(lifeExp, mortalityFactor);
   const lifePayout = Math.round((pt65.ra || 0) * factor);
   const yearsToRetire = Math.max(0, payoutStartYear - currentYear); // years until CPF LIFE starts at 65
@@ -198,19 +202,19 @@ function calcCpfProjection() {
   const ersRefPayout = Math.round(projERS * factor);
   const ra65 = pt65.ra || 0;
 
-  // SA and OA at 65 for FRS and ERS scenarios (retirement withdrawal amount)
+  // SA and OA at 65 for FRS and ERS scenarios using projected FRS/ERS at age 55
   let frsSA65 = null, frsOA65 = null, ersSA65 = null, ersOA65 = null;
   let frsRaFromSA = null, frsRaFromOA = null, ersRaFromSA = null, ersRaFromOA = null;
   if (oa55pre !== null) {
-    const frsRes = simulateSAOAto65(oa55pre, sa55pre, ma55pre, CPF_FRS, retireAge, annualSalary, false);
-    const ersRes = simulateSAOAto65(oa55pre, sa55pre, ma55pre, CPF_ERS, retireAge, annualSalary, true);
+    const frsRes = simulateSAOAto65(oa55pre, sa55pre, ma55pre, frsAt55, retireAge, annualSalary, false);
+    const ersRes = simulateSAOAto65(oa55pre, sa55pre, ma55pre, ersAt55, retireAge, annualSalary, true);
     frsSA65 = frsRes.sa; frsOA65 = frsRes.oa;
     frsRaFromSA = frsRes.raFromSA; frsRaFromOA = frsRes.raFromOA;
     ersSA65 = ersRes.sa; ersOA65 = ersRes.oa;
     ersRaFromSA = ersRes.raFromSA; ersRaFromOA = ersRes.raFromOA;
   }
 
-  return { points, lifePayout, frsRefPayout, ersRefPayout, projFRS, projERS, yearsToRetire, retireYear, retireAge, dobYear, ra65, frsSA65, frsOA65, ersSA65, ersOA65, frsRaFromSA, frsRaFromOA, ersRaFromSA, ersRaFromOA, oa55pre, sa55pre };
+  return { points, lifePayout, frsRefPayout, ersRefPayout, projFRS, projERS, yearsToRetire, retireYear, retireAge, dobYear, ra65, frsSA65, frsOA65, ersSA65, ersOA65, frsRaFromSA, frsRaFromOA, ersRaFromSA, ersRaFromOA, oa55pre, sa55pre, frsAt55, ersAt55, yearsTurn55 };
 }
 
 function renderCpfChart(proj) {
@@ -280,7 +284,7 @@ function renderCpfChart(proj) {
       </svg>
     </div>
     ${legend}
-    <div style="font-size:.72rem;color:var(--muted);margin-top:4px;padding:0 4px">Rates: OA 2.5% · SA/RA/MA 4% · No contribution after retirement age. BHS cap $${CPF_BHS.toLocaleString()} · FRS $${CPF_FRS.toLocaleString()} · ERS $${CPF_ERS.toLocaleString()}.</div>
+    <div style="font-size:.72rem;color:var(--muted);margin-top:4px;padding:0 4px">Rates: OA 2.5% · SA/RA/MA 4% · No contribution after retirement age. BHS cap $${CPF_BHS.toLocaleString()} · FRS 2026: $${CPF_FRS.toLocaleString()} · ERS 2026: $${CPF_ERS.toLocaleString()} (projected to your age 55 using ERS growth rate).</div>
   </div>`;
 }
 
@@ -387,7 +391,7 @@ function renderCpf() {
             <div style="display:flex;justify-content:space-between;margin-top:2px"><span>OA</span><strong>${fmtDollar(proj.oa55pre)}</strong></div>
           </div>
           <div style="font-size:.78rem;color:var(--text);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
-            <div style="font-size:.7rem;color:var(--muted);margin-bottom:3px;font-weight:600">TRANSFERRED → RA</div>
+            <div style="font-size:.7rem;color:var(--muted);margin-bottom:3px;font-weight:600">TRANSFERRED → RA <span style="font-weight:400">(target ${fmtDollar(proj.frsAt55)})</span></div>
             <div style="display:flex;justify-content:space-between"><span>from SA</span><strong>${fmtDollar(proj.frsRaFromSA)}</strong></div>
             <div style="display:flex;justify-content:space-between;margin-top:2px"><span>from OA</span><strong>—</strong></div>
           </div>` : ''}
@@ -409,7 +413,7 @@ function renderCpf() {
             <div style="display:flex;justify-content:space-between;margin-top:2px"><span>OA</span><strong>${fmtDollar(proj.oa55pre)}</strong></div>
           </div>
           <div style="font-size:.78rem;color:var(--text);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
-            <div style="font-size:.7rem;color:var(--muted);margin-bottom:3px;font-weight:600">TRANSFERRED → RA</div>
+            <div style="font-size:.7rem;color:var(--muted);margin-bottom:3px;font-weight:600">TRANSFERRED → RA <span style="font-weight:400">(target ${fmtDollar(proj.ersAt55)})</span></div>
             <div style="display:flex;justify-content:space-between"><span>from SA</span><strong>${fmtDollar(proj.ersRaFromSA)}</strong></div>
             <div style="display:flex;justify-content:space-between;margin-top:2px"><span>from OA</span><strong>${fmtDollar(proj.ersRaFromOA)}</strong></div>
           </div>` : ''}
@@ -430,7 +434,7 @@ function renderCpf() {
     if (pt55) {
       ra55Html = `<div style="background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 16px;margin-bottom:12px">
         <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Age 55 Milestone (${pt55.year})</div>
-        <div style="font-size:.9rem;margin-top:5px"><span style="font-weight:700">RA formed: ${fmtDollar(pt55.ra)}</span> <span style="color:var(--muted);font-size:.8rem">(SA transferred, up to FRS ${fmtDollar(CPF_FRS)})</span></div>
+        <div style="font-size:.9rem;margin-top:5px"><span style="font-weight:700">RA formed: ${fmtDollar(pt55.ra)}</span> <span style="color:var(--muted);font-size:.8rem">(SA transferred, up to projected FRS ${fmtDollar(proj.frsAt55)})</span></div>
         <div style="font-size:.82rem;color:var(--muted);margin-top:2px">OA: ${fmtDollar(pt55.oa)} · SA remaining: ${fmtDollar(pt55.sa)}</div>
       </div>`;
     }
