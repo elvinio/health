@@ -71,7 +71,7 @@ function renderTaxChart() {
 // Projects OA and SA separately from age 56 to 65 given state after RA formation at 55.
 // FRS scenario: RA funded from SA only (OA untouched).
 // ERS scenario: RA funded from SA first, then OA for the shortfall.
-function simulateSAOAto65(oa55, sa55, ma55, raTarget, retireAge, annualSalary, topupFromOA) {
+function simulateSAOAto65(oa55, sa55, ma55, raTarget, retireAge, annualSalary, topupFromOA, annualMortgage) {
   const raFromSA = Math.min(sa55, raTarget);
   const raFromOA = topupFromOA ? Math.min(oa55, Math.max(0, raTarget - raFromSA)) : 0;
   let sa = sa55 - raFromSA;
@@ -92,6 +92,7 @@ function simulateSAOAto65(oa55, sa55, ma55, raTarget, retireAge, annualSalary, t
       sa = sa * (1 + CPF_INT_SA);
       ma = ma * (1 + CPF_INT_MA);
     }
+    if (annualMortgage > 0 && age < 65) oa = Math.max(0, oa - annualMortgage);
   }
   return { sa: Math.round(sa), oa: Math.round(oa), raFromSA: Math.round(raFromSA), raFromOA: Math.round(raFromOA) };
 }
@@ -129,6 +130,8 @@ function calcCpfProjection() {
   const yearsTurn55 = Math.max(0, dobYear + 55 - currentYear);
   const frsAt55 = Math.round(CPF_FRS * Math.pow(1 + ersGrowthRate / 100, yearsTurn55));
   const ersAt55 = Math.round(CPF_ERS * Math.pow(1 + ersGrowthRate / 100, yearsTurn55));
+  const monthlyMortgage = parseFloat(s.monthlyMortgage) || 0;
+  const annualMortgage = monthlyMortgage * 12;
 
   const points = [];
   let ra = 0, raFormed = false;
@@ -147,6 +150,7 @@ function calcCpfProjection() {
       if (newMA > CPF_BHS) { saAdd += (newMA - CPF_BHS); ma = CPF_BHS; } else { ma = newMA; }
       sa = (sa + saAdd) * (1 + CPF_INT_SA);
       oa = (oa + oaAdd) * (1 + CPF_INT_OA);
+      if (annualMortgage > 0 && age < 65) oa = Math.max(0, oa - annualMortgage);
 
     } else if (!raFormed) {
       // Age 55: last normal contribution year, then RA formation
@@ -159,6 +163,7 @@ function calcCpfProjection() {
       if (newMA > CPF_BHS) { saAdd += (newMA - CPF_BHS); ma = CPF_BHS; } else { ma = newMA; }
       sa = (sa + saAdd) * (1 + CPF_INT_SA);
       oa = (oa + oaAdd) * (1 + CPF_INT_OA);
+      if (annualMortgage > 0 && age < 65) oa = Math.max(0, oa - annualMortgage);
 
       oa55pre = oa; sa55pre = sa; ma55pre = ma;
       const transfer = Math.min(sa, frsAt55);
@@ -175,12 +180,14 @@ function calcCpfProjection() {
       const newMA = (ma + maAdd) * (1 + CPF_INT_MA);
       if (newMA > CPF_BHS) { oaAdd += (newMA - CPF_BHS); ma = CPF_BHS; } else { ma = newMA; }
       oa = (oa + oaAdd) * (1 + CPF_INT_OA);
+      if (annualMortgage > 0 && age < 65) oa = Math.max(0, oa - annualMortgage);
       sa = sa * (1 + CPF_INT_SA);
       ra = ra * (1 + CPF_INT_RA);
 
     } else {
       // At/after retirement: interest only, no contributions
       oa = oa * (1 + CPF_INT_OA);
+      if (annualMortgage > 0 && age < 65) oa = Math.max(0, oa - annualMortgage);
       sa = sa * (1 + CPF_INT_SA);
       ma = ma * (1 + CPF_INT_MA);
       ra = ra * (1 + CPF_INT_RA);
@@ -206,8 +213,8 @@ function calcCpfProjection() {
   let frsSA65 = null, frsOA65 = null, ersSA65 = null, ersOA65 = null;
   let frsRaFromSA = null, frsRaFromOA = null, ersRaFromSA = null, ersRaFromOA = null;
   if (oa55pre !== null) {
-    const frsRes = simulateSAOAto65(oa55pre, sa55pre, ma55pre, frsAt55, retireAge, annualSalary, false);
-    const ersRes = simulateSAOAto65(oa55pre, sa55pre, ma55pre, ersAt55, retireAge, annualSalary, true);
+    const frsRes = simulateSAOAto65(oa55pre, sa55pre, ma55pre, frsAt55, retireAge, annualSalary, false, annualMortgage);
+    const ersRes = simulateSAOAto65(oa55pre, sa55pre, ma55pre, ersAt55, retireAge, annualSalary, true, annualMortgage);
     frsSA65 = frsRes.sa; frsOA65 = frsRes.oa;
     frsRaFromSA = frsRes.raFromSA; frsRaFromOA = frsRes.raFromOA;
     ersSA65 = ersRes.sa; ersOA65 = ersRes.oa;
@@ -313,6 +320,7 @@ function renderCpf() {
   const lifeExp      = s.lifeExpectancy  ?? 85;
   const ersGrowth    = s.ersGrowthRate   ?? 3.5;
   const mortFactor   = s.mortalityFactor ?? 1.35;
+  const mortgage     = s.monthlyMortgage ?? 3000;
   const sliderLblStyle = 'font-size:.8rem;font-weight:700;min-width:3.2em;text-align:right';
 
   const assumptionsCard = `<div style="background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;margin-bottom:12px">
@@ -350,6 +358,14 @@ function renderCpf() {
         <input type="range" id="cpfMortFactorSlider" min="1" max="1.5" step="0.05" value="${mortFactor}" oninput="updateCpfSlider(this,'cpfMortFactorVal','×');saveCpfAssumptions()" style="width:100%;accent-color:var(--primary)">
         <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted);margin-top:1px"><span>1.00×</span><span>1.50×</span></div>
       </div>
+      <div style="grid-column:span 2">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <span style="font-size:.72rem;color:var(--muted)">Monthly Mortgage (OA deduction until 65)</span>
+          <span id="cpfMortgageVal" style="${sliderLblStyle}">$${Number(mortgage).toLocaleString()}</span>
+        </div>
+        <input type="range" id="cpfMortgageSlider" min="3000" max="5000" step="100" value="${mortgage}" oninput="updateCpfSlider(this,'cpfMortgageVal','','$');saveCpfAssumptions()" style="width:100%;accent-color:var(--primary)">
+        <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted);margin-top:1px"><span>$3,000</span><span>$5,000</span></div>
+      </div>
     </div>
   </div>`;
 
@@ -374,12 +390,7 @@ function renderCpf() {
     const ersSubLabel = proj.yearsToRetire > 0
       ? `Projected RA ~${fmtDollar(proj.projERS)} in ${proj.yearsToRetire} yrs`
       : `RA: ${fmtDollar(CPF_ERS)}`;
-    milestoneHtml = `<div class="cpf-milestone">
-      <div class="cpf-milestone-title">Your CPF LIFE payout · from age 65</div>
-      <div class="cpf-milestone-value">~${fmtDollar(proj.lifePayout)} / month</div>
-      <div class="cpf-milestone-sub">RA at age 65: ${fmtDollar(proj.ra65)} · CPF LIFE estimate</div>
-    </div>
-    <div style="display:flex;gap:10px;margin-bottom:12px">
+    milestoneHtml = `<div style="display:flex;gap:10px;margin-bottom:12px">
       <div style="flex:1;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px;border-left:3px solid var(--primary)">
         <div style="font-size:.7rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em">FRS Plan</div>
         <div style="font-size:1.15rem;font-weight:800;margin-top:4px">~${fmtDollar(proj.frsRefPayout)} / mo</div>
@@ -470,9 +481,9 @@ function renderCpf() {
     `<div class="section-heading">Recorded Balances</div>` + addBtn + listHtml;
 }
 
-function updateCpfSlider(el, labelId, suffix) {
+function updateCpfSlider(el, labelId, suffix, prefix) {
   const lbl = document.getElementById(labelId);
-  if (lbl) lbl.textContent = el.value + suffix;
+  if (lbl) lbl.textContent = (prefix || '') + Number(el.value).toLocaleString() + suffix;
 }
 
 function saveCpfAssumptions() {
@@ -481,10 +492,12 @@ function saveCpfAssumptions() {
   const lifeExp   = parseFloat(document.getElementById('cpfLifeExpSlider')?.value);
   const ersGrowth = parseFloat(document.getElementById('cpfErsGrowthSlider')?.value);
   const mortFactor = parseFloat(document.getElementById('cpfMortFactorSlider')?.value);
+  const mortgage  = parseFloat(document.getElementById('cpfMortgageSlider')?.value);
   if (!isNaN(retireAge) && retireAge >= 55 && retireAge <= 65) data.cpfSettings.retirementAge = retireAge;
   if (!isNaN(lifeExp) && lifeExp >= 82 && lifeExp <= 92) data.cpfSettings.lifeExpectancy = lifeExp;
   if (!isNaN(ersGrowth) && ersGrowth >= 1 && ersGrowth <= 5) data.cpfSettings.ersGrowthRate = ersGrowth;
   if (!isNaN(mortFactor) && mortFactor >= 1.0 && mortFactor <= 1.5) data.cpfSettings.mortalityFactor = mortFactor;
+  if (!isNaN(mortgage) && mortgage >= 3000 && mortgage <= 5000) data.cpfSettings.monthlyMortgage = mortgage;
   saveData(data);
   renderCpf();
 }
