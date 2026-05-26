@@ -71,14 +71,14 @@ function renderTaxChart() {
 // Projects OA and SA separately from age 56 to 65 given state after RA formation at 55.
 // FRS scenario: RA funded from SA only (OA untouched).
 // ERS scenario: RA funded from SA first, then OA for the shortfall.
-function simulateSAOAto65(oa55, sa55, ma55, raTarget, retireAge, annualSalary, topupFromOA, annualMortgage) {
+function simulateSAOAtoRetire(oa55, sa55, ma55, raTarget, retireAge, annualSalary, topupFromOA, annualMortgage) {
   const raFromSA = Math.min(sa55, raTarget);
   const raFromOA = topupFromOA ? Math.min(oa55, Math.max(0, raTarget - raFromSA)) : 0;
-  let sa = sa55 - raFromSA;
-  let oa = oa55 - raFromOA;
+  // SA remainder (after RA transfer) merges into OA; SA account closes
+  let oa = oa55 - raFromOA + (sa55 - raFromSA);
   let ma = ma55;
 
-  for (let age = 56; age <= 65; age++) {
+  for (let age = 56; age <= retireAge; age++) {
     if (age < retireAge) {
       const alloc = cpfAlloc(age);
       let oaAdd = annualSalary * alloc.oa;
@@ -86,15 +86,12 @@ function simulateSAOAto65(oa55, sa55, ma55, raTarget, retireAge, annualSalary, t
       const newMA = (ma + maAdd) * (1 + CPF_INT_MA);
       if (newMA > CPF_BHS) { oaAdd += (newMA - CPF_BHS); ma = CPF_BHS; } else { ma = newMA; }
       oa = (oa + oaAdd) * (1 + CPF_INT_OA);
-      sa = sa * (1 + CPF_INT_SA);
     } else {
       oa = oa * (1 + CPF_INT_OA);
-      sa = sa * (1 + CPF_INT_SA);
-      ma = ma * (1 + CPF_INT_MA);
     }
     if (annualMortgage > 0 && age < 65) oa = Math.max(0, oa - annualMortgage);
   }
-  return { sa: Math.round(sa), oa: Math.round(oa), raFromSA: Math.round(raFromSA), raFromOA: Math.round(raFromOA) };
+  return { oa: Math.round(oa), raFromSA: Math.round(raFromSA), raFromOA: Math.round(raFromOA) };
 }
 
 function calcCpfProjection() {
@@ -166,13 +163,15 @@ function calcCpfProjection() {
       if (annualMortgage > 0 && age < 65) oa = Math.max(0, oa - annualMortgage);
 
       oa55pre = oa; sa55pre = sa; ma55pre = ma;
-      const transfer = Math.min(sa, frsAt55);
-      ra = transfer;
-      sa -= transfer;
+      const raFromSA = Math.min(sa, frsAt55);
+      ra = raFromSA;
+      sa -= raFromSA;
+      oa += sa;  // remaining SA merges into OA
+      sa = 0;    // SA account closed at 55
       raFormed = true;
 
     } else if (age < retireAge) {
-      // Post-55: contributions to OA and MA only; SA earns interest on existing balance, RA grows at RA rate
+      // Post-55: all contributions go to OA only; RA grows at RA rate
       const alloc = cpfAlloc(age);
       let oaAdd = annualSalary * alloc.oa;
       let maAdd = annualSalary * alloc.ma;
@@ -181,14 +180,12 @@ function calcCpfProjection() {
       if (newMA > CPF_BHS) { oaAdd += (newMA - CPF_BHS); ma = CPF_BHS; } else { ma = newMA; }
       oa = (oa + oaAdd) * (1 + CPF_INT_OA);
       if (annualMortgage > 0 && age < 65) oa = Math.max(0, oa - annualMortgage);
-      sa = sa * (1 + CPF_INT_SA);
       ra = ra * (1 + CPF_INT_RA);
 
     } else {
       // At/after retirement: interest only, no contributions
       oa = oa * (1 + CPF_INT_OA);
       if (annualMortgage > 0 && age < 65) oa = Math.max(0, oa - annualMortgage);
-      sa = sa * (1 + CPF_INT_SA);
       ma = ma * (1 + CPF_INT_MA);
       ra = ra * (1 + CPF_INT_RA);
     }
@@ -209,19 +206,19 @@ function calcCpfProjection() {
   const ersRefPayout = Math.round(projERS * factor);
   const ra65 = pt65.ra || 0;
 
-  // SA and OA at 65 for FRS and ERS scenarios using projected FRS/ERS at age 55
-  let frsSA65 = null, frsOA65 = null, ersSA65 = null, ersOA65 = null;
+  // OA at retirement for FRS and ERS scenarios (SA merges into OA at 55)
+  let frsOAretire = null, ersOAretire = null;
   let frsRaFromSA = null, frsRaFromOA = null, ersRaFromSA = null, ersRaFromOA = null;
   if (oa55pre !== null) {
-    const frsRes = simulateSAOAto65(oa55pre, sa55pre, ma55pre, frsAt55, retireAge, annualSalary, false, annualMortgage);
-    const ersRes = simulateSAOAto65(oa55pre, sa55pre, ma55pre, ersAt55, retireAge, annualSalary, true, annualMortgage);
-    frsSA65 = frsRes.sa; frsOA65 = frsRes.oa;
+    const frsRes = simulateSAOAtoRetire(oa55pre, sa55pre, ma55pre, frsAt55, retireAge, annualSalary, false, annualMortgage);
+    const ersRes = simulateSAOAtoRetire(oa55pre, sa55pre, ma55pre, ersAt55, retireAge, annualSalary, true, annualMortgage);
+    frsOAretire = frsRes.oa;
     frsRaFromSA = frsRes.raFromSA; frsRaFromOA = frsRes.raFromOA;
-    ersSA65 = ersRes.sa; ersOA65 = ersRes.oa;
+    ersOAretire = ersRes.oa;
     ersRaFromSA = ersRes.raFromSA; ersRaFromOA = ersRes.raFromOA;
   }
 
-  return { points, lifePayout, frsRefPayout, ersRefPayout, projFRS, projERS, yearsToRetire, retireYear, retireAge, dobYear, ra65, frsSA65, frsOA65, ersSA65, ersOA65, frsRaFromSA, frsRaFromOA, ersRaFromSA, ersRaFromOA, oa55pre, sa55pre, frsAt55, ersAt55, yearsTurn55 };
+  return { points, lifePayout, frsRefPayout, ersRefPayout, projFRS, projERS, yearsToRetire, retireYear, retireAge, dobYear, ra65, frsOAretire, ersOAretire, frsRaFromSA, frsRaFromOA, ersRaFromSA, ersRaFromOA, oa55pre, sa55pre, frsAt55, ersAt55, yearsTurn55 };
 }
 
 function renderCpfChart(proj) {
@@ -406,11 +403,10 @@ function renderCpf() {
             <div style="display:flex;justify-content:space-between"><span>from SA</span><strong>${fmtDollar(proj.frsRaFromSA)}</strong></div>
             <div style="display:flex;justify-content:space-between;margin-top:2px"><span>from OA</span><strong>—</strong></div>
           </div>` : ''}
-        ${proj.frsSA65 !== null ? `
+        ${proj.frsOAretire !== null ? `
           <div style="font-size:.78rem;color:var(--text);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
-            <div style="font-size:.7rem;color:var(--muted);margin-bottom:3px;font-weight:600">REMAINING AT 65</div>
-            <div style="display:flex;justify-content:space-between"><span>SA</span><strong>${fmtDollar(proj.frsSA65)}</strong></div>
-            <div style="display:flex;justify-content:space-between;margin-top:2px"><span>OA</span><strong>${fmtDollar(proj.frsOA65)}</strong></div>
+            <div style="font-size:.7rem;color:var(--muted);margin-bottom:3px;font-weight:600">OA AT ${proj.retireAge}</div>
+            <div style="display:flex;justify-content:space-between"><span>OA</span><strong>${fmtDollar(proj.frsOAretire)}</strong></div>
           </div>` : ''}
       </div>
       <div style="flex:1;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px;border-left:3px solid var(--primary)">
@@ -428,11 +424,10 @@ function renderCpf() {
             <div style="display:flex;justify-content:space-between"><span>from SA</span><strong>${fmtDollar(proj.ersRaFromSA)}</strong></div>
             <div style="display:flex;justify-content:space-between;margin-top:2px"><span>from OA</span><strong>${fmtDollar(proj.ersRaFromOA)}</strong></div>
           </div>` : ''}
-        ${proj.ersSA65 !== null ? `
+        ${proj.ersOAretire !== null ? `
           <div style="font-size:.78rem;color:var(--text);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
-            <div style="font-size:.7rem;color:var(--muted);margin-bottom:3px;font-weight:600">REMAINING AT 65</div>
-            <div style="display:flex;justify-content:space-between"><span>SA</span><strong>${fmtDollar(proj.ersSA65)}</strong></div>
-            <div style="display:flex;justify-content:space-between;margin-top:2px"><span>OA</span><strong>${fmtDollar(proj.ersOA65)}</strong></div>
+            <div style="font-size:.7rem;color:var(--muted);margin-bottom:3px;font-weight:600">OA AT ${proj.retireAge}</div>
+            <div style="display:flex;justify-content:space-between"><span>OA</span><strong>${fmtDollar(proj.ersOAretire)}</strong></div>
           </div>` : ''}
       </div>
     </div>
