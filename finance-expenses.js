@@ -322,11 +322,13 @@ function switchExpSubTab(tab) {
 let currentTaxSubTab = 'incometax';
 function switchTaxSubTab(tab) {
   currentTaxSubTab = tab;
-  ['incometax', 'cpf'].forEach(t => {
+  ['incometax', 'cpf', 'assets', 'retirement'].forEach(t => {
     document.getElementById(`taxSubTab-${t}`).classList.toggle('active', t === tab);
     document.getElementById(`taxSubContent-${t}`).style.display = t === tab ? '' : 'none';
   });
   if (tab === 'cpf') renderCpf();
+  if (tab === 'assets') renderAssetsSubTab();
+  if (tab === 'retirement') renderRetirement();
 }
 
 // ── Balance visibility ────────────────────────────────────────────────────────

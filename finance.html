@@ -129,6 +129,12 @@
     <button class="tax-sub-tab" id="taxSubTab-cpf" onclick="switchTaxSubTab('cpf')">
       <span class="material-symbols-outlined">savings</span>CPF
     </button>
+    <button class="tax-sub-tab" id="taxSubTab-assets" onclick="switchTaxSubTab('assets')">
+      <span class="material-symbols-outlined">account_balance</span>Assets
+    </button>
+    <button class="tax-sub-tab" id="taxSubTab-retirement" onclick="switchTaxSubTab('retirement')">
+      <span class="material-symbols-outlined">elderly</span>Retirement
+    </button>
   </div>
   <div id="taxSubContent-incometax">
     <div id="taxSummaryStrip"></div>
@@ -137,6 +143,12 @@
   </div>
   <div id="taxSubContent-cpf" style="display:none">
     <div id="cpfContent"></div>
+  </div>
+  <div id="taxSubContent-assets" style="display:none">
+    <div id="taxAssetsContent"></div>
+  </div>
+  <div id="taxSubContent-retirement" style="display:none">
+    <div id="retirementContent"></div>
   </div>
 </div>
 

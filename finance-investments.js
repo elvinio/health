@@ -208,6 +208,55 @@ function currentValue(a) {
   return a.history.length ? a.history[a.history.length - 1].value * units : 0;
 }
 
+// ── Render: Assets sub-tab (Tax page) ────────────────────────────────────────
+function renderAssetsSubTab() {
+  const el = document.getElementById('taxAssetsContent');
+  const total = data.assets.reduce((s, a) => s + currentValue(a), 0);
+  const prevTotal = data.assets.reduce((s, a) => s + prevValue(a), 0);
+  const diff = total - prevTotal;
+  const pct = prevTotal ? (diff / prevTotal * 100) : 0;
+
+  if (!data.assets.length) {
+    el.innerHTML = `
+      <div class="cpf-settings-bar" style="margin:12px 0 8px">
+        <span class="cpf-settings-label">Total Assets</span>
+        <span class="cpf-settings-value">${fmtDollar(0)}</span>
+      </div>
+      <div class="empty-state"><div class="icon"><span class="material-symbols-outlined">account_balance</span></div>No assets yet.<br>Tap + to add one.</div>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <div class="cpf-settings-bar" style="margin:12px 0 4px">
+      <span class="cpf-settings-label">Total Assets</span>
+      <span class="cpf-settings-value">${fmtDollar(total)}</span>
+    </div>
+    ${data.assets.length && prevTotal !== total ? `<div style="font-size:.8rem;color:var(--muted);margin-bottom:8px;padding:0 4px">${diff >= 0 ? '+' : ''}${fmtDollar(diff)} (${diff >= 0 ? '+' : ''}${pct.toFixed(2)}%) from last update</div>` : ''}
+    ${data.assets.map(a => {
+      const cur = currentValue(a);
+      const prev = prevValue(a);
+      const d2 = cur - prev;
+      const p2 = prev ? (d2 / prev * 100) : 0;
+      const deltaClass = d2 > 0 ? 'up' : d2 < 0 ? 'down' : 'flat';
+      const deltaText = prev > 0 ? `${d2 >= 0 ? '+' : ''}${fmtDollar(d2)} (${d2 >= 0 ? '+' : ''}${p2.toFixed(2)}%)` : 'No prior value';
+      const lastDate = a.history.length ? a.history[a.history.length - 1].date : '';
+      const unitsLabel = (a.units != null && a.units !== 1) ? `<span style="color:var(--muted);font-size:.75rem;font-weight:500"> ×${a.units}</span>` : '';
+      return `
+        <div class="asset-card" onclick="openAssetSheet('${a.id}')">
+          <div class="asset-row-main">
+            <div class="asset-name">${esc(a.name)}${unitsLabel}</div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <div class="asset-value">${fmtDollar(cur)}</div>
+              <button class="iconbtn" style="font-size:.9rem;color:var(--muted)" onclick="event.stopPropagation();openHistory('${a.id}')"><span class="material-symbols-outlined">history</span></button>
+            </div>
+          </div>
+          <div class="asset-meta">
+            <span class="asset-delta ${deltaClass}">${deltaText}</span>${lastDate ? ` <span style="color:var(--muted)">· ${formatDate(lastDate)}</span>` : ''}
+          </div>
+        </div>`;
+    }).join('')}`;
+}
+
 function prevValue(a) {
   const units = a.units != null ? a.units : 1;
   return a.history.length > 1 ? a.history[a.history.length - 2].value * units : currentValue(a);

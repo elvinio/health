@@ -734,3 +734,23 @@
     text-transform: uppercase; letter-spacing: .06em; }
   .cpf-milestone-value { font-size: 1.5rem; font-weight: 800; margin-top: 4px; }
   .cpf-milestone-sub { font-size: .82rem; opacity: .85; margin-top: 3px; }
+
+/* ── Retirement planning ─────────────────────────────────────────────────────*/
+.ret-sliders { padding: 12px 0 8px; }
+.slider-group { margin-bottom: 14px; }
+.slider-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.slider-label { font-size: .82rem; color: var(--muted); font-weight: 600; }
+.slider-value { font-size: .82rem; font-weight: 700; color: var(--primary); }
+.slider-group input[type="range"] {
+  width: 100%; accent-color: var(--primary); height: 4px; cursor: pointer; display: block;
+}
+.ret-summary-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0;
+}
+.ret-summary-item {
+  background: var(--card); border: 1.5px solid var(--border); border-radius: 10px;
+  padding: 10px 12px;
+}
+.ret-summary-label { font-size: .72rem; color: var(--muted); font-weight: 600; text-transform: uppercase; margin-bottom: 4px; }
+.ret-summary-value { font-size: 1rem; font-weight: 700; color: var(--text); }
+.ret-table th, .ret-table td { font-size: .72rem; }
