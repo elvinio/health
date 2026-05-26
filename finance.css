@@ -206,6 +206,26 @@
     display: flex; justify-content: space-between; align-items: center;
     padding: 5px 0; font-size: .88rem; border-top: 1px solid var(--border);
   }
+  .amort-wrap { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .amort-title {
+    font-size: .7rem; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px;
+  }
+  .amort-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .amort-table {
+    width: 100%; border-collapse: collapse; font-size: .76rem;
+  }
+  .amort-table th, .amort-table td {
+    padding: 4px 6px; text-align: right; white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+  }
+  .amort-table th:first-child, .amort-table td:first-child { text-align: left; }
+  .amort-table thead th { font-weight: 700; color: var(--muted); font-size: .69rem; padding-bottom: 5px; }
+  .amort-yr { color: var(--muted); }
+  .amort-interest { color: var(--red, #e74c3c); }
+  .amort-table tfoot td { border-bottom: none; border-top: 2px solid var(--border); padding-top: 7px; font-size: .76rem; }
+  .amort-total-label { text-align: left; font-weight: 700; }
+  .amort-total-val { color: var(--red, #e74c3c); font-weight: 800; text-align: right; }
 
   /* ── FAB ── */
   .fab {
