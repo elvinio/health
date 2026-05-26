@@ -349,6 +349,50 @@ function openMortgageListSheet() {
   openSheet('mortgageListSheet');
 }
 
+function mortgageAmortTable(m) {
+  const P = m.principal || 0;
+  const r = (m.interestRate || 0) / 100 / 12;
+  const n = (m.tenorYears || 0) * 12;
+  if (!P || !r || !n) return '';
+  const pmt = P * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1);
+  let rows = '';
+  let balance = P;
+  let totalInterest = 0;
+  for (let yr = 1; yr <= m.tenorYears && balance > 0.005; yr++) {
+    const openBal = balance;
+    let yearInterest = 0;
+    let yearPrincipal = 0;
+    for (let mo = 0; mo < 12 && balance > 0.005; mo++) {
+      const int = balance * r;
+      const prin = Math.min(pmt - int, balance);
+      yearInterest += int;
+      yearPrincipal += prin;
+      balance = Math.max(0, balance - prin);
+    }
+    totalInterest += yearInterest;
+    rows += `<tr>
+      <td class="amort-yr">${yr}</td>
+      <td>${fmtDollar(openBal)}</td>
+      <td class="amort-interest">${fmtDollar(yearInterest)}</td>
+      <td>${fmtDollar(yearPrincipal)}</td>
+      <td>${fmtDollar(balance)}</td>
+    </tr>`;
+  }
+  return `<div class="amort-wrap">
+    <div class="amort-title">Amortization Schedule</div>
+    <div class="amort-scroll">
+      <table class="amort-table">
+        <thead><tr><th>Yr</th><th>Opening</th><th>Interest</th><th>Principal</th><th>Closing</th></tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr>
+          <td colspan="2" class="amort-total-label">Total Interest Paid</td>
+          <td colspan="3" class="amort-total-val">${fmtDollar(totalInterest)}</td>
+        </tr></tfoot>
+      </table>
+    </div>
+  </div>`;
+}
+
 function renderMortgageListInto(elId) {
   const el = document.getElementById(elId);
   if (!el) return;
@@ -370,6 +414,7 @@ function renderMortgageListInto(elId) {
       </div>
       <div class="mortgage-meta">${m.interestRate}% p.a. fixed · ${m.tenorYears}yr · ${fmtCurrency(monthlyPmt)}/mo installment</div>
       <div class="mortgage-balance">Balance: ${fmtDollar(bal)}</div>
+      ${mortgageAmortTable(m)}
     </div>`;
   }).join('');
 }
