@@ -407,7 +407,10 @@ function renderAll() {
   renderInsurances();
   renderTaxRecords();
   if (currentTaxSubTab === 'cpf') renderCpf();
-  document.getElementById('fabBtn').style.display = currentTab === 'analysis' ? 'none' : '';
+  if (currentTaxSubTab === 'assets') renderAssetsSubTab();
+  if (currentTaxSubTab === 'retirement') renderRetirement();
+  document.getElementById('fabBtn').style.display =
+    (currentTab === 'analysis' || (currentTab === 'tax' && currentTaxSubTab === 'retirement')) ? 'none' : '';
 }
 
 // ── XSS-safe escape ───────────────────────────────────────────────────────────

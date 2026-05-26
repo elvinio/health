@@ -788,3 +788,254 @@ function deleteTaxRecord() {
   showToast('Tax record deleted');
 }
 
+// ── Retirement Planning ───────────────────────────────────────────────────────
+function saveRetirementSettings(field, value) {
+  data.retirementSettings[field] = parseFloat(value);
+  saveData(data);
+  renderRetirement();
+}
+
+function calcRetirementPlan() {
+  const s = data.retirementSettings;
+  const cpfSet = data.cpfSettings;
+
+  const dob = cpfSet.dateOfBirth ? new Date(cpfSet.dateOfBirth) : null;
+  const now = new Date();
+  const currentAge = dob ? Math.floor((now - dob) / (365.25 * 24 * 3600 * 1000)) : 35;
+  const currentYear = now.getFullYear();
+
+  const r = s.investmentRate / 100;
+  const g = s.inflationRate / 100;
+  const retireAge = Math.round(s.retirementAge);
+  const deathAge = Math.round(s.deathAge);
+
+  const physAssets = data.assets.reduce((sum, a) => sum + currentValue(a), 0);
+  const accAssets = data.accounts.reduce((sum, ac) => sum + (ac.balance || 0), 0);
+  const currentAssets = physAssets + accAssets;
+
+  const annualIncome = (cpfSet.monthlySalary || 0) * 12;
+  const annualExpenses = s.monthlyExpenses * 12;
+
+  let cpfAnnualPayout = 0;
+  try {
+    const cpfProj = calcCpfProjection();
+    cpfAnnualPayout = ((cpfProj.ersRefPayout || cpfProj.lifePayout) || 0) * 12;
+  } catch (e) { /* no DOB */ }
+
+  const PVA = (n, rate) => {
+    if (n <= 0) return 0;
+    if (Math.abs(rate) < 1e-9) return n;
+    return (1 - Math.pow(1 + rate, -n)) / rate;
+  };
+
+  const rows = [];
+  let assets = currentAssets;
+
+  for (let age = currentAge; age < retireAge; age++) {
+    const yearsFromNow = age - currentAge;
+    const inflFactor = Math.pow(1 + g, yearsFromNow);
+    const incomeNom = annualIncome * inflFactor;
+    const expNom = annualExpenses * inflFactor;
+    const netNom = incomeNom - expNom;
+    const investReturn = assets * r;
+    const assetsStart = assets;
+    assets = assetsStart * (1 + r) + netNom;
+    rows.push({
+      year: currentYear + yearsFromNow, age, phase: 'accumulation',
+      assetsStart, investReturn, income: incomeNom, expenses: expNom,
+      net: netNom, assetsEnd: assets,
+      assetsEndReal: assets / Math.pow(1 + g, yearsFromNow + 1)
+    });
+  }
+
+  const retirementPortfolio = assets;
+  const totalYears = deathAge - retireAge;
+
+  function simulate(W_real) {
+    let a = retirementPortfolio;
+    for (let age = retireAge; age < deathAge; age++) {
+      const yearsFromNow = age - currentAge;
+      const inflFactor = Math.pow(1 + g, yearsFromNow);
+      const withdrawalNom = W_real * inflFactor;
+      const cpfNom = age >= 65 ? cpfAnnualPayout : 0;
+      const portfolioWithdrawal = Math.max(0, withdrawalNom - cpfNom);
+      a = a * (1 + r) - portfolioWithdrawal;
+    }
+    return a;
+  }
+
+  let W_real = 0;
+  if (totalYears > 0 && retirementPortfolio > 0) {
+    let lo = 0;
+    let hi = retirementPortfolio * 3;
+    for (let i = 0; i < 60; i++) {
+      const mid = (lo + hi) / 2;
+      if (simulate(mid) > 0) lo = mid; else hi = mid;
+    }
+    W_real = (lo + hi) / 2;
+  }
+
+  for (let age = retireAge; age < deathAge; age++) {
+    const yearsFromNow = age - currentAge;
+    const inflFactor = Math.pow(1 + g, yearsFromNow);
+    const withdrawalNom = W_real * inflFactor;
+    const cpfNom = age >= 65 ? cpfAnnualPayout : 0;
+    const portfolioWithdrawal = Math.max(0, withdrawalNom - cpfNom);
+    const investReturn = assets * r;
+    const assetsStart = assets;
+    assets = assetsStart * (1 + r) - portfolioWithdrawal;
+    rows.push({
+      year: currentYear + yearsFromNow, age, phase: 'drawdown',
+      assetsStart, investReturn,
+      cpf: cpfNom,
+      withdrawal: withdrawalNom,
+      withdrawalReal: W_real,
+      portfolioWithdrawal,
+      assetsEnd: assets,
+      assetsEndReal: assets / Math.pow(1 + g, yearsFromNow + 1)
+    });
+  }
+
+  return { rows, W_real, cpfAnnualPayout, retirementPortfolio, currentAge, currentAssets, annualIncome, annualExpenses };
+}
+
+function renderRetirement() {
+  const el = document.getElementById('retirementContent');
+  const s = data.retirementSettings;
+  const cpfSet = data.cpfSettings;
+
+  const dob = cpfSet.dateOfBirth ? new Date(cpfSet.dateOfBirth) : null;
+  const now = new Date();
+  const currentAge = dob ? Math.floor((now - dob) / (365.25 * 24 * 3600 * 1000)) : null;
+
+  if (!dob) {
+    el.innerHTML = `<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">elderly</span></div>Set your date of birth in CPF settings to use retirement planning.</div>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <div class="ret-sliders">
+      <div class="slider-group">
+        <div class="slider-row">
+          <span class="slider-label">Inflation Rate</span>
+          <span class="slider-value" id="retSliderValInfl">${s.inflationRate.toFixed(1)}%</span>
+        </div>
+        <input type="range" min="0" max="8" step="0.1" value="${s.inflationRate}"
+          oninput="document.getElementById('retSliderValInfl').textContent=parseFloat(this.value).toFixed(1)+'%'"
+          onchange="saveRetirementSettings('inflationRate',this.value)">
+      </div>
+      <div class="slider-group">
+        <div class="slider-row">
+          <span class="slider-label">Investment Rate</span>
+          <span class="slider-value" id="retSliderValInvest">${s.investmentRate.toFixed(1)}%</span>
+        </div>
+        <input type="range" min="0" max="12" step="0.1" value="${s.investmentRate}"
+          oninput="document.getElementById('retSliderValInvest').textContent=parseFloat(this.value).toFixed(1)+'%'"
+          onchange="saveRetirementSettings('investmentRate',this.value)">
+      </div>
+      <div class="slider-group">
+        <div class="slider-row">
+          <span class="slider-label">Retirement Age</span>
+          <span class="slider-value" id="retSliderValRetAge">${Math.round(s.retirementAge)}</span>
+        </div>
+        <input type="range" min="50" max="75" step="1" value="${s.retirementAge}"
+          oninput="document.getElementById('retSliderValRetAge').textContent=Math.round(this.value)"
+          onchange="saveRetirementSettings('retirementAge',this.value)">
+      </div>
+      <div class="slider-group">
+        <div class="slider-row">
+          <span class="slider-label">Death Age</span>
+          <span class="slider-value" id="retSliderValDeath">${Math.round(s.deathAge)}</span>
+        </div>
+        <input type="range" min="70" max="100" step="1" value="${s.deathAge}"
+          oninput="document.getElementById('retSliderValDeath').textContent=Math.round(this.value)"
+          onchange="saveRetirementSettings('deathAge',this.value)">
+      </div>
+      <div class="slider-group">
+        <div class="slider-row">
+          <span class="slider-label">Monthly Expenses (today's $)</span>
+        </div>
+        <input type="number" min="0" step="100" value="${s.monthlyExpenses}"
+          style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:.95rem;font-family:inherit"
+          onchange="saveRetirementSettings('monthlyExpenses',this.value)">
+      </div>
+    </div>`;
+
+  let plan;
+  try { plan = calcRetirementPlan(); }
+  catch (e) {
+    el.innerHTML += `<div class="empty-state" style="margin-top:16px">Unable to calculate: ${esc(e.message)}</div>`;
+    return;
+  }
+
+  const { rows, W_real, cpfAnnualPayout, retirementPortfolio } = plan;
+
+  el.innerHTML += `
+    <div class="ret-summary-grid">
+      <div class="ret-summary-item">
+        <div class="ret-summary-label">Retirement Portfolio</div>
+        <div class="ret-summary-value">${fmtDollar(retirementPortfolio)}</div>
+      </div>
+      <div class="ret-summary-item">
+        <div class="ret-summary-label">Annual Drawdown (today's $)</div>
+        <div class="ret-summary-value">${fmtDollar(W_real)}</div>
+      </div>
+      <div class="ret-summary-item">
+        <div class="ret-summary-label">CPF LIFE Payout / yr</div>
+        <div class="ret-summary-value">${fmtDollar(cpfAnnualPayout)}</div>
+      </div>
+      <div class="ret-summary-item">
+        <div class="ret-summary-label">Monthly Spending (today's $)</div>
+        <div class="ret-summary-value">${fmtDollar(W_real / 12)}</div>
+      </div>
+    </div>`;
+
+  if (!rows.length) {
+    el.innerHTML += `<div class="empty-state" style="margin-top:16px">Adjust retirement age and death age to see projection.</div>`;
+    return;
+  }
+
+  el.innerHTML += `
+    <div class="amort-scroll" style="margin-top:16px">
+      <table class="amort-table ret-table">
+        <thead>
+          <tr>
+            <th style="text-align:left">Year</th>
+            <th>Age</th>
+            <th style="text-align:left">Phase</th>
+            <th>Portfolio Start</th>
+            <th>Returns</th>
+            <th>Income / CPF</th>
+            <th>Expenses / Withdrawal</th>
+            <th>Withdrawal Today's $</th>
+            <th>Portfolio End</th>
+            <th>End Today's $</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(row => {
+            const isDrawdown = row.phase === 'drawdown';
+            const incomeOrCPF = isDrawdown ? (row.cpf || 0) : row.income;
+            const expOrWith = isDrawdown ? row.withdrawal : row.expenses;
+            const phaseLabel = isDrawdown
+              ? (row.age >= 65 ? '<span style="color:var(--green,#27ae60)">Drawdown+CPF</span>' : '<span style="color:var(--red,#e74c3c)">Drawdown</span>')
+              : '<span style="color:var(--primary)">Accumulation</span>';
+            const endNeg = row.assetsEnd < 0 ? 'color:var(--red,#e74c3c)' : '';
+            return `<tr>
+              <td style="text-align:left">${row.year}</td>
+              <td>${row.age}</td>
+              <td style="text-align:left;white-space:nowrap">${phaseLabel}</td>
+              <td>${fmtDollar(row.assetsStart)}</td>
+              <td style="color:var(--green,#27ae60)">${fmtDollar(row.investReturn)}</td>
+              <td>${fmtDollar(incomeOrCPF)}</td>
+              <td style="color:var(--red,#e74c3c)">${fmtDollar(expOrWith)}</td>
+              <td style="color:var(--muted)">${isDrawdown ? fmtDollar(row.withdrawalReal) : '—'}</td>
+              <td style="${endNeg}">${fmtDollar(row.assetsEnd)}</td>
+              <td style="${endNeg}">${fmtDollar(row.assetsEndReal)}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+

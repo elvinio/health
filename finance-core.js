@@ -97,6 +97,7 @@ function defaultData() {
     taxRecords: [],
     cpfRecords: [],
     cpfSettings: { dateOfBirth: '', retirementAge: 60, monthlySalary: 0 },
+    retirementSettings: { inflationRate: 2.5, investmentRate: 5.0, retirementAge: 62, deathAge: 85, monthlyExpenses: 3000 },
     _deletedIds: [],
     budgets: {},
     monthlyAgg: {},
@@ -128,6 +129,12 @@ function loadData() {
     if (!d.monthlyAgg) d.monthlyAgg = {};
     if (!d.mortgages) d.mortgages = [];
     if (!d.ongoingExpenses) d.ongoingExpenses = [];
+    if (!d.retirementSettings) d.retirementSettings = { inflationRate: 2.5, investmentRate: 5.0, retirementAge: 62, deathAge: 85, monthlyExpenses: 3000 };
+    if (d.retirementSettings.inflationRate == null) d.retirementSettings.inflationRate = 2.5;
+    if (d.retirementSettings.investmentRate == null) d.retirementSettings.investmentRate = 5.0;
+    if (d.retirementSettings.retirementAge == null) d.retirementSettings.retirementAge = 62;
+    if (d.retirementSettings.deathAge == null) d.retirementSettings.deathAge = 85;
+    if (d.retirementSettings.monthlyExpenses == null) d.retirementSettings.monthlyExpenses = 3000;
     if (!('expenseCats' in d)) d.expenseCats = '';
     d.accounts.forEach(a => { if (!a._updatedAt) a._updatedAt = 0; });
     return d;
@@ -334,6 +341,8 @@ document.getElementById('fabBtn').addEventListener('click', () => {
   else if (currentTab === 'insurance') openInsuranceSheet(null);
   else if (currentTab === 'tax') {
     if (currentTaxSubTab === 'cpf') openCpfEntrySheet(null);
+    else if (currentTaxSubTab === 'assets') openAssetSheet(null);
+    else if (currentTaxSubTab === 'retirement') { /* no-op */ }
     else openTaxSheet(null);
   }
   else openAssetSheet(null);
