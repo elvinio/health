@@ -100,7 +100,7 @@ async function getGmailToken() {
         resolve(resp.access_token);
       }
     });
-    client.requestAccessToken({ prompt: 'select_account' });
+    client.requestAccessToken({ prompt: '' });
   });
 }
 
@@ -251,7 +251,8 @@ document.getElementById('importParsersFile').addEventListener('change', e => {
 
 async function startGmailFetch() {
   const parsers = loadGmailParsers();
-  if (!parsers.length) { showToast('No parsers configured'); return; }
+  if (!parsers.length) { openGmailModal(); return; }
+  document.getElementById('gmailOverlay').classList.add('open');
   document.getElementById('gmailReadySection').style.display = 'none';
   document.getElementById('gmailReviewSection').style.display = 'none';
   setGmailStatus('Authenticating…');
