@@ -754,3 +754,26 @@
 .ret-summary-label { font-size: .72rem; color: var(--muted); font-weight: 600; text-transform: uppercase; margin-bottom: 4px; }
 .ret-summary-value { font-size: 1rem; font-weight: 700; color: var(--text); }
 .ret-table th, .ret-table td { font-size: .72rem; }
+
+/* ── Gmail Review ── */
+.gmail-review-item {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: opacity .15s;
+}
+.gmail-review-item.unchecked { opacity: .45; }
+.gmail-checkbox {
+  margin-top: 3px; flex-shrink: 0;
+  width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer;
+}
+.gmail-review-body { flex: 1; min-width: 0; }
+.gmail-review-desc { font-size: .95rem; font-weight: 600; }
+.gmail-review-meta {
+  display: flex; gap: 8px; align-items: center;
+  margin-top: 4px; flex-wrap: wrap;
+}
+.gmail-review-date { font-size: .78rem; color: var(--muted); }
+.gmail-review-subject {
+  font-size: .75rem; color: var(--muted); margin-top: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}

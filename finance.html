@@ -38,6 +38,7 @@
       <button class="dropdown-item" onclick="recalcAll()"><span class="material-symbols-outlined">calculate</span> Recalculate</button>
       <div class="dropdown-sep"></div>
       <button class="dropdown-item" onclick="openDriveMenu()">☁ Google Drive</button>
+      <button class="dropdown-item" onclick="openGmailModal()">✉ Import from Gmail</button>
       <div class="dropdown-sep"></div>
       <button class="dropdown-item" onclick="openThemePicker()"><span class="material-symbols-outlined">palette</span> Theme</button>
       <div class="dropdown-sep"></div>
@@ -698,10 +699,48 @@
   </div>
 </div>
 
+<!-- Gmail Modal -->
+<div class="modal-overlay" id="gmailOverlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeGmailModal()">✕</button>
+    <div class="modal-title">Import from Gmail</div>
+
+    <!-- No parsers configured -->
+    <div id="gmailSetupSection">
+      <p style="font-size:.88rem;color:var(--muted);margin-bottom:14px">
+        Import an <code>email-parsers.json</code> config to get started. Also ensure the Gmail API is enabled in your Google Cloud project.
+      </p>
+      <button class="btn btn-primary btn-block" onclick="triggerImportParsers()">Import Parser Config</button>
+    </div>
+
+    <!-- Parsers loaded -->
+    <div id="gmailReadySection" style="display:none">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:10px 12px;background:var(--green-light);border-radius:10px">
+        <span style="color:var(--green);font-size:1.1rem">✓</span>
+        <span id="gmailParserInfo" style="font-size:.88rem;font-weight:600;color:var(--green)"></span>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="startGmailFetch()">Fetch Unread Emails</button>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn btn-secondary" style="flex:1" onclick="triggerImportParsers()">Update Config</button>
+        <button class="btn btn-secondary" style="flex:1" onclick="exportParsers()">Export Config</button>
+      </div>
+    </div>
+
+    <!-- Review list -->
+    <div id="gmailReviewSection" style="display:none">
+      <div id="gmailReviewList"></div>
+      <button class="btn btn-primary btn-block" id="gmailCommitBtn" style="margin-top:12px" onclick="commitGmailImport()">Commit</button>
+    </div>
+
+    <div id="gmailStatus" style="margin-top:12px;font-size:.85rem;color:var(--muted)"></div>
+  </div>
+</div>
+
 <!-- Hidden file input for import -->
 <input type="file" id="historyImportFile" accept=".json" style="display:none">
 <input type="file" id="importEventsFile" accept=".json" style="display:none">
 <input type="file" id="importExpensesFile" accept=".csv" style="display:none">
+<input type="file" id="importParsersFile" accept=".json" style="display:none">
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
@@ -714,5 +753,6 @@
 <script src="finance-insurance.js"></script>
 <script src="finance-tax.js"></script>
 <script src="finance-app.js"></script>
+<script src="finance-gmail.js"></script>
 </body>
 </html>
