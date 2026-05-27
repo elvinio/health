@@ -100,7 +100,7 @@ async function getGmailToken() {
         resolve(resp.access_token);
       }
     });
-    client.requestAccessToken({ prompt: 'select_account' });
+    client.requestAccessToken({ prompt: '' });
   });
 }
 
