@@ -39,6 +39,11 @@ function parseDateStr(str, format) {
     const m = MONTH_MAP[parts[1].toLowerCase().slice(0, 3)];
     return m ? `${year}-${pad(m)}-${pad(+parts[0])}` : null;
   }
+  if (format === 'Mon D YYYY') {
+    const parts = str.trim().split(/\s+/);
+    const m = MONTH_MAP[parts[0].toLowerCase().slice(0, 3)];
+    return m ? `${parts[2]}-${pad(m)}-${pad(+parts[1])}` : null;
+  }
   return null;
 }
 
@@ -50,19 +55,24 @@ function resolveCategory(desc, catMap, catDefault) {
   return catDefault || 'Other';
 }
 
-function applyParser(parser, body, catMap, catDefault) {
+function applyParser(parser, body, catMap, catDefault, emailTimestamp) {
   function extract(field) {
     if (!field) return null;
     const m = new RegExp(field.regex, 'im').exec(body);
     return m ? m[field.group || 1].trim() : null;
   }
   const amountRaw = extract(parser.amount);
-  const dateRaw   = extract(parser.date);
   const descRaw   = extract(parser.desc);
-  if (!amountRaw || !dateRaw || !descRaw) return null;
+  if (!amountRaw || !descRaw) return null;
   const amount = parseFloat(amountRaw.replace(/,/g, ''));
   if (isNaN(amount) || amount <= 0) return null;
-  const date = parseDateStr(dateRaw, parser.date.format);
+  const dateRaw = extract(parser.date);
+  let date = dateRaw ? parseDateStr(dateRaw, parser.date.format) : null;
+  if (!date && emailTimestamp) {
+    const d = new Date(+emailTimestamp);
+    const pad = n => String(n).padStart(2, '0');
+    date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
   if (!date) return null;
   const cat = resolveCategory(descRaw, catMap, catDefault);
   return { amount, date, desc: descRaw, cat };
@@ -263,7 +273,7 @@ async function startGmailFetch() {
       const body    = extractTextBody(msg);
       const parser  = findParser(subject, parsers);
       if (!parser) continue;
-      const parsed = applyParser(parser, body, data.emailCatMap, data.emailCatDefault);
+      const parsed = applyParser(parser, body, data.emailCatMap, data.emailCatDefault, msg.internalDate);
       if (parsed) {
         gmailReviewItems.push({ msgId: id, sender, subject, expId: 'gm' + id.slice(-10), parsed, checked: true });
       }

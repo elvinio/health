@@ -247,7 +247,8 @@ function renderYearFilterPills() {
   container.innerHTML =
     `<button class="filter-pill${filterYear === curYear ? ' active' : ''}" onclick="setYearFilter('${curYear}')">${curYear}</button>` +
     historyPill + prevPills +
-    `<button class="filter-pill" onclick="toggleCollapseAll()">${collapseLabel}</button>`;
+    `<button class="filter-pill" onclick="toggleCollapseAll()">${collapseLabel}</button>` +
+    `<button class="filter-pill" onclick="startGmailFetch()">Fetch</button>`;
 }
 
 function toggleHistoryPills() {
