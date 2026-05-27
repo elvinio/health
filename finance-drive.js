@@ -339,6 +339,15 @@ function mergeData(local, remote) {
     : (remote.emailParsers || local.emailParsers || null);
   const emailParsersTs = Math.max(local._emailParsersTs || 0, remote._emailParsersTs || 0);
 
+  // emailCatMap + emailCatDefault: prefer whichever side was saved most recently
+  const emailCatMap = (local._emailCatMapTs || 0) >= (remote._emailCatMapTs || 0)
+    ? (local.emailCatMap || remote.emailCatMap || [])
+    : (remote.emailCatMap || local.emailCatMap || []);
+  const emailCatDefault = (local._emailCatMapTs || 0) >= (remote._emailCatMapTs || 0)
+    ? (local.emailCatDefault || remote.emailCatDefault || 'Other')
+    : (remote.emailCatDefault || local.emailCatDefault || 'Other');
+  const emailCatMapTs = Math.max(local._emailCatMapTs || 0, remote._emailCatMapTs || 0);
+
   // CPF records: union by id, prefer higher _ts, exclude deleted
   const cpfMap = new Map();
   [...(remote.cpfRecords || []), ...(local.cpfRecords || [])].forEach(r => {
@@ -411,7 +420,10 @@ function mergeData(local, remote) {
     expenseCats,
     _expenseCatsTs: expenseCatsTs,
     emailParsers,
-    _emailParsersTs: emailParsersTs
+    _emailParsersTs: emailParsersTs,
+    emailCatMap,
+    emailCatDefault,
+    _emailCatMapTs: emailCatMapTs,
   };
   recalcBalances(merged, merged.expenses);
   recalcMonthlyAgg(merged, merged.expenses);
@@ -493,8 +505,6 @@ async function driveSync() {
     }
 
     setDriveStatus('Merging…');
-    const localParsers = loadEmailParsers();
-    if (localParsers) data.emailParsers = localParsers;
     const merged = mergeData(data, remote);
 
     // Apply deletedIds to history
@@ -515,7 +525,6 @@ async function driveSync() {
     const now = new Date().toISOString();
     localStorage.setItem('finance:lastSync', now);
     data = merged;
-    if (merged.emailParsers) localStorage.setItem('finance:emailParsers', JSON.stringify(merged.emailParsers));
     if (merged.busApiKey) saveBusApiKey(merged.busApiKey);
     historyData = mergedHistory;
     recalcBalances(data, allExpenses());

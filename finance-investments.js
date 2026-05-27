@@ -70,6 +70,27 @@ function openAccountSettings() {
       </div>
     </div>`;
 
+  const catOpts = allCats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  const catMapRows = (data.emailCatMap || []).map((rule, ri) => `
+    <div class="field-row email-kw-row" id="emailKwRow${ri}" style="align-items:center;gap:8px;margin-bottom:8px">
+      <input type="text" id="emailKwMatch${ri}" value="${esc(rule.match || '')}" placeholder="Regex / keyword" style="flex:2;font-family:monospace;font-size:.82rem">
+      <input type="text" id="emailKwCat${ri}" value="${esc(rule.value || '')}" placeholder="Category" list="emailCatList" style="flex:1;font-size:.82rem">
+      <button type="button" class="btn" style="padding:6px 10px;color:var(--danger);flex-shrink:0" onclick="removeEmailKwRow(${ri})">✕</button>
+    </div>`).join('');
+
+  const emailKeywordsSection = `
+    <div style="padding-top:16px;border-top:1px solid var(--border)">
+      <div class="section-heading">Email Category Keywords</div>
+      <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Map email description keywords/regex to expense categories. Matched top-down.</p>
+      <datalist id="emailCatList">${catOpts}</datalist>
+      <div id="emailKwRows">${catMapRows}</div>
+      <button type="button" class="btn" style="font-size:.82rem;padding:7px 14px;margin-bottom:12px" onclick="addEmailKwRow()">+ Add keyword</button>
+      <div class="field">
+        <label>Default category (no match)</label>
+        <input type="text" id="emailCatDefault" value="${esc(data.emailCatDefault || 'Other')}" placeholder="Other" list="emailCatList">
+      </div>
+    </div>`;
+
   body.innerHTML = data.accounts.map((acc, i) => `
     <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)">
       <div class="section-heading">Account ${i + 1}</div>
@@ -80,7 +101,7 @@ function openAccountSettings() {
         <input type="number" id="accStart${i}" value="${acc.startingBalance}" step="0.01" placeholder="0.00">
       </div>
     </div>
-  `).join('') + cpfSection + tagsSection + budgetSection;
+  `).join('') + cpfSection + tagsSection + budgetSection + emailKeywordsSection;
   openSheet('settingsSheet');
 }
 
@@ -149,11 +170,45 @@ function saveAccountSettings() {
   data.cpfSettings.monthlySalary = parseFloat(document.getElementById('cpfMonthlySalary')?.value) || 0;
   data._cpfSettingsTs = Date.now();
 
+  // Email category keywords
+  const kwRows = document.querySelectorAll('#emailKwRows .email-kw-row');
+  const newCatMap = [];
+  kwRows.forEach(row => {
+    const matchEl = row.querySelector('[id^="emailKwMatch"]');
+    const catEl   = row.querySelector('[id^="emailKwCat"]');
+    const match = (matchEl?.value || '').trim();
+    const value = (catEl?.value || '').trim();
+    if (match && value) newCatMap.push({ match, value });
+  });
+  data.emailCatMap = newCatMap;
+  data.emailCatDefault = (document.getElementById('emailCatDefault')?.value || 'Other').trim() || 'Other';
+  data._emailCatMapTs = Date.now();
+
   recalcBalances(data, allExpenses());
   saveData(data);
   closeSheet();
   renderAll();
   showToast('Settings saved');
+}
+
+function addEmailKwRow() {
+  const container = document.getElementById('emailKwRows');
+  if (!container) return;
+  const ri = container.querySelectorAll('.email-kw-row').length;
+  const div = document.createElement('div');
+  div.className = 'field-row email-kw-row';
+  div.id = 'emailKwRow' + ri;
+  div.style.cssText = 'align-items:center;gap:8px;margin-bottom:8px';
+  div.innerHTML = `
+    <input type="text" id="emailKwMatch${ri}" value="" placeholder="Regex / keyword" style="flex:2;font-family:monospace;font-size:.82rem">
+    <input type="text" id="emailKwCat${ri}" value="" placeholder="Category" list="emailCatList" style="flex:1;font-size:.82rem">
+    <button type="button" class="btn" style="padding:6px 10px;color:var(--danger);flex-shrink:0" onclick="removeEmailKwRow(${ri})">✕</button>`;
+  container.appendChild(div);
+}
+
+function removeEmailKwRow(ri) {
+  const row = document.getElementById('emailKwRow' + ri);
+  if (row) row.remove();
 }
 
 // ── Render: Investments ───────────────────────────────────────────────────────
