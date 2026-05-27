@@ -138,19 +138,8 @@ function loadData() {
     if (d.retirementSettings.deathAge == null) d.retirementSettings.deathAge = 85;
     if (d.retirementSettings.monthlyExpenses == null) d.retirementSettings.monthlyExpenses = 3000;
     if (!('expenseCats' in d)) d.expenseCats = '';
-    if (!d.emailCatMap) {
-      // migrate from old emailParsers structure
-      const oldParsers = d.emailParsers;
-      d.emailCatMap = (oldParsers && oldParsers.catMap) ? oldParsers.catMap : [];
-      d.emailCatDefault = (oldParsers && oldParsers.catDefault) ? oldParsers.catDefault : 'Other';
-      if (oldParsers && (oldParsers.catMap || oldParsers.catDefault)) {
-        // strip catMap/catDefault from emailParsers, keep only parsers array
-        d.emailParsers = oldParsers.parsers ? { parsers: oldParsers.parsers } : (d.emailParsers || null);
-      }
-    }
+    if (!d.emailCatMap) d.emailCatMap = [];
     if (!d.emailCatDefault) d.emailCatDefault = 'Other';
-    // also remove old separate localStorage key on migration
-    try { localStorage.removeItem('finance:emailParsers'); } catch {}
     d.accounts.forEach(a => { if (!a._updatedAt) a._updatedAt = 0; });
     return d;
   } catch { return defaultData(); }
