@@ -9,17 +9,32 @@ function openAccountSettings() {
   ])].sort();
   const budgets = data.budgets || {};
   const catEmojis = parseCatEmojis();
+  const catKeywordsMap = {};
+  (data.emailCatMap || []).forEach(rule => {
+    if (!catKeywordsMap[rule.value]) catKeywordsMap[rule.value] = [];
+    catKeywordsMap[rule.value].push(rule.match);
+  });
 
   const budgetSection = allCats.length ? `
     <div style="padding-top:4px">
       <div class="section-heading">Monthly Budget by Category</div>
-      <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Leave blank for no budget limit.</p>
+      <p style="font-size:.8rem;color:var(--muted);margin-bottom:8px">Leave blank for no budget limit. Keywords are matched against email descriptions to auto-categorise (comma-separated, regex supported).</p>
+      <div class="field" style="margin-bottom:12px">
+        <label style="font-size:.8rem">Default category (no keyword match)</label>
+        <input type="text" id="emailCatDefault" value="${esc(data.emailCatDefault || 'Other')}" placeholder="Other" style="font-size:.82rem">
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:4px;font-size:.75rem;color:var(--muted);padding:0 2px">
+        <span style="width:3.2rem;text-align:center;flex-shrink:0">Emoji</span>
+        <span style="flex:1;min-width:0">Budget/mo</span>
+        <span style="flex:2;min-width:0">Email keywords</span>
+      </div>
       ${allCats.map((cat, ci) => `
         <div class="field">
           <label><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${catColor(cat, ci)};margin-right:6px;vertical-align:middle"></span>${esc(cat)}</label>
           <div style="display:flex;gap:8px">
-            <input type="text" id="budgetEmoji${ci}" value="${esc(catEmojis[cat] || '')}" placeholder="😀" style="width:3.2rem;text-align:center;font-size:1.1rem;padding:8px 4px">
-            <input type="number" id="budgetCat${ci}" value="${budgets[cat] || ''}" step="0.01" min="0" placeholder="No limit" style="flex:1">
+            <input type="text" id="budgetEmoji${ci}" value="${esc(catEmojis[cat] || '')}" placeholder="😀" style="width:3.2rem;text-align:center;font-size:1.1rem;padding:8px 4px;flex-shrink:0">
+            <input type="number" id="budgetCat${ci}" value="${budgets[cat] || ''}" step="0.01" min="0" placeholder="No limit" style="flex:1;min-width:0">
+            <input type="text" id="budgetKeywords${ci}" value="${esc((catKeywordsMap[cat] || []).join(', '))}" placeholder="grab, gojek" style="flex:2;min-width:0;font-size:.82rem;font-family:monospace">
           </div>
         </div>`).join('')}
     </div>` : '';
@@ -70,27 +85,6 @@ function openAccountSettings() {
       </div>
     </div>`;
 
-  const catOpts = allCats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
-  const catMapRows = (data.emailCatMap || []).map((rule, ri) => `
-    <div class="field-row email-kw-row" id="emailKwRow${ri}" style="align-items:center;gap:8px;margin-bottom:8px">
-      <input type="text" id="emailKwMatch${ri}" value="${esc(rule.match || '')}" placeholder="Regex / keyword" style="flex:2;font-family:monospace;font-size:.82rem">
-      <input type="text" id="emailKwCat${ri}" value="${esc(rule.value || '')}" placeholder="Category" list="emailCatList" style="flex:1;font-size:.82rem">
-      <button type="button" class="btn" style="padding:6px 10px;color:var(--danger);flex-shrink:0" onclick="removeEmailKwRow(${ri})">✕</button>
-    </div>`).join('');
-
-  const emailKeywordsSection = `
-    <div style="padding-top:16px;border-top:1px solid var(--border)">
-      <div class="section-heading">Email Category Keywords</div>
-      <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Map email description keywords/regex to expense categories. Matched top-down.</p>
-      <datalist id="emailCatList">${catOpts}</datalist>
-      <div id="emailKwRows">${catMapRows}</div>
-      <button type="button" class="btn" style="font-size:.82rem;padding:7px 14px;margin-bottom:12px" onclick="addEmailKwRow()">+ Add keyword</button>
-      <div class="field">
-        <label>Default category (no match)</label>
-        <input type="text" id="emailCatDefault" value="${esc(data.emailCatDefault || 'Other')}" placeholder="Other" list="emailCatList">
-      </div>
-    </div>`;
-
   body.innerHTML = data.accounts.map((acc, i) => `
     <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)">
       <div class="section-heading">Account ${i + 1}</div>
@@ -101,7 +95,7 @@ function openAccountSettings() {
         <input type="number" id="accStart${i}" value="${acc.startingBalance}" step="0.01" placeholder="0.00">
       </div>
     </div>
-  `).join('') + cpfSection + tagsSection + budgetSection + emailKeywordsSection;
+  `).join('') + cpfSection + tagsSection + budgetSection;
   openSheet('settingsSheet');
 }
 
@@ -170,15 +164,14 @@ function saveAccountSettings() {
   data.cpfSettings.monthlySalary = parseFloat(document.getElementById('cpfMonthlySalary')?.value) || 0;
   data._cpfSettingsTs = Date.now();
 
-  // Email category keywords
-  const kwRows = document.querySelectorAll('#emailKwRows .email-kw-row');
+  // Email category keywords (built from per-category keyword inputs)
   const newCatMap = [];
-  kwRows.forEach(row => {
-    const matchEl = row.querySelector('[id^="emailKwMatch"]');
-    const catEl   = row.querySelector('[id^="emailKwCat"]');
-    const match = (matchEl?.value || '').trim();
-    const value = (catEl?.value || '').trim();
-    if (match && value) newCatMap.push({ match, value });
+  allCats.forEach((cat, ci) => {
+    const kwText = (document.getElementById(`budgetKeywords${ci}`)?.value || '').trim();
+    if (!kwText) return;
+    kwText.split(',').map(k => k.trim()).filter(Boolean).forEach(kw => {
+      newCatMap.push({ match: kw, value: cat });
+    });
   });
   data.emailCatMap = newCatMap;
   data.emailCatDefault = (document.getElementById('emailCatDefault')?.value || 'Other').trim() || 'Other';
@@ -191,25 +184,6 @@ function saveAccountSettings() {
   showToast('Settings saved');
 }
 
-function addEmailKwRow() {
-  const container = document.getElementById('emailKwRows');
-  if (!container) return;
-  const ri = container.querySelectorAll('.email-kw-row').length;
-  const div = document.createElement('div');
-  div.className = 'field-row email-kw-row';
-  div.id = 'emailKwRow' + ri;
-  div.style.cssText = 'align-items:center;gap:8px;margin-bottom:8px';
-  div.innerHTML = `
-    <input type="text" id="emailKwMatch${ri}" value="" placeholder="Regex / keyword" style="flex:2;font-family:monospace;font-size:.82rem">
-    <input type="text" id="emailKwCat${ri}" value="" placeholder="Category" list="emailCatList" style="flex:1;font-size:.82rem">
-    <button type="button" class="btn" style="padding:6px 10px;color:var(--danger);flex-shrink:0" onclick="removeEmailKwRow(${ri})">✕</button>`;
-  container.appendChild(div);
-}
-
-function removeEmailKwRow(ri) {
-  const row = document.getElementById('emailKwRow' + ri);
-  if (row) row.remove();
-}
 
 // ── Render: Investments ───────────────────────────────────────────────────────
 function renderInvestments() {
