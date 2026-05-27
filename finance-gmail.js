@@ -1,5 +1,4 @@
 // ── Gmail Import ──────────────────────────────────────────────────────────────
-const GMAIL_PARSERS_KEY = 'finance:emailParsers';
 const GMAIL_SCOPE = 'https://www.googleapis.com/auth/gmail.modify';
 
 let gmailToken = null;
@@ -8,16 +7,13 @@ let gmailReviewItems = [];
 
 // ── Parser Storage ────────────────────────────────────────────────────────────
 
-function loadEmailParsers() {
-  try {
-    const raw = localStorage.getItem(GMAIL_PARSERS_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
+function loadGmailParsers() {
+  return (data.emailParsers && data.emailParsers.parsers) ? data.emailParsers.parsers : [];
 }
 
-function saveEmailParsers(config) {
-  localStorage.setItem(GMAIL_PARSERS_KEY, JSON.stringify(config));
-  data.emailParsers = config;
+function saveGmailParsers(parsers) {
+  if (!data.emailParsers) data.emailParsers = {};
+  data.emailParsers.parsers = parsers;
   data._emailParsersTs = Date.now();
   saveData(data);
 }
@@ -171,14 +167,14 @@ async function markDone(token, msgId, labelId) {
 function openGmailModal() {
   document.getElementById('mainMenu').classList.remove('open');
   setGmailStatus('');
-  const config = loadEmailParsers();
-  const hasConfig = !!(config && config.parsers && config.parsers.length);
+  const parsers = loadGmailParsers();
+  const hasConfig = parsers.length > 0;
   document.getElementById('gmailSetupSection').style.display = hasConfig ? 'none' : '';
   document.getElementById('gmailReadySection').style.display = hasConfig ? '' : 'none';
   document.getElementById('gmailReviewSection').style.display = 'none';
   if (hasConfig) {
     document.getElementById('gmailParserInfo').textContent =
-      `${config.parsers.length} parser(s): ${config.parsers.map(p => p.name).join(', ')}`;
+      `${parsers.length} parser(s): ${parsers.map(p => p.name).join(', ')}`;
   }
   document.getElementById('gmailOverlay').classList.add('open');
 }
@@ -202,8 +198,13 @@ function triggerImportParsers() {
 }
 
 function exportParsers() {
-  const config = loadEmailParsers();
-  if (!config) { showToast('No parser config to export'); return; }
+  const parsers = loadGmailParsers();
+  if (!parsers.length) { showToast('No parser config to export'); return; }
+  const config = {
+    parsers,
+    catMap: data.emailCatMap || [],
+    catDefault: data.emailCatDefault || 'Other'
+  };
   const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -219,7 +220,13 @@ document.getElementById('importParsersFile').addEventListener('change', e => {
     try {
       const config = JSON.parse(ev.target.result);
       if (!Array.isArray(config.parsers)) throw new Error('Missing parsers array');
-      saveEmailParsers(config);
+      saveGmailParsers(config.parsers);
+      if (Array.isArray(config.catMap)) {
+        data.emailCatMap = config.catMap;
+        data.emailCatDefault = config.catDefault || 'Other';
+        data._emailCatMapTs = Date.now();
+        saveData(data);
+      }
       showToast(`Loaded ${config.parsers.length} parser(s)`);
       openGmailModal();
     } catch (err) {
@@ -233,15 +240,15 @@ document.getElementById('importParsersFile').addEventListener('change', e => {
 // ── Fetch & Parse ─────────────────────────────────────────────────────────────
 
 async function startGmailFetch() {
-  const config = loadEmailParsers();
-  if (!config) { showToast('No parsers configured'); return; }
+  const parsers = loadGmailParsers();
+  if (!parsers.length) { showToast('No parsers configured'); return; }
   document.getElementById('gmailReadySection').style.display = 'none';
   document.getElementById('gmailReviewSection').style.display = 'none';
   setGmailStatus('Authenticating…');
   try {
     const token = await getGmailToken();
     setGmailStatus('Fetching unread emails…');
-    const messages = await fetchUnreadMessages(token, config.parsers);
+    const messages = await fetchUnreadMessages(token, parsers);
     if (!messages.length) {
       setGmailStatus('No unread emails from known senders.');
       document.getElementById('gmailReadySection').style.display = '';
@@ -254,9 +261,9 @@ async function startGmailFetch() {
       const sender  = extractHeader(msg, 'from');
       const subject = extractHeader(msg, 'subject');
       const body    = extractTextBody(msg);
-      const parser  = findParser(subject, config.parsers);
+      const parser  = findParser(subject, parsers);
       if (!parser) continue;
-      const parsed = applyParser(parser, body, config.catMap, config.catDefault);
+      const parsed = applyParser(parser, body, data.emailCatMap, data.emailCatDefault);
       if (parsed) {
         gmailReviewItems.push({ msgId: id, sender, subject, expId: 'gm' + id.slice(-10), parsed, checked: true });
       }
@@ -307,6 +314,88 @@ function toggleGmailItem(idx) {
   renderGmailReview();
 }
 
+// ── Email Rules Subtab ────────────────────────────────────────────────────────
+
+let editingParserIdx = -1;
+
+function renderEmailRulesSubTab() {
+  const parsers = loadGmailParsers();
+  const el = document.getElementById('emailRulesContent');
+  if (!el) return;
+  if (!parsers.length) {
+    el.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined icon">mail</span><p>No email parsers configured.<br>Import a parser config via the Gmail import menu.</p></div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div style="padding:8px 0 4px;display:flex;justify-content:flex-end">
+      <button class="btn btn-primary" style="font-size:.82rem;padding:7px 14px" onclick="openParserEditor(-1)">+ Add Parser</button>
+    </div>
+    ${parsers.map((p, i) => `
+    <div style="background:var(--card);border-radius:12px;padding:14px 16px;margin-bottom:10px;border:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-weight:600;font-size:.95rem">${esc(p.name || 'Parser ' + (i + 1))}</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn" style="font-size:.78rem;padding:4px 10px" onclick="openParserEditor(${i})">Edit</button>
+          <button class="btn" style="font-size:.78rem;padding:4px 10px;color:var(--danger)" onclick="deleteParser(${i})">Delete</button>
+        </div>
+      </div>
+      <div style="font-size:.8rem;color:var(--muted);margin-bottom:4px">Subject contains: <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.subjectContains || '')}</code></div>
+      <div style="font-size:.78rem;color:var(--muted);display:grid;gap:2px;margin-top:6px">
+        <div>Amount: <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.amount && p.amount.regex || '')}</code> group ${esc(String(p.amount && p.amount.group != null ? p.amount.group : 1))}</div>
+        <div>Date: <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.date && p.date.regex || '')}</code> format <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.date && p.date.format || '')}</code></div>
+        <div>Desc: <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.desc && p.desc.regex || '')}</code> group ${esc(String(p.desc && p.desc.group != null ? p.desc.group : 1))}</div>
+      </div>
+    </div>`).join('')}`;
+}
+
+function openParserEditor(idx) {
+  editingParserIdx = idx;
+  const parsers = loadGmailParsers();
+  const p = idx >= 0 ? parsers[idx] : {
+    name: '', subjectContains: '',
+    amount: { regex: '', group: 1 },
+    date:   { regex: '', format: 'DD/MM/YY' },
+    desc:   { regex: '', group: 1 }
+  };
+  document.getElementById('parserEditorTitle').textContent = idx >= 0 ? 'Edit Parser' : 'Add Parser';
+  document.getElementById('parserName').value         = p.name || '';
+  document.getElementById('parserSubject').value      = p.subjectContains || '';
+  document.getElementById('parserAmountRegex').value  = (p.amount && p.amount.regex) || '';
+  document.getElementById('parserAmountGroup').value  = p.amount && p.amount.group != null ? p.amount.group : 1;
+  document.getElementById('parserDateRegex').value    = (p.date && p.date.regex) || '';
+  document.getElementById('parserDateFormat').value   = (p.date && p.date.format) || 'DD/MM/YY';
+  document.getElementById('parserDescRegex').value    = (p.desc && p.desc.regex) || '';
+  document.getElementById('parserDescGroup').value    = p.desc && p.desc.group != null ? p.desc.group : 1;
+  openSheet('parserEditorSheet');
+}
+
+function saveParserEditor() {
+  const p = {
+    name:            document.getElementById('parserName').value.trim(),
+    subjectContains: document.getElementById('parserSubject').value.trim(),
+    amount: { regex: document.getElementById('parserAmountRegex').value.trim(), group: parseInt(document.getElementById('parserAmountGroup').value) || 1 },
+    date:   { regex: document.getElementById('parserDateRegex').value.trim(),   format: document.getElementById('parserDateFormat').value.trim() },
+    desc:   { regex: document.getElementById('parserDescRegex').value.trim(),   group: parseInt(document.getElementById('parserDescGroup').value) || 1 }
+  };
+  if (!p.name || !p.subjectContains) { showToast('Name and subject are required'); return; }
+  const parsers = loadGmailParsers();
+  if (editingParserIdx >= 0) parsers[editingParserIdx] = p;
+  else parsers.push(p);
+  saveGmailParsers(parsers);
+  closeSheet();
+  renderEmailRulesSubTab();
+  showToast(editingParserIdx >= 0 ? 'Parser updated' : 'Parser added');
+}
+
+function deleteParser(idx) {
+  if (!confirm('Delete this parser?')) return;
+  const parsers = loadGmailParsers();
+  parsers.splice(idx, 1);
+  saveGmailParsers(parsers);
+  renderEmailRulesSubTab();
+  showToast('Parser deleted');
+}
+
 // ── Commit ────────────────────────────────────────────────────────────────────
 
 async function commitGmailImport() {
@@ -351,3 +440,4 @@ async function commitGmailImport() {
     btn.disabled = false;
   }
 }
+

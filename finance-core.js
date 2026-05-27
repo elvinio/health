@@ -102,7 +102,9 @@ function defaultData() {
     budgets: {},
     monthlyAgg: {},
     mortgages: [],
-    ongoingExpenses: []
+    ongoingExpenses: [],
+    emailCatMap: [],       // [{ match: string, value: string }]
+    emailCatDefault: 'Other',
   };
 }
 
@@ -136,6 +138,8 @@ function loadData() {
     if (d.retirementSettings.deathAge == null) d.retirementSettings.deathAge = 85;
     if (d.retirementSettings.monthlyExpenses == null) d.retirementSettings.monthlyExpenses = 3000;
     if (!('expenseCats' in d)) d.expenseCats = '';
+    if (!d.emailCatMap) d.emailCatMap = [];
+    if (!d.emailCatDefault) d.emailCatDefault = 'Other';
     d.accounts.forEach(a => { if (!a._updatedAt) a._updatedAt = 0; });
     return d;
   } catch { return defaultData(); }
