@@ -73,7 +73,7 @@
       <span class="material-symbols-outlined">list</span>Expenses
     </button>
     <button class="exp-sub-tab" id="expSubTab-recurring" onclick="switchExpSubTab('recurring')">
-      <span class="material-symbols-outlined">repeat</span>Recurring
+      <span class="material-symbols-outlined">repeat</span>Recur
     </button>
     <button class="exp-sub-tab" id="expSubTab-mortgage" onclick="switchExpSubTab('mortgage')">
       <span class="material-symbols-outlined">home_work</span>Mortgage
@@ -657,6 +657,12 @@
   <div class="modal">
     <button class="modal-close" onclick="closeDriveModal()">✕</button>
     <div class="modal-title">Google Drive Sync</div>
+
+    <div class="field" style="margin-bottom:14px">
+      <label>Google Account Email</label>
+      <input type="email" id="driveLoginHint" placeholder="you@gmail.com" style="font-size:.9rem" oninput="localStorage.setItem('finance:googleLoginHint',this.value.trim())">
+      <div style="font-size:.75rem;color:var(--muted);margin-top:4px">Skips account picker on every Google sign-in.</div>
+    </div>
 
     <!-- Setup state -->
     <div id="driveSetup">

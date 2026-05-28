@@ -148,6 +148,7 @@ let driveToken = null;
 function openDriveMenu() {
   document.getElementById('mainMenu').classList.remove('open');
   document.getElementById('driveStatus').textContent = '';
+  document.getElementById('driveLoginHint').value = localStorage.getItem(DRIVE_LOGIN_HINT_KEY) || '';
   const fileId = localStorage.getItem(DRIVE_FILE_KEY);
   const clientId = localStorage.getItem(DRIVE_CLIENT_KEY);
   if (fileId && clientId) {
@@ -233,9 +234,11 @@ async function getAccessToken(clientId) {
   if (driveToken && driveToken.expiry > Date.now()) return driveToken.token;
   await ensureGsiLoaded();
   return new Promise((resolve, reject) => {
+    const hint = localStorage.getItem(DRIVE_LOGIN_HINT_KEY) || '';
     const client = google.accounts.oauth2.initTokenClient({
       client_id: clientId,
       scope: DRIVE_SCOPE,
+      login_hint: hint,
       callback: resp => {
         if (resp.error) { reject(new Error(resp.error)); return; }
         driveToken = { token: resp.access_token, expiry: Date.now() + (resp.expires_in - 30) * 1000 };
