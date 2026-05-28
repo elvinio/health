@@ -40,15 +40,13 @@ function syncGmailExpenses() {
 
   const labelDone = getOrCreateLabel(LABEL_DONE);
   const subjects  = parsers.map(p => `subject:"${p.subjectContains}"`).join(' OR ');
-  const threads   = GmailApp.search(`is:unread (${subjects})`, 0, MAX_EMAILS);
+  const threads   = GmailApp.search(`-label:${LABEL_DONE} (${subjects})`, 0, MAX_EMAILS);
 
   let added   = 0;
   const curYear = String(new Date().getFullYear());
 
   for (const thread of threads) {
     for (const msg of thread.getMessages()) {
-      if (!msg.isUnread()) continue;
-
       const subject = msg.getSubject();
       const parser  = findParser(subject, parsers);
       if (!parser) continue;
