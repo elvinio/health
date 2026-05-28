@@ -70,6 +70,7 @@ function expenseCatDefaults() {
 const STORAGE_KEY = 'finance:v1';
 const DRIVE_FILE_KEY = 'finance:driveFileId';
 const DRIVE_CLIENT_KEY = 'finance:googleClientId';
+const DRIVE_LOGIN_HINT_KEY = 'finance:googleLoginHint';
 const HISTORY_KEY = 'finance:v1:history';
 const DRIVE_HISTORY_FILE_KEY = 'finance:driveHistoryFileId';
 const BUS_API_KEY_STORAGE = 'finance:busApiKey';
