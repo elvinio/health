@@ -199,6 +199,8 @@ function deleteOngoing() {
   if (!id) return;
   if (!confirm('Delete this ongoing expense?')) return;
   data.ongoingExpenses = (data.ongoingExpenses || []).filter(x => x.id !== id);
+  if (!data._deletedIds) data._deletedIds = [];
+  data._deletedIds.push(id);
   saveData(data);
   closeSheet();
   showToast('Deleted');
