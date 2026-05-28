@@ -75,7 +75,11 @@ function applyParser(parser, body, catMap, catDefault, emailTimestamp) {
   }
   if (!date) return null;
   const cat = resolveCategory(descRaw, catMap, catDefault);
-  return { amount, date, desc: descRaw, cat };
+  const letters = descRaw.replace(/[^a-zA-Z]/g, '');
+  const desc = letters.length > 0 && letters === letters.toUpperCase()
+    ? descRaw.toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase())
+    : descRaw;
+  return { amount, date, desc, cat };
 }
 
 function findParser(subject, parsers) {
