@@ -394,23 +394,31 @@ function renderAnalysis() {
 }
 
 // ── Render all ────────────────────────────────────────────────────────────────
+// Only renders the active tab — invisible tabs are rendered on first visit.
 function renderAll() {
-  renderEventList();
-  renderAccountFilterPills();
-  renderYearFilterPills();
-  renderExpenseList();
-  if (currentExpSubTab === 'recurring') renderOngoingListInline();
-  if (currentExpSubTab === 'mortgage') renderMortgageListInline();
-
-  renderInvestments();
-  renderAnalysis();
-  renderInsurances();
-  renderTaxRecords();
-  if (currentTaxSubTab === 'cpf') renderCpf();
-  if (currentTaxSubTab === 'assets') renderAssetsSubTab();
-  if (currentTaxSubTab === 'retirement') renderRetirement();
   document.getElementById('fabBtn').style.display =
     (currentTab === 'analysis' || (currentTab === 'tax' && currentTaxSubTab === 'retirement')) ? 'none' : '';
+
+  if (currentTab === 'events') {
+    renderEventList();
+  } else if (currentTab === 'expenses') {
+    renderAccountFilterPills();
+    renderYearFilterPills();
+    renderExpenseList();
+    if (currentExpSubTab === 'recurring') renderOngoingListInline();
+    else if (currentExpSubTab === 'mortgage') renderMortgageListInline();
+  } else if (currentTab === 'investments') {
+    renderInvestments();
+  } else if (currentTab === 'analysis') {
+    renderAnalysis();
+  } else if (currentTab === 'insurance') {
+    renderInsurances();
+  } else if (currentTab === 'tax') {
+    renderTaxRecords();
+    if (currentTaxSubTab === 'cpf') renderCpf();
+    else if (currentTaxSubTab === 'assets') renderAssetsSubTab();
+    else if (currentTaxSubTab === 'retirement') renderRetirement();
+  }
 }
 
 // ── XSS-safe escape ───────────────────────────────────────────────────────────

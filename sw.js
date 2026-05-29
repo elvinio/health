@@ -1,4 +1,5 @@
-const CACHE = 'finance-v59';
+const CACHE = 'finance-v60';
+const EXT_CACHE = 'finance-ext-v1';
 const ASSETS = [
   '/health/finance.html',
   '/health/finance.css',
@@ -18,6 +19,12 @@ const ASSETS = [
   '/health/fonts/material-symbols-outlined.woff2',
 ];
 
+// Versioned external assets — safe to cache indefinitely.
+const EXT_ASSETS = [
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+];
+
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
   self.skipWaiting();
@@ -26,13 +33,31 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+      Promise.all(keys.filter(k => k !== CACHE && k !== EXT_CACHE).map(k => caches.delete(k)))
     )
   );
   self.clients.claim();
 });
 
 self.addEventListener('fetch', e => {
+  const url = e.request.url;
+
+  // Cache-first for versioned external assets (Leaflet). Cached on first fetch.
+  if (EXT_ASSETS.some(u => url === u)) {
+    e.respondWith(
+      caches.open(EXT_CACHE).then(cache =>
+        cache.match(e.request).then(cached => {
+          if (cached) return cached;
+          return fetch(e.request).then(res => {
+            if (res.ok) cache.put(e.request, res.clone());
+            return res;
+          });
+        })
+      )
+    );
+    return;
+  }
+
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request))
   );
