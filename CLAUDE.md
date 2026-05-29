@@ -60,7 +60,7 @@ Same rule applies to `tracker.html` — bump the version in `sw-tracker.js` if t
 ## Finance PWA architecture
 
 - **Split-file app**: HTML in `finance.html`, CSS in `finance.css`, JS split across 8 domain files. No build step, no bundler.
-- **Icons**: Google Material Symbols Outlined (loaded from Google Fonts CDN).
+- **Icons**: Google Material Symbols Outlined, self-hosted as a subset in `fonts/` (see below).
 - **Offline-first**: service worker caches all assets; Drive sync is optional.
 - **No frameworks**: vanilla JS, no React/Vue/etc.
 
@@ -114,6 +114,43 @@ Defined in `themes.css`, applied as a class on `<html>`:
 | `theme-pastel` | Pastel |
 
 Theme preference stored in `localStorage` under `finance:theme`.
+
+### Material Symbols font (self-hosted subset)
+
+The icon font lives in `fonts/material-symbols-outlined.css` and `fonts/material-symbols-outlined.woff2`.
+It is a subset containing only the icons currently used (~279KB vs ~1.5MB for the full font).
+Both files are pre-cached by the service worker so icons load instantly offline.
+
+**When you add a new icon**, re-run the subset to include it:
+
+**Step 1 — find all unique characters across every icon name in use:**
+```bash
+grep -rh "material-symbols-outlined" finance.html finance-*.js \
+  | grep -oP "(?<=>)[a-z_]+(?=<)" | sort -u \
+  | tr -d '\n _' | grep -o . | sort -u | tr -d '\n'
+```
+Copy the output string (e.g. `abcdefghiklmnoprstuvwxy`).
+
+**Step 2 — fetch the subset CSS from Google Fonts** (replace `TEXT` with the string from step 1):
+```bash
+TEXT="abcdefghiklmnoprstuvwxy"
+curl -sS \
+  -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+  "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0&text=${TEXT}"
+```
+Copy the `url(https://fonts.gstatic.com/...)` value from the output.
+
+**Step 3 — download the new WOFF2** (replace `URL` with the url from step 2):
+```bash
+curl -sS \
+  -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+  "URL" \
+  -o fonts/material-symbols-outlined.woff2
+```
+
+**Step 4 — bump the service worker cache version** in `sw.js` (required so users get the new font).
+
+No changes needed to `fonts/material-symbols-outlined.css` or `finance.html`.
 
 ### UI patterns
 
