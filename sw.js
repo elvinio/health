@@ -1,4 +1,4 @@
-const CACHE = 'finance-v58';
+const CACHE = 'finance-v59';
 const ASSETS = [
   '/health/finance.html',
   '/health/finance.css',
@@ -14,6 +14,8 @@ const ASSETS = [
   '/health/themes.css',
   '/health/icons/icon-192.png',
   '/health/icons/icon-512.png',
+  '/health/fonts/material-symbols-outlined.css',
+  '/health/fonts/material-symbols-outlined.woff2',
 ];
 
 self.addEventListener('install', e => {
