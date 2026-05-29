@@ -333,7 +333,7 @@ function switchTaxSubTab(tab) {
 }
 
 // ── Balance visibility ────────────────────────────────────────────────────────
-let balanceHidden = false;
+let balanceHidden = localStorage.getItem('finance:balanceHidden') === 'true';
 let collapsedMonths = new Set();
 
 function toggleMonth(month) {
@@ -356,6 +356,7 @@ function recalcAll() {
 
 function toggleBalanceVisibility() {
   balanceHidden = !balanceHidden;
+  localStorage.setItem('finance:balanceHidden', balanceHidden);
   document.getElementById('balanceToggleBtn').innerHTML = balanceHidden
     ? '<span class="material-symbols-outlined">visibility</span> Show Balances'
     : '<span class="material-symbols-outlined">visibility_off</span> Hide Balances';
