@@ -396,7 +396,7 @@
   .event-time-display { font-size: .72rem; color: var(--muted); margin-top: 2px; }
   .event-weekday-right { font-size: .8rem; font-weight: 700; color: var(--primary); flex-shrink: 0; align-self: center; text-align: right; min-width: 48px; }
   .event-title { font-size: .95rem; font-weight: 700; }
-  .event-desc-text { font-size: .85rem; color: var(--muted); margin-top: 2px; }
+  .event-desc-text { font-size: .85rem; color: var(--muted); margin-top: 2px; white-space: pre-wrap; }
   .event-reminder-badge {
     display: inline-block; margin-top: 5px;
     font-size: .7rem; font-weight: 700; padding: 2px 7px;
