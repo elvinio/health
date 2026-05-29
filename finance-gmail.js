@@ -241,14 +241,24 @@ document.getElementById('importParsersFile').addEventListener('change', e => {
       // Accept either a bare array of parsers or the full { parsers, catMap, catDefault } shape
       const config = Array.isArray(raw) ? { parsers: raw } : raw;
       if (!Array.isArray(config.parsers)) throw new Error('Missing parsers array');
-      saveGmailParsers(config.parsers);
+      const existing = loadGmailParsers();
+      const incoming = config.parsers;
+      // Merge: incoming parser wins if same name exists, otherwise append
+      const merged = [...existing];
+      incoming.forEach(p => {
+        const idx = merged.findIndex(x => x.name === p.name);
+        if (idx >= 0) merged[idx] = p; else merged.push(p);
+      });
+      saveGmailParsers(merged);
       if (Array.isArray(config.catMap)) {
         data.emailCatMap = config.catMap;
         data.emailCatDefault = config.catDefault || 'Other';
         data._emailCatMapTs = Date.now();
         saveData(data);
       }
-      showToast(`Loaded ${config.parsers.length} parser(s)`);
+      const added = incoming.filter(p => !existing.find(x => x.name === p.name)).length;
+      const updated = incoming.length - added;
+      showToast(`${added} added, ${updated} updated (${merged.length} total)`);
       openGmailModal();
     } catch (err) {
       showToast('Invalid parser config: ' + err.message);
