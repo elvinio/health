@@ -106,6 +106,7 @@ function defaultData() {
     ongoingExpenses: [],
     emailCatMap: [],       // [{ match: string, value: string }]
     emailCatDefault: 'Other',
+    emailEventParsers: [], // [{ name, subjectContains, title, date, time?, tags? }]
   };
 }
 
@@ -141,6 +142,7 @@ function loadData() {
     if (!('expenseCats' in d)) d.expenseCats = '';
     if (!d.emailCatMap) d.emailCatMap = [];
     if (!d.emailCatDefault) d.emailCatDefault = 'Other';
+    if (!d.emailEventParsers) d.emailEventParsers = [];
     d.accounts.forEach(a => { if (!a._updatedAt) a._updatedAt = 0; });
     return d;
   } catch { return defaultData(); }

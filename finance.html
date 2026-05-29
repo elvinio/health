@@ -797,6 +797,54 @@
   <button class="btn btn-primary btn-full" style="margin-top:16px" onclick="saveParserEditor()">Save Parser</button>
 </div>
 
+<!-- Event Parser Editor Sheet -->
+<div class="sheet" id="evParserEditorSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="evParserEditorTitle">Edit Event Parser</div>
+  <div class="field">
+    <label>Parser Name</label>
+    <input type="text" id="evParserName" placeholder="e.g. Flight Booking">
+  </div>
+  <div class="field">
+    <label>Subject Contains</label>
+    <input type="text" id="evParserSubject" placeholder="e.g. Your booking confirmation">
+    <div class="field-hint">Case-insensitive substring to match against email subject.</div>
+  </div>
+  <div class="section-heading" style="margin-top:8px">Title</div>
+  <div class="field-row">
+    <div class="field" style="flex:3">
+      <label>Regex</label>
+      <input type="text" id="evParserTitleRegex" placeholder="Flight to (.+?) on" style="font-family:monospace;font-size:.82rem">
+    </div>
+    <div class="field" style="flex:1">
+      <label>Group</label>
+      <input type="number" id="evParserTitleGroup" value="1" min="1">
+    </div>
+  </div>
+  <div class="section-heading" style="margin-top:8px">Date</div>
+  <div class="field-row">
+    <div class="field" style="flex:3">
+      <label>Regex</label>
+      <input type="text" id="evParserDateRegex" placeholder="(\d{2}/\d{2}/\d{2})" style="font-family:monospace;font-size:.82rem">
+    </div>
+    <div class="field" style="flex:1">
+      <label>Format</label>
+      <input type="text" id="evParserDateFormat" placeholder="DD/MM/YY">
+    </div>
+  </div>
+  <div class="section-heading" style="margin-top:8px">Time <span style="font-weight:400;font-size:.8rem;color:var(--muted)">(optional)</span></div>
+  <div class="field">
+    <label>Regex</label>
+    <input type="text" id="evParserTimeRegex" placeholder="(\d{1,2}:\d{2}\s*(?:am|pm)?)" style="font-family:monospace;font-size:.82rem">
+    <div class="field-hint">Captures time like 14:30 or 2:30 pm. Leave blank to use midnight.</div>
+  </div>
+  <div class="field" style="margin-top:8px">
+    <label>Tags <span style="font-weight:400;font-size:.8rem;color:var(--muted)">(comma-separated, optional)</span></label>
+    <input type="text" id="evParserTags" placeholder="Travel, Work">
+  </div>
+  <button class="btn btn-primary btn-full" style="margin-top:16px" onclick="saveEventParserEditor()">Save Parser</button>
+</div>
+
 <!-- Hidden file input for import -->
 <input type="file" id="historyImportFile" accept=".json" style="display:none">
 <input type="file" id="importEventsFile" accept=".json" style="display:none">

@@ -18,6 +18,16 @@ function saveGmailParsers(parsers) {
   saveData(data);
 }
 
+function loadGmailEventParsers() {
+  return data.emailEventParsers || [];
+}
+
+function saveGmailEventParsers(parsers) {
+  data.emailEventParsers = parsers;
+  data._emailEventParsersTs = Date.now();
+  saveData(data);
+}
+
 // ── Parser Engine ─────────────────────────────────────────────────────────────
 
 const MONTH_MAP = { jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12 };
@@ -85,6 +95,38 @@ function applyParser(parser, body, catMap, catDefault, emailTimestamp) {
     ? descRaw.toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase())
     : descRaw;
   return { amount, date, desc, cat };
+}
+
+function applyEventParser(parser, body, emailTimestamp) {
+  function extract(field) {
+    if (!field || !field.regex) return null;
+    const m = new RegExp(field.regex, 'im').exec(body);
+    return m ? m[field.group || 1].trim() : null;
+  }
+  const titleRaw = extract(parser.title);
+  if (!titleRaw) return null;
+  const dateRaw = extract(parser.date);
+  let date = dateRaw ? parseDateStr(dateRaw, parser.date && parser.date.format) : null;
+  if (!date && emailTimestamp) {
+    const d = new Date(+emailTimestamp);
+    const pad = n => String(n).padStart(2, '0');
+    date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+  if (!date) return null;
+  const timeRaw = parser.time && parser.time.regex ? extract(parser.time) : null;
+  let hour = 0, minute = 0, ampm = 'am';
+  if (timeRaw) {
+    const t = timeRaw.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+    if (t) {
+      hour = parseInt(t[1]);
+      minute = parseInt(t[2]);
+      ampm = t[3] ? t[3].toLowerCase() : (hour >= 12 ? 'pm' : 'am');
+      if (ampm === 'am' && hour === 12) hour = 0;
+      if (ampm === 'pm' && hour !== 12) hour -= 12;
+    }
+  }
+  const tags = Array.isArray(parser.tags) ? parser.tags : [];
+  return { title: titleRaw, date, hour, minute, ampm, tags };
 }
 
 function findParser(subject, parsers) {
@@ -272,7 +314,9 @@ document.getElementById('importParsersFile').addEventListener('change', e => {
 
 async function startGmailFetch() {
   const parsers = loadGmailParsers();
-  if (!parsers.length) { openGmailModal(); return; }
+  const eventParsers = loadGmailEventParsers();
+  const allParsers = [...parsers, ...eventParsers];
+  if (!allParsers.length) { openGmailModal(); return; }
   document.getElementById('gmailOverlay').classList.add('open');
   document.getElementById('gmailReadySection').style.display = 'none';
   document.getElementById('gmailReviewSection').style.display = 'none';
@@ -280,7 +324,7 @@ async function startGmailFetch() {
   try {
     const token = await getGmailToken();
     setGmailStatus('Fetching unread emails…');
-    const messages = await fetchUnreadMessages(token, parsers);
+    const messages = await fetchUnreadMessages(token, allParsers);
     if (!messages.length) {
       setGmailStatus('No unread emails from known senders.');
       document.getElementById('gmailReadySection').style.display = '';
@@ -293,11 +337,19 @@ async function startGmailFetch() {
       const sender  = extractHeader(msg, 'from');
       const subject = extractHeader(msg, 'subject');
       const body    = extractTextBody(msg);
-      const parser  = findParser(subject, parsers);
-      if (!parser) continue;
-      const parsed = applyParser(parser, body, data.emailCatMap, data.emailCatDefault, msg.internalDate);
-      if (parsed) {
-        gmailReviewItems.push({ msgId: id, sender, subject, expId: 'gm' + id.slice(-10), parsed, checked: true });
+      const expParser = findParser(subject, parsers);
+      if (expParser) {
+        const parsed = applyParser(expParser, body, data.emailCatMap, data.emailCatDefault, msg.internalDate);
+        if (parsed) {
+          gmailReviewItems.push({ type: 'expense', msgId: id, sender, subject, expId: 'gm' + id.slice(-10), parsed, checked: true });
+        }
+      }
+      const evParser = findParser(subject, eventParsers);
+      if (evParser) {
+        const parsed = applyEventParser(evParser, body, msg.internalDate);
+        if (parsed) {
+          gmailReviewItems.push({ type: 'event', msgId: id, sender, subject, evId: 'gme' + id.slice(-10), parsed, checked: true });
+        }
       }
     }
     setGmailStatus('');
@@ -321,7 +373,29 @@ function escHtml(s) {
 
 function renderGmailReview() {
   const checkedCount = gmailReviewItems.filter(i => i.checked).length;
-  document.getElementById('gmailReviewList').innerHTML = gmailReviewItems.map((item, idx) => `
+  const expCount = gmailReviewItems.filter(i => i.checked && i.type !== 'event').length;
+  const evCount  = gmailReviewItems.filter(i => i.checked && i.type === 'event').length;
+  document.getElementById('gmailReviewList').innerHTML = gmailReviewItems.map((item, idx) => {
+    if (item.type === 'event') {
+      const p = item.parsed;
+      const timeStr = p.hour || p.minute ? ` ${p.hour}:${String(p.minute).padStart(2,'0')} ${p.ampm}` : '';
+      const tagsStr = p.tags && p.tags.length ? p.tags.join(', ') : '';
+      return `
+    <div class="gmail-review-item${item.checked ? '' : ' unchecked'}" onclick="toggleGmailItem(${idx})">
+      <input type="checkbox" class="gmail-checkbox" ${item.checked ? 'checked' : ''}
+             onclick="event.stopPropagation();toggleGmailItem(${idx})">
+      <div class="gmail-review-body">
+        <div class="gmail-review-desc">${escHtml(p.title)}</div>
+        <div class="gmail-review-meta">
+          <span class="cat-chip" style="background:var(--accent-muted,#e8f4e8);color:var(--accent,#2e7d32)">event</span>
+          <span class="gmail-review-date">${escHtml(p.date)}${escHtml(timeStr)}</span>
+          ${tagsStr ? `<span style="font-size:.75rem;color:var(--muted)">${escHtml(tagsStr)}</span>` : ''}
+        </div>
+        <div class="gmail-review-subject">${escHtml(item.subject)}</div>
+      </div>
+    </div>`;
+    }
+    return `
     <div class="gmail-review-item${item.checked ? '' : ' unchecked'}" onclick="toggleGmailItem(${idx})">
       <input type="checkbox" class="gmail-checkbox" ${item.checked ? 'checked' : ''}
              onclick="event.stopPropagation();toggleGmailItem(${idx})">
@@ -334,10 +408,12 @@ function renderGmailReview() {
         </div>
         <div class="gmail-review-subject">${escHtml(item.subject)}</div>
       </div>
-    </div>
-  `).join('');
-  document.getElementById('gmailCommitBtn').textContent =
-    `Commit ${checkedCount} expense${checkedCount !== 1 ? 's' : ''}`;
+    </div>`;
+  }).join('');
+  const parts = [];
+  if (expCount) parts.push(`${expCount} expense${expCount !== 1 ? 's' : ''}`);
+  if (evCount)  parts.push(`${evCount} event${evCount !== 1 ? 's' : ''}`);
+  document.getElementById('gmailCommitBtn').textContent = parts.length ? `Commit ${parts.join(' + ')}` : `Commit ${checkedCount} item${checkedCount !== 1 ? 's' : ''}`;
   document.getElementById('gmailReviewSection').style.display = '';
 }
 
@@ -352,32 +428,50 @@ let editingParserIdx = -1;
 
 function renderEmailRulesSubTab() {
   const parsers = loadGmailParsers();
+  const eventParsers = loadGmailEventParsers();
   const el = document.getElementById('emailRulesContent');
   if (!el) return;
-  if (!parsers.length) {
+  if (!parsers.length && !eventParsers.length) {
     el.innerHTML = `<div class="empty-state"><span class="material-symbols-outlined icon">mail</span><p>No email parsers configured.<br>Import a parser config via the Gmail import menu.</p></div>`;
     return;
   }
-  el.innerHTML = `
-    <div style="padding:8px 0 4px;display:flex;justify-content:flex-end">
-      <button class="btn btn-primary" style="font-size:.82rem;padding:7px 14px" onclick="openParserEditor(-1)">+ Add Parser</button>
-    </div>
-    ${parsers.map((p, i) => `
+
+  function parserCard(p, i, type) {
+    const editFn   = type === 'event' ? `openEventParserEditor(${i})` : `openParserEditor(${i})`;
+    const deleteFn = type === 'event' ? `deleteEventParser(${i})` : `deleteParser(${i})`;
+    const details  = type === 'event'
+      ? `<div>Title: <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.title && p.title.regex || '')}</code> group ${esc(String(p.title && p.title.group != null ? p.title.group : 1))}</div>
+         <div>Date: <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.date && p.date.regex || '')}</code> format <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.date && p.date.format || '')}</code></div>
+         ${p.time && p.time.regex ? `<div>Time: <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.time.regex)}</code></div>` : ''}
+         ${p.tags && p.tags.length ? `<div>Tags: ${esc(p.tags.join(', '))}</div>` : ''}`
+      : `<div>Amount: <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.amount && p.amount.regex || '')}</code> group ${esc(String(p.amount && p.amount.group != null ? p.amount.group : 1))}</div>
+         <div>Date: <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.date && p.date.regex || '')}</code> format <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.date && p.date.format || '')}</code></div>
+         <div>Desc: <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.desc && p.desc.regex || '')}</code> group ${esc(String(p.desc && p.desc.group != null ? p.desc.group : 1))}</div>`;
+    return `
     <div style="background:var(--card);border-radius:12px;padding:14px 16px;margin-bottom:10px;border:1px solid var(--border)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <div style="font-weight:600;font-size:.95rem">${esc(p.name || 'Parser ' + (i + 1))}</div>
         <div style="display:flex;gap:8px">
-          <button class="btn" style="font-size:.78rem;padding:4px 10px" onclick="openParserEditor(${i})">Edit</button>
-          <button class="btn" style="font-size:.78rem;padding:4px 10px;color:var(--danger)" onclick="deleteParser(${i})">Delete</button>
+          <button class="btn" style="font-size:.78rem;padding:4px 10px" onclick="${editFn}">Edit</button>
+          <button class="btn" style="font-size:.78rem;padding:4px 10px;color:var(--danger)" onclick="${deleteFn}">Delete</button>
         </div>
       </div>
       <div style="font-size:.8rem;color:var(--muted);margin-bottom:4px">Subject contains: <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.subjectContains || '')}</code></div>
-      <div style="font-size:.78rem;color:var(--muted);display:grid;gap:2px;margin-top:6px">
-        <div>Amount: <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.amount && p.amount.regex || '')}</code> group ${esc(String(p.amount && p.amount.group != null ? p.amount.group : 1))}</div>
-        <div>Date: <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.date && p.date.regex || '')}</code> format <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.date && p.date.format || '')}</code></div>
-        <div>Desc: <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.desc && p.desc.regex || '')}</code> group ${esc(String(p.desc && p.desc.group != null ? p.desc.group : 1))}</div>
-      </div>
-    </div>`).join('')}`;
+      <div style="font-size:.78rem;color:var(--muted);display:grid;gap:2px;margin-top:6px">${details}</div>
+    </div>`;
+  }
+
+  el.innerHTML = `
+    <div class="section-heading" style="margin-top:4px">Expense Parsers</div>
+    <div style="padding:4px 0 4px;display:flex;justify-content:flex-end">
+      <button class="btn btn-primary" style="font-size:.82rem;padding:7px 14px" onclick="openParserEditor(-1)">+ Add</button>
+    </div>
+    ${parsers.length ? parsers.map((p, i) => parserCard(p, i, 'expense')).join('') : '<p style="font-size:.82rem;color:var(--muted);text-align:center;padding:8px 0">No expense parsers.</p>'}
+    <div class="section-heading" style="margin-top:12px">Event Parsers</div>
+    <div style="padding:4px 0 4px;display:flex;justify-content:flex-end">
+      <button class="btn btn-primary" style="font-size:.82rem;padding:7px 14px" onclick="openEventParserEditor(-1)">+ Add</button>
+    </div>
+    ${eventParsers.length ? eventParsers.map((p, i) => parserCard(p, i, 'event')).join('') : '<p style="font-size:.82rem;color:var(--muted);text-align:center;padding:8px 0">No event parsers.</p>'}`;
 }
 
 function openParserEditor(idx) {
@@ -428,6 +522,62 @@ function deleteParser(idx) {
   showToast('Parser deleted');
 }
 
+// ── Event Parser Editor ───────────────────────────────────────────────────────
+
+let editingEventParserIdx = -1;
+
+function openEventParserEditor(idx) {
+  editingEventParserIdx = idx;
+  const parsers = loadGmailEventParsers();
+  const p = idx >= 0 ? parsers[idx] : {
+    name: '', subjectContains: '',
+    title: { regex: '', group: 1 },
+    date:  { regex: '', format: 'DD/MM/YY' },
+    time:  { regex: '' },
+    tags:  []
+  };
+  document.getElementById('evParserEditorTitle').textContent = idx >= 0 ? 'Edit Event Parser' : 'Add Event Parser';
+  document.getElementById('evParserName').value        = p.name || '';
+  document.getElementById('evParserSubject').value     = p.subjectContains || '';
+  document.getElementById('evParserTitleRegex').value  = (p.title && p.title.regex) || '';
+  document.getElementById('evParserTitleGroup').value  = p.title && p.title.group != null ? p.title.group : 1;
+  document.getElementById('evParserDateRegex').value   = (p.date && p.date.regex) || '';
+  document.getElementById('evParserDateFormat').value  = (p.date && p.date.format) || 'DD/MM/YY';
+  document.getElementById('evParserTimeRegex').value   = (p.time && p.time.regex) || '';
+  document.getElementById('evParserTags').value        = Array.isArray(p.tags) ? p.tags.join(', ') : '';
+  openSheet('evParserEditorSheet');
+}
+
+function saveEventParserEditor() {
+  const tagsRaw = document.getElementById('evParserTags').value.trim();
+  const p = {
+    name:            document.getElementById('evParserName').value.trim(),
+    subjectContains: document.getElementById('evParserSubject').value.trim(),
+    title: { regex: document.getElementById('evParserTitleRegex').value.trim(), group: parseInt(document.getElementById('evParserTitleGroup').value) || 1 },
+    date:  { regex: document.getElementById('evParserDateRegex').value.trim(),  format: document.getElementById('evParserDateFormat').value.trim() },
+    time:  { regex: document.getElementById('evParserTimeRegex').value.trim() },
+    tags:  tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : []
+  };
+  if (!p.name || !p.subjectContains) { showToast('Name and subject are required'); return; }
+  if (!p.title.regex) { showToast('Title regex is required'); return; }
+  const parsers = loadGmailEventParsers();
+  if (editingEventParserIdx >= 0) parsers[editingEventParserIdx] = p;
+  else parsers.push(p);
+  saveGmailEventParsers(parsers);
+  closeSheet();
+  renderEmailRulesSubTab();
+  showToast(editingEventParserIdx >= 0 ? 'Event parser updated' : 'Event parser added');
+}
+
+function deleteEventParser(idx) {
+  if (!confirm('Delete this event parser?')) return;
+  const parsers = loadGmailEventParsers();
+  parsers.splice(idx, 1);
+  saveGmailEventParsers(parsers);
+  renderEmailRulesSubTab();
+  showToast('Event parser deleted');
+}
+
 // ── Commit ────────────────────────────────────────────────────────────────────
 
 async function commitGmailImport() {
@@ -442,20 +592,43 @@ async function commitGmailImport() {
       try { await markDone(token, item.msgId, labelId); } catch {}
     }
     const curYear = String(new Date().getFullYear());
-    let added = 0;
+    let addedExp = 0, addedEv = 0;
     gmailReviewItems.filter(i => i.checked).forEach(item => {
-      const expense = {
-        id: item.expId, ac: 'acc1',
-        date: item.parsed.date, desc: item.parsed.desc,
-        amount: item.parsed.amount, cat: item.parsed.cat,
-        _ts: Date.now()
-      };
-      const store = expense.date.startsWith(curYear + '-') ? data.expenses : historyData.expenses;
-      const idx = store.findIndex(x => x.id === expense.id);
-      if (idx >= 0) {
-        if (expense._ts > (store[idx]._ts || 0)) store[idx] = expense;
+      if (item.type === 'event') {
+        const p = item.parsed;
+        const ev = {
+          id: item.evId,
+          title: p.title,
+          description: '',
+          startDate: p.date,
+          startTime: { hour: p.hour, minute: p.minute, ampm: p.ampm },
+          endDate: null,
+          endTime: { hour: p.hour, minute: p.minute, ampm: p.ampm },
+          tags: p.tags || [],
+          reminderHours: 0,
+          _ts: Date.now()
+        };
+        if (!data.events) data.events = [];
+        const idx = data.events.findIndex(x => x.id === ev.id);
+        if (idx >= 0) {
+          if (ev._ts > (data.events[idx]._ts || 0)) data.events[idx] = ev;
+        } else {
+          data.events.push(ev); addedEv++;
+        }
       } else {
-        store.push(expense); added++;
+        const expense = {
+          id: item.expId, ac: 'acc1',
+          date: item.parsed.date, desc: item.parsed.desc,
+          amount: item.parsed.amount, cat: item.parsed.cat,
+          _ts: Date.now()
+        };
+        const store = expense.date.startsWith(curYear + '-') ? data.expenses : historyData.expenses;
+        const idx = store.findIndex(x => x.id === expense.id);
+        if (idx >= 0) {
+          if (expense._ts > (store[idx]._ts || 0)) store[idx] = expense;
+        } else {
+          store.push(expense); addedExp++;
+        }
       }
     });
     recalcBalances(data, allExpenses());
@@ -464,7 +637,10 @@ async function commitGmailImport() {
     saveHistory(historyData);
     renderAll();
     closeGmailModal();
-    showToast(`Added ${added} expense${added !== 1 ? 's' : ''} from Gmail`);
+    const parts = [];
+    if (addedExp) parts.push(`${addedExp} expense${addedExp !== 1 ? 's' : ''}`);
+    if (addedEv)  parts.push(`${addedEv} event${addedEv !== 1 ? 's' : ''}`);
+    showToast(`Added ${parts.join(' + ') || '0 items'} from Gmail`);
     gmailReviewItems = [];
   } catch (err) {
     setGmailStatus('Error: ' + err.message);
