@@ -237,7 +237,9 @@ document.getElementById('importParsersFile').addEventListener('change', e => {
   const reader = new FileReader();
   reader.onload = ev => {
     try {
-      const config = JSON.parse(ev.target.result);
+      const raw = JSON.parse(ev.target.result);
+      // Accept either a bare array of parsers or the full { parsers, catMap, catDefault } shape
+      const config = Array.isArray(raw) ? { parsers: raw } : raw;
       if (!Array.isArray(config.parsers)) throw new Error('Missing parsers array');
       saveGmailParsers(config.parsers);
       if (Array.isArray(config.catMap)) {
