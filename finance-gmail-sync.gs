@@ -47,35 +47,57 @@ function syncGmailExpenses() {
 
   for (const thread of threads) {
     for (const msg of thread.getMessages()) {
-      const subject = msg.getSubject();
-      const parser  = findParser(subject, parsers);
+      const subject   = msg.getSubject();
+      const parser    = findParser(subject, parsers);
       if (!parser) continue;
 
       const body      = getMessageBody(msg);
       const timestamp = msg.getDate().getTime();
-      const parsed    = applyParser(parser, body, catMap, catDefault, timestamp);
+      const msgId     = msg.getId();
 
-      if (!parsed) {
-        Logger.log(`Could not parse: "${subject}"`);
-        continue;
-      }
+      if ((parser.type || 'expense') === 'event') {
+        const parsed = applyEventParser(parser, body, timestamp);
+        if (!parsed) { Logger.log(`Could not parse event: "${subject}"`); continue; }
 
-      const expId  = 'gm' + msg.getId().slice(-10);
-      const expense = {
-        id: expId, ac: DEFAULT_ACCOUNT,
-        date: parsed.date, desc: parsed.desc,
-        amount: parsed.amount, cat: parsed.cat,
-        _ts: Date.now()
-      };
+        const evId = 'gev' + msgId.slice(-10);
+        const event = {
+          id: evId, title: parsed.title,
+          description: '', tags: [], reminderHours: 0,
+          startDate: parsed.startDate, startTime: parsed.startTime,
+          endDate: parsed.endDate,     endTime: parsed.endTime,
+          _ts: Date.now()
+        };
 
-      const store = expense.date.startsWith(curYear + '-') ? data.expenses : histData.expenses;
-      const idx   = store.findIndex(x => x.id === expense.id);
-      if (idx >= 0) {
-        if (expense._ts > (store[idx]._ts || 0)) store[idx] = expense;
+        if (!data.events) data.events = [];
+        const idx = data.events.findIndex(x => x.id === evId);
+        if (idx >= 0) {
+          if (event._ts > (data.events[idx]._ts || 0)) data.events[idx] = event;
+        } else {
+          data.events.push(event);
+          added++;
+          Logger.log(`Added event: ${parsed.title}  ${parsed.startDate}  ${parsed.startTime.hour}:${String(parsed.startTime.minute).padStart(2,'0')} ${parsed.startTime.ampm}`);
+        }
       } else {
-        store.push(expense);
-        added++;
-        Logger.log(`Added: ${parsed.desc}  $${parsed.amount.toFixed(2)}  ${parsed.date}  [${parsed.cat}]`);
+        const parsed = applyParser(parser, body, catMap, catDefault, timestamp);
+        if (!parsed) { Logger.log(`Could not parse expense: "${subject}"`); continue; }
+
+        const expId  = 'gm' + msgId.slice(-10);
+        const expense = {
+          id: expId, ac: DEFAULT_ACCOUNT,
+          date: parsed.date, desc: parsed.desc,
+          amount: parsed.amount, cat: parsed.cat,
+          _ts: Date.now()
+        };
+
+        const store = expense.date.startsWith(curYear + '-') ? data.expenses : histData.expenses;
+        const idx   = store.findIndex(x => x.id === expId);
+        if (idx >= 0) {
+          if (expense._ts > (store[idx]._ts || 0)) store[idx] = expense;
+        } else {
+          store.push(expense);
+          added++;
+          Logger.log(`Added expense: ${parsed.desc}  $${parsed.amount.toFixed(2)}  ${parsed.date}  [${parsed.cat}]`);
+        }
       }
 
       msg.markRead();
@@ -90,9 +112,9 @@ function syncGmailExpenses() {
     histData._updatedAt     = Date.now();
     data.historyUpdatedAt   = histData._updatedAt;
     saveDriveJson(histFile, histData);
-    Logger.log(`Done — added ${added} expense(s). Sync the PWA to see them.`);
+    Logger.log(`Done — added ${added} item(s). Sync the PWA to see them.`);
   } else {
-    Logger.log('No new expenses found.');
+    Logger.log('No new items found.');
   }
 }
 
@@ -170,7 +192,66 @@ function parseDateStr(str, format) {
     const m = MONTH_MAP[parts[0].toLowerCase().slice(0, 3)];
     return m ? `${parts[2]}-${pad(m)}-${pad(+parts[1])}` : null;
   }
+  if (format === 'D Mon YYYY') {
+    const parts = str.trim().split(/\s+/);
+    const m = MONTH_MAP[parts[1].toLowerCase().slice(0, 3)];
+    return m ? `${parts[2]}-${pad(m)}-${pad(+parts[0])}` : null;
+  }
   return null;
+}
+
+function parseTime24(str) {
+  const [h, m] = str.trim().split(':').map(Number);
+  return { hour: h % 12 === 0 ? 12 : h % 12, minute: m, ampm: h < 12 ? 'AM' : 'PM' };
+}
+
+// ── Event Parser ──────────────────────────────────────────────────────────────
+// Parser config shape for type "event":
+// {
+//   type: "event", name: "...", subjectContains: "...",
+//   title:    { regex: "Sold by: ([^\r\n]+)", group: 1 },
+//   datetime: { regex: "Delivery Dates: (\\d{1,2} \\w+ \\d{4}) at (\\d{2}:\\d{2}) - (\\d{2}:\\d{2})",
+//               dateGroup: 1, startTimeGroup: 2, endTimeGroup: 3, dateFormat: "D Mon YYYY" }
+// }
+function applyEventParser(parser, body, emailTimestamp) {
+  function extract(field) {
+    if (!field) return null;
+    const m = new RegExp(field.regex, 'im').exec(body);
+    return m ? m[field.group || 1].trim() : null;
+  }
+
+  const titleRaw = extract(parser.title);
+  if (!titleRaw) return null;
+
+  const dt = parser.datetime;
+  if (!dt) return null;
+  const dtMatch = new RegExp(dt.regex, 'im').exec(body);
+  if (!dtMatch) return null;
+
+  const dateRaw      = (dtMatch[dt.dateGroup      || 1] || '').trim();
+  const startTimeRaw = (dtMatch[dt.startTimeGroup || 2] || '').trim();
+  const endTimeRaw   = (dtMatch[dt.endTimeGroup   || 3] || '').trim();
+
+  let startDate = parseDateStr(dateRaw, dt.dateFormat);
+  if (!startDate && emailTimestamp) {
+    const d = new Date(emailTimestamp);
+    const pad = n => String(n).padStart(2, '0');
+    startDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+  if (!startDate) return null;
+
+  const letters = titleRaw.replace(/[^a-zA-Z]/g, '');
+  const title   = letters.length > 0 && letters === letters.toUpperCase()
+    ? titleRaw.toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase())
+    : titleRaw;
+
+  return {
+    title,
+    startDate,
+    endDate:   startDate,
+    startTime: startTimeRaw ? parseTime24(startTimeRaw) : { hour: 12, minute: 0, ampm: 'PM' },
+    endTime:   endTimeRaw   ? parseTime24(endTimeRaw)   : null
+  };
 }
 
 function resolveCategory(desc, catMap, catDefault) {

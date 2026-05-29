@@ -44,6 +44,11 @@ function parseDateStr(str, format) {
     const m = MONTH_MAP[parts[0].toLowerCase().slice(0, 3)];
     return m ? `${parts[2]}-${pad(m)}-${pad(+parts[1])}` : null;
   }
+  if (format === 'D Mon YYYY') {
+    const parts = str.trim().split(/\s+/);
+    const m = MONTH_MAP[parts[1].toLowerCase().slice(0, 3)];
+    return m ? `${parts[2]}-${pad(m)}-${pad(+parts[0])}` : null;
+  }
   return null;
 }
 
