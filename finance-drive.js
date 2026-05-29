@@ -342,12 +342,6 @@ function mergeData(local, remote) {
     : (remote.emailParsers || local.emailParsers || null);
   const emailParsersTs = Math.max(local._emailParsersTs || 0, remote._emailParsersTs || 0);
 
-  // emailEventParsers: prefer whichever side was saved most recently
-  const emailEventParsers = (local._emailEventParsersTs || 0) >= (remote._emailEventParsersTs || 0)
-    ? (local.emailEventParsers || remote.emailEventParsers || [])
-    : (remote.emailEventParsers || local.emailEventParsers || []);
-  const emailEventParsersTs = Math.max(local._emailEventParsersTs || 0, remote._emailEventParsersTs || 0);
-
   // emailCatMap + emailCatDefault: prefer whichever side was saved most recently
   const emailCatMap = (local._emailCatMapTs || 0) >= (remote._emailCatMapTs || 0)
     ? (local.emailCatMap || remote.emailCatMap || [])
@@ -433,8 +427,6 @@ function mergeData(local, remote) {
     emailCatMap,
     emailCatDefault,
     _emailCatMapTs: emailCatMapTs,
-    emailEventParsers,
-    _emailEventParsersTs: emailEventParsersTs,
   };
   recalcBalances(merged, merged.expenses);
   recalcMonthlyAgg(merged, merged.expenses);

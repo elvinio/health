@@ -38,7 +38,6 @@
       <button class="dropdown-item" onclick="recalcAll()"><span class="material-symbols-outlined">calculate</span> Recalculate</button>
       <div class="dropdown-sep"></div>
       <button class="dropdown-item" onclick="openDriveMenu()">☁ Google Drive</button>
-      <button class="dropdown-item" onclick="openGmailModal()">✉ Import from Gmail</button>
       <div class="dropdown-sep"></div>
       <button class="dropdown-item" onclick="openThemePicker()"><span class="material-symbols-outlined">palette</span> Theme</button>
       <div class="dropdown-sep"></div>
@@ -711,43 +710,6 @@
   </div>
 </div>
 
-<!-- Gmail Modal -->
-<div class="modal-overlay" id="gmailOverlay">
-  <div class="modal">
-    <button class="modal-close" onclick="closeGmailModal()">✕</button>
-    <div class="modal-title">Import from Gmail</div>
-
-    <!-- No parsers configured -->
-    <div id="gmailSetupSection">
-      <p style="font-size:.88rem;color:var(--muted);margin-bottom:14px">
-        Import an <code>email-parsers.json</code> config to get started. Also ensure the Gmail API is enabled in your Google Cloud project.
-      </p>
-      <button class="btn btn-primary btn-block" onclick="triggerImportParsers()">Import Parser Config</button>
-    </div>
-
-    <!-- Parsers loaded -->
-    <div id="gmailReadySection" style="display:none">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:10px 12px;background:var(--green-light);border-radius:10px">
-        <span style="color:var(--green);font-size:1.1rem">✓</span>
-        <span id="gmailParserInfo" style="font-size:.88rem;font-weight:600;color:var(--green)"></span>
-      </div>
-      <button class="btn btn-primary btn-block" onclick="startGmailFetch()">Fetch Unread Emails</button>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button class="btn btn-secondary" style="flex:1" onclick="triggerImportParsers()">Update Config</button>
-        <button class="btn btn-secondary" style="flex:1" onclick="exportParsers()">Export Config</button>
-      </div>
-    </div>
-
-    <!-- Review list -->
-    <div id="gmailReviewSection" style="display:none">
-      <div id="gmailReviewList"></div>
-      <button class="btn btn-primary btn-block" id="gmailCommitBtn" style="margin-top:12px" onclick="commitGmailImport()">Commit</button>
-    </div>
-
-    <div id="gmailStatus" style="margin-top:12px;font-size:.85rem;color:var(--muted)"></div>
-  </div>
-</div>
-
 <!-- Parser Editor Sheet -->
 <div class="sheet" id="parserEditorSheet">
   <div class="sheet-handle"></div>
@@ -803,44 +765,47 @@
   <div class="sheet-title" id="evParserEditorTitle">Edit Event Parser</div>
   <div class="field">
     <label>Parser Name</label>
-    <input type="text" id="evParserName" placeholder="e.g. Flight Booking">
+    <input type="text" id="evParserName" placeholder="e.g. RedMart Delivery">
   </div>
   <div class="field">
     <label>Subject Contains</label>
-    <input type="text" id="evParserSubject" placeholder="e.g. Your booking confirmation">
-    <div class="field-hint">Case-insensitive substring to match against email subject.</div>
+    <input type="text" id="evParserSubject" placeholder="e.g. Your delivery confirmation">
+    <div class="field-hint">Case-insensitive substring matched against the email subject.</div>
   </div>
   <div class="section-heading" style="margin-top:8px">Title</div>
   <div class="field-row">
     <div class="field" style="flex:3">
       <label>Regex</label>
-      <input type="text" id="evParserTitleRegex" placeholder="Flight to (.+?) on" style="font-family:monospace;font-size:.82rem">
+      <input type="text" id="evParserTitleRegex" placeholder="Sold by: ([^\r\n]+)" style="font-family:monospace;font-size:.82rem">
     </div>
     <div class="field" style="flex:1">
       <label>Group</label>
       <input type="number" id="evParserTitleGroup" value="1" min="1">
     </div>
   </div>
-  <div class="section-heading" style="margin-top:8px">Date</div>
-  <div class="field-row">
-    <div class="field" style="flex:3">
-      <label>Regex</label>
-      <input type="text" id="evParserDateRegex" placeholder="(\d{2}/\d{2}/\d{2})" style="font-family:monospace;font-size:.82rem">
-    </div>
-    <div class="field" style="flex:1">
-      <label>Format</label>
-      <input type="text" id="evParserDateFormat" placeholder="DD/MM/YY">
-    </div>
-  </div>
-  <div class="section-heading" style="margin-top:8px">Time <span style="font-weight:400;font-size:.8rem;color:var(--muted)">(optional)</span></div>
+  <div class="section-heading" style="margin-top:8px">Datetime <span style="font-weight:400;font-size:.8rem;color:var(--muted)">— one regex, multiple groups</span></div>
   <div class="field">
     <label>Regex</label>
-    <input type="text" id="evParserTimeRegex" placeholder="(\d{1,2}:\d{2}\s*(?:am|pm)?)" style="font-family:monospace;font-size:.82rem">
-    <div class="field-hint">Captures time like 14:30 or 2:30 pm. Leave blank to use midnight.</div>
+    <input type="text" id="evParserDtRegex" placeholder="Delivery Dates: (\d{1,2} \w+ \d{4}) at (\d{2}:\d{2}) - (\d{2}:\d{2})" style="font-family:monospace;font-size:.82rem">
+    <div class="field-hint">One regex that captures date, start time, and end time in separate groups.</div>
   </div>
-  <div class="field" style="margin-top:8px">
-    <label>Tags <span style="font-weight:400;font-size:.8rem;color:var(--muted)">(comma-separated, optional)</span></label>
-    <input type="text" id="evParserTags" placeholder="Travel, Work">
+  <div class="field-row" style="margin-top:4px">
+    <div class="field" style="flex:2">
+      <label>Date format</label>
+      <input type="text" id="evParserDtDateFormat" placeholder="D Mon YYYY">
+    </div>
+    <div class="field" style="flex:1">
+      <label>Date gr</label>
+      <input type="number" id="evParserDtDateGroup" value="1" min="1">
+    </div>
+    <div class="field" style="flex:1">
+      <label>Start gr</label>
+      <input type="number" id="evParserDtStartGroup" value="2" min="1">
+    </div>
+    <div class="field" style="flex:1">
+      <label>End gr</label>
+      <input type="number" id="evParserDtEndGroup" value="3" min="1">
+    </div>
   </div>
   <button class="btn btn-primary btn-full" style="margin-top:16px" onclick="saveEventParserEditor()">Save Parser</button>
 </div>
