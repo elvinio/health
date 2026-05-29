@@ -62,7 +62,7 @@ function syncGmailExpenses() {
         const evId = 'gev' + msgId.slice(-10);
         const event = {
           id: evId, title: parsed.title,
-          description: '', tags: [], reminderHours: 0,
+          description: parsed.description || '', tags: [], reminderHours: 0,
           startDate: parsed.startDate, startTime: parsed.startTime,
           endDate: parsed.endDate,     endTime: parsed.endTime,
           _ts: Date.now()
@@ -211,7 +211,9 @@ function parseTime24(str) {
 //   type: "event", name: "...", subjectContains: "...",
 //   title:    { regex: "Sold by: ([^\r\n]+)", group: 1 },
 //   datetime: { regex: "Delivery Dates: (\\d{1,2} \\w+ \\d{4}) at (\\d{2}:\\d{2}) - (\\d{2}:\\d{2})",
-//               dateGroup: 1, startTimeGroup: 2, endTimeGroup: 3, dateFormat: "D Mon YYYY" }
+//               dateGroup: 1, startTimeGroup: 2, endTimeGroup: 3, dateFormat: "D Mon YYYY" },
+//   descItems: { regex: "([^\\[\\r\\n][^\\r\\n<]*?)<[^\\r\\n]*>\\r?\\nSGD\\s*[\\d.]+\\r?\\nQuantity:\\s*(\\d+)",
+//                nameGroup: 1, qtyGroup: 2 }   // optional — each global match → one description line
 // }
 function applyEventParser(parser, body, emailTimestamp) {
   function extract(field) {
@@ -245,8 +247,24 @@ function applyEventParser(parser, body, emailTimestamp) {
     ? titleRaw.toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase())
     : titleRaw;
 
+  // Optional: extract repeating item list into description
+  let description = '';
+  if (parser.descItems && parser.descItems.regex) {
+    const di     = parser.descItems;
+    const itemRe = new RegExp(di.regex, 'gim');
+    const lines  = [];
+    let m;
+    while ((m = itemRe.exec(body)) !== null) {
+      const name = (m[di.nameGroup || 1] || '').trim();
+      const qty  = di.qtyGroup && m[di.qtyGroup] ? `${m[di.qtyGroup].trim()}x ` : '';
+      if (name) lines.push(`${qty}${name}`);
+    }
+    description = lines.join('\n');
+  }
+
   return {
     title,
+    description,
     startDate,
     endDate:   startDate,
     startTime: startTimeRaw ? parseTime24(startTimeRaw) : { hour: 12, minute: 0, ampm: 'PM' },

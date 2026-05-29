@@ -807,6 +807,23 @@
       <input type="number" id="evParserDtEndGroup" value="3" min="1">
     </div>
   </div>
+  <div class="section-heading" style="margin-top:8px">Description Items <span style="font-weight:400;font-size:.8rem;color:var(--muted)">(optional — repeated match)</span></div>
+  <div class="field">
+    <label>Regex</label>
+    <input type="text" id="evParserDiRegex" placeholder="([^\[\r\n][^\r\n<]*?)<[^\r\n]*>\r?\nSGD\s*[\d.]+\r?\nQuantity:\s*(\d+)" style="font-family:monospace;font-size:.78rem">
+    <div class="field-hint">Run with global flag — each match becomes one line in the event description. Leave blank to skip.</div>
+  </div>
+  <div class="field-row" style="margin-top:4px">
+    <div class="field" style="flex:1">
+      <label>Name group</label>
+      <input type="number" id="evParserDiNameGroup" value="1" min="1">
+    </div>
+    <div class="field" style="flex:1">
+      <label>Qty group</label>
+      <input type="number" id="evParserDiQtyGroup" value="2" min="0">
+      <div class="field-hint">0 = no qty</div>
+    </div>
+  </div>
   <button class="btn btn-primary btn-full" style="margin-top:16px" onclick="saveEventParserEditor()">Save Parser</button>
 </div>
 

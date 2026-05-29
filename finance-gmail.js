@@ -117,6 +117,7 @@ function renderEmailRulesSubTab() {
         <div>Title: <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.title && p.title.regex || '')}</code> gr ${esc(String(p.title && p.title.group != null ? p.title.group : 1))}</div>
         <div>Datetime: <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(dt.regex || '')}</code> <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(dt.dateFormat || '')}</code></div>
         <div style="padding-left:4px;color:var(--muted)">date gr ${esc(String(dt.dateGroup || 1))} · start gr ${esc(String(dt.startTimeGroup || 2))} · end gr ${esc(String(dt.endTimeGroup || 3))}</div>
+        ${p.descItems && p.descItems.regex ? `<div>Items: <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.descItems.regex)}</code> name gr ${esc(String(p.descItems.nameGroup || 1))} qty gr ${esc(String(p.descItems.qtyGroup || 2))}</div>` : ''}
       </div>
     </div>`;
   }
@@ -196,21 +197,26 @@ function openEventParserEditor(idx) {
   editingEventParserIdx = idx;
   const parsers = loadGmailParsers();
   const p  = idx >= 0 ? parsers[idx] : null;
-  const dt = p && p.datetime ? p.datetime : {};
+  const dt = p && p.datetime  ? p.datetime  : {};
+  const di = p && p.descItems ? p.descItems : {};
   document.getElementById('evParserEditorTitle').textContent    = idx >= 0 ? 'Edit Event Parser' : 'Add Event Parser';
   document.getElementById('evParserName').value                 = p ? p.name || '' : '';
   document.getElementById('evParserSubject').value              = p ? p.subjectContains || '' : '';
   document.getElementById('evParserTitleRegex').value           = (p && p.title && p.title.regex) || '';
   document.getElementById('evParserTitleGroup').value           = (p && p.title && p.title.group != null) ? p.title.group : 1;
-  document.getElementById('evParserDtRegex').value              = dt.regex        || '';
-  document.getElementById('evParserDtDateFormat').value         = dt.dateFormat   || 'D Mon YYYY';
-  document.getElementById('evParserDtDateGroup').value          = dt.dateGroup    != null ? dt.dateGroup    : 1;
+  document.getElementById('evParserDtRegex').value              = dt.regex          || '';
+  document.getElementById('evParserDtDateFormat').value         = dt.dateFormat     || 'D Mon YYYY';
+  document.getElementById('evParserDtDateGroup').value          = dt.dateGroup      != null ? dt.dateGroup      : 1;
   document.getElementById('evParserDtStartGroup').value         = dt.startTimeGroup != null ? dt.startTimeGroup : 2;
   document.getElementById('evParserDtEndGroup').value           = dt.endTimeGroup   != null ? dt.endTimeGroup   : 3;
+  document.getElementById('evParserDiRegex').value              = di.regex     || '';
+  document.getElementById('evParserDiNameGroup').value          = di.nameGroup != null ? di.nameGroup : 1;
+  document.getElementById('evParserDiQtyGroup').value           = di.qtyGroup  != null ? di.qtyGroup  : 2;
   openSheet('evParserEditorSheet');
 }
 
 function saveEventParserEditor() {
+  const diRegex = document.getElementById('evParserDiRegex').value.trim();
   const p = {
     type:            'event',
     name:            document.getElementById('evParserName').value.trim(),
@@ -222,11 +228,19 @@ function saveEventParserEditor() {
     datetime: {
       regex:          document.getElementById('evParserDtRegex').value.trim(),
       dateFormat:     document.getElementById('evParserDtDateFormat').value.trim(),
-      dateGroup:      parseInt(document.getElementById('evParserDtDateGroup').value)      || 1,
-      startTimeGroup: parseInt(document.getElementById('evParserDtStartGroup').value)     || 2,
-      endTimeGroup:   parseInt(document.getElementById('evParserDtEndGroup').value)       || 3
+      dateGroup:      parseInt(document.getElementById('evParserDtDateGroup').value)  || 1,
+      startTimeGroup: parseInt(document.getElementById('evParserDtStartGroup').value) || 2,
+      endTimeGroup:   parseInt(document.getElementById('evParserDtEndGroup').value)   || 3
     }
   };
+  // Only include descItems if a regex is provided
+  if (diRegex) {
+    p.descItems = {
+      regex:     diRegex,
+      nameGroup: parseInt(document.getElementById('evParserDiNameGroup').value) || 1,
+      qtyGroup:  parseInt(document.getElementById('evParserDiQtyGroup').value)  || 2
+    };
+  }
   if (!p.name || !p.subjectContains)  { showToast('Name and subject are required'); return; }
   if (!p.title.regex)                 { showToast('Title regex is required'); return; }
   if (!p.datetime.regex)              { showToast('Datetime regex is required'); return; }
