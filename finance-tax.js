@@ -861,12 +861,11 @@ function calcRetirementPlan() {
   const deathAge = Math.round(s.deathAge);
 
   const physAssets = data.assets.reduce((sum, a) => sum + (isInvestable(a) ? currentValue(a) : 0), 0);
-  const accAssets = data.accounts.reduce((sum, ac) => sum + (ac.balance || 0), 0);
   const mortgageDebt = (data.mortgages || []).reduce((s, m) => {
     const bals = (m.entries || []).filter(e => e.type === 'balance').sort((a, b) => b.date.localeCompare(a.date));
     return s + (bals.length ? bals[0].amount : (m.principal || 0));
   }, 0);
-  const currentAssets = physAssets + accAssets - mortgageDebt;
+  const currentAssets = physAssets - mortgageDebt;
 
   const annualSavings = s.annualSavings != null ? s.annualSavings : 150000;
 
@@ -1030,7 +1029,7 @@ function renderRetirement() {
       <div class="ret-summary-item">
         <div class="ret-summary-label">Portfolio at Retirement</div>
         <div class="ret-summary-value">${fmtDollar(retirementPortfolio)}</div>
-        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">investable assets + cash − mortgage liability (home excluded)</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">investable assets − mortgage liability (home &amp; cash excluded)</div>
       </div>
       <div class="ret-summary-item">
         <div class="ret-summary-label">Annual Savings (today's $)</div>
