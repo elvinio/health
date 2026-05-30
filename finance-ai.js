@@ -210,7 +210,6 @@ function buildAiSummary() {
   try {
     const p = calcCpfProjection();
     if (p) cpf = {
-      currentBalances: latestCpfBalances(),
       retireAge: p.retireAge,
       ra65: p.ra65,
       monthlyLifePayout: p.lifePayout,
@@ -244,7 +243,7 @@ function buildAiSummary() {
       projectedPortfolioAtRetirement: Math.round(rp.retirementPortfolio),
       sustainableMonthlyWithdrawalToday: Math.round((rp.W_real || 0) / 12),
       cpfAnnualPayout: Math.round(rp.cpfAnnualPayout || 0),
-      assumedMonthlyExpenses: data.retirementSettings.monthlyExpenses,
+      avgMonthlyExpensesAccumulation: Math.round(computeCashflow().avgMonthlyExpense || data.retirementSettings.monthlyExpenses || 0),
       investmentRate: data.retirementSettings.investmentRate,
       inflationRate: data.retirementSettings.inflationRate
     };
