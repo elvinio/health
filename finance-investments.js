@@ -48,15 +48,6 @@ function openAccountSettings() {
         <label>Date of Birth</label>
         <input type="date" id="cpfDOB" value="${esc(cpfS.dateOfBirth || '')}">
       </div>
-      <div class="field">
-        <label>Retirement Age</label>
-        <input type="number" id="cpfRetAge" min="55" max="75" value="${cpfS.retirementAge || 65}">
-      </div>
-      <div class="field">
-        <label>Current Monthly Salary ($)</label>
-        <input type="number" id="cpfMonthlySalary" min="0" step="100" value="${cpfS.monthlySalary || ''}" placeholder="0" inputmode="decimal">
-        <div class="field-hint">Capped at $6,800/month OW ceiling for projections.</div>
-      </div>
     </div>`;
 
   const depsList = data.dependents || [];
@@ -216,9 +207,7 @@ function saveAccountSettings() {
   data._dependentsTs = Date.now();
 
   if (!data.cpfSettings) data.cpfSettings = {};
-  data.cpfSettings.dateOfBirth   = (document.getElementById('cpfDOB')?.value || '').trim();
-  data.cpfSettings.retirementAge = parseInt(document.getElementById('cpfRetAge')?.value) || 65;
-  data.cpfSettings.monthlySalary = parseFloat(document.getElementById('cpfMonthlySalary')?.value) || 0;
+  data.cpfSettings.dateOfBirth = (document.getElementById('cpfDOB')?.value || '').trim();
   data._cpfSettingsTs = Date.now();
 
   // Email category keywords (built from per-category keyword inputs)

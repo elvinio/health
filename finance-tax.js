@@ -151,7 +151,11 @@ function calcCpfProjection() {
   const dobYear = parseInt(s.dateOfBirth.slice(0, 4));
   if (!dobYear) return null;
   const retireAge = parseInt(s.retirementAge) || 65;
-  const monthlySalary = Math.min(parseFloat(s.monthlySalary) || 0, CPF_OW_CAP);
+  const latestTaxRec = (data.taxRecords || []).slice().sort((a, b) => b.year - a.year)
+    .find(r => !r.isHistorical);
+  const monthlySalary = latestTaxRec
+    ? Math.min((latestTaxRec.basicSalary || 0) / 12, CPF_OW_CAP)
+    : 0;
   const annualSalary = monthlySalary * 12;
   const currentYear = new Date().getFullYear();
 
@@ -359,7 +363,7 @@ function renderCpf() {
   const settingsBar = `<div class="cpf-settings-bar">
     <div>
       <div style="font-size:.95rem;font-weight:700">Projection Settings</div>
-      <div class="cpf-settings-bar-meta">DOB: ${dobDisplay} · Retire: ${s.retirementAge || 60} · Salary: ${fmtDollar((s.monthlySalary || 0))} /mo</div>
+      <div class="cpf-settings-bar-meta">DOB: ${dobDisplay}</div>
     </div>
     <button class="btn btn-secondary" style="font-size:.78rem;padding:6px 10px" onclick="openAccountSettings()">Edit</button>
   </div>`;

@@ -105,7 +105,7 @@ function defaultData() {
     insurances: [],
     taxRecords: [],
     cpfRecords: [],
-    cpfSettings: { dateOfBirth: '', retirementAge: 60, monthlySalary: 0 },
+    cpfSettings: { dateOfBirth: '' },
     retirementSettings: { inflationRate: 2.5, investmentRate: 5.0, retirementAge: 62, deathAge: 85, monthlyExpenses: 3000, annualSavings: 150000, safeWithdrawalRate: 4.0 },
     _deletedIds: [],
     budgets: {},
@@ -132,9 +132,7 @@ function loadData() {
     if (!d.insurances) d.insurances = [];
     if (!d.taxRecords) d.taxRecords = [];
     if (!d.cpfRecords) d.cpfRecords = [];
-    if (!d.cpfSettings) d.cpfSettings = { dateOfBirth: '', retirementAge: 60, monthlySalary: 0 };
-    if (d.cpfSettings.retirementAge == null) d.cpfSettings.retirementAge = 60;
-    if (d.cpfSettings.monthlySalary == null) d.cpfSettings.monthlySalary = 0;
+    if (!d.cpfSettings) d.cpfSettings = { dateOfBirth: '' };
     if (d.cpfSettings.lifeExpectancy == null) d.cpfSettings.lifeExpectancy = 85;
     if (d.cpfSettings.ersGrowthRate == null) d.cpfSettings.ersGrowthRate = 3.5;
     if (d.cpfSettings.mortalityFactor == null) d.cpfSettings.mortalityFactor = 1.35;

@@ -10,7 +10,6 @@ const AI_SUMMARY_FILENAME = 'finance-elvis-summary.json';
 const AI_REPORT_FILENAME = 'finance-elvis-report.json';
 const AI_SUMMARY_FILE_KEY = 'finance:driveSummaryFileId';
 const AI_REPORT_FILE_KEY = 'finance:driveReportFileId';
-const EMERGENCY_FUND_MONTHS = 6;
 const ONGOING_ANNUAL_MULT = { monthly: 12, quarterly: 4, annual: 1, weekly: 52, yearly: 1 };
 
 // ── Period helpers ────────────────────────────────────────────────────────────
@@ -105,9 +104,8 @@ function snapshotNetWorthNow() {
   showToast('Net worth snapshot saved: ' + fmtDollar(computeNetWorth().net));
 }
 
-// Average monthly spend, logged income, salary, savings rate and runway.
+// Average monthly spend, savings rate.
 function computeCashflow() {
-  const liquid = (data.accounts || []).reduce((s, a) => s + (a.balance || 0), 0);
   const months = lastNMonthKeys(12);
   const agg = data.monthlyAgg || {};
   let spendTotal = 0;
@@ -117,12 +115,6 @@ function computeCashflow() {
   });
   const avgMonthlyExpense = spendTotal / 12;
 
-  const cutoff = months[months.length - 1] + '-01';
-  const topUps = allExpenses().filter(e => e.cat === 'TopUp' && e.date >= cutoff);
-  const loggedMonthlyIncome = topUps.reduce((s, e) => s + e.amount, 0) / 12;
-
-  const monthlySalary = parseFloat((data.cpfSettings || {}).monthlySalary) || 0;
-
   // Derive monthly income from the latest tax estimate year (basicSalary + bonus) / 12.
   let taxMonthlyIncome = 0;
   const latestTaxRec = (data.taxRecords || []).slice().sort((a, b) => b.year - a.year)
@@ -131,23 +123,12 @@ function computeCashflow() {
     taxMonthlyIncome = ((latestTaxRec.basicSalary || 0) + (latestTaxRec.bonus || 0)) / 12;
   }
 
-  const referenceIncome = taxMonthlyIncome > 0 ? taxMonthlyIncome
-    : monthlySalary > 0 ? monthlySalary
-    : loggedMonthlyIncome;
-  const savingsRate = referenceIncome > 0 ? (referenceIncome - avgMonthlyExpense) / referenceIncome : null;
-  const runwayMonths = avgMonthlyExpense > 0 ? liquid / avgMonthlyExpense : null;
+  const savingsRate = taxMonthlyIncome > 0 ? (taxMonthlyIncome - avgMonthlyExpense) / taxMonthlyIncome : null;
 
   return {
     avgMonthlyExpense: Math.round(avgMonthlyExpense),
-    loggedMonthlyIncome: Math.round(loggedMonthlyIncome),
-    monthlySalary: Math.round(monthlySalary),
     taxMonthlyIncome: Math.round(taxMonthlyIncome),
-    referenceIncome: Math.round(referenceIncome),
     savingsRate: savingsRate == null ? null : Math.round(savingsRate * 1000) / 1000,
-    runwayMonths: runwayMonths == null ? null : Math.round(runwayMonths * 10) / 10,
-    emergencyFundTargetMonths: EMERGENCY_FUND_MONTHS,
-    emergencyFundTarget: Math.round(avgMonthlyExpense * EMERGENCY_FUND_MONTHS),
-    liquid: Math.round(liquid)
   };
 }
 
@@ -300,7 +281,7 @@ function aiReportPrompt() {
   return `You are a Singapore-based personal financial advisor. Below is a JSON snapshot of my consolidated finances for ${label} (all amounts in SGD). Write me a concise quarterly review in GitHub-flavoured Markdown with these sections:
 
 1. **Executive summary** — 2-3 sentences on overall financial health.
-2. **Cash flow & savings** — assess my savings rate (use annualIncome from the tax field as gross income), emergency-fund runway vs the ${EMERGENCY_FUND_MONTHS}-month target, and spending vs budget.
+2. **Cash flow & savings** — assess my savings rate (use annualIncome from the tax field as gross income) and spending vs budget.
 3. **Spending** — notable categories, trends across quarters, and any recurring/subscription costs worth reviewing.
 4. **Mortgage & debt** — payoff trajectory and whether prepayment makes sense.
 5. **Asset allocation** — comment on diversification across asset classes (note: my own-home is excluded from investable assets since I can't sell it).
@@ -458,8 +439,6 @@ function renderAiKpis() {
   const delta = prev ? nw.net - prev.net : null;
   const deltaStr = delta == null ? '' :
     `<span style="font-size:.8rem;font-weight:700;color:${delta >= 0 ? 'var(--green)' : 'var(--red)'}">${delta >= 0 ? '▲' : '▼'} ${fmtDollar(Math.abs(delta))} QoQ</span>`;
-  const runway = cf.runwayMonths == null ? '—' : cf.runwayMonths + ' mo';
-  const runwayColor = cf.runwayMonths != null && cf.runwayMonths < EMERGENCY_FUND_MONTHS ? 'var(--red)' : 'var(--green)';
   const kpi = (label, value, sub) =>
     `<div style="flex:1;min-width:128px">
        <div style="font-size:.72rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em">${label}</div>
@@ -469,7 +448,6 @@ function renderAiKpis() {
   return `<div style="display:flex;flex-wrap:wrap;gap:14px 18px;margin-bottom:14px">
     ${kpi('Net Worth', fmtDollar(nw.net), deltaStr)}
     ${kpi('Savings Rate', fmtPct(cf.savingsRate), `<span style="color:var(--muted)">${fmtDollar(cf.avgMonthlyExpense)}/mo spend</span>`)}
-    ${kpi('Runway', `<span style="color:${runwayColor}">${runway}</span>`, `<span style="color:var(--muted)">${EMERGENCY_FUND_MONTHS} mo target</span>`)}
     ${kpi('Recurring', fmtDollar(annualRecurring()) + '/yr', `<span style="color:var(--muted)">${(data.ongoingExpenses || []).length} items</span>`)}
   </div>`;
 }
