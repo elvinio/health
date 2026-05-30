@@ -326,6 +326,8 @@ function renderAnalysis() {
   const el = document.getElementById('analysisList');
   const allYears = getExpenseYears();
 
+  const aiSection = (typeof renderAiReport === 'function') ? renderAiReport() : '';
+
   const yearPillsHtml = `<div class="filter-pills" style="margin-bottom:16px">${
     allYears.map(y =>
       `<button class="filter-pill${analysisYears.has(y) ? ' active' : ''}" onclick="toggleAnalysisYear('${y}')">${y}</button>`
@@ -346,7 +348,7 @@ function renderAnalysis() {
   const assetMortgageChart = `<div id="assetMortgageChart">${renderAssetMortgageChart()}</div>`;
 
   if (!Object.keys(byMonth).length) {
-    el.innerHTML = yearPillsHtml + assetMortgageChart + '<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">bar_chart</span></div>No expense data yet.</div>';
+    el.innerHTML = aiSection + yearPillsHtml + assetMortgageChart + '<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">bar_chart</span></div>No expense data yet.</div>';
     return;
   }
 
@@ -390,7 +392,7 @@ function renderAnalysis() {
 
   const yearlyChart = `<div id="yearlyChart">${renderYearlyChart()}</div>`;
   const budgetSummary = renderYearBudgetSummary();
-  el.innerHTML = yearPillsHtml + assetMortgageChart + chart + yearlyChart + budgetSummary + cards;
+  el.innerHTML = aiSection + yearPillsHtml + assetMortgageChart + chart + yearlyChart + budgetSummary + cards;
 }
 
 // ── Render all ────────────────────────────────────────────────────────────────

@@ -106,6 +106,8 @@ function defaultData() {
     ongoingExpenses: [],
     emailCatMap: [],       // [{ match: string, value: string }]
     emailCatDefault: 'Other',
+    netWorthSnapshots: [], // [{ key: 'YYYY-Qn', date, liquid, assets, cpf, debt, net, _ts }]
+    aiReport: null,        // { markdown, generatedAt, period }
   };
 }
 
@@ -141,6 +143,8 @@ function loadData() {
     if (!('expenseCats' in d)) d.expenseCats = '';
     if (!d.emailCatMap) d.emailCatMap = [];
     if (!d.emailCatDefault) d.emailCatDefault = 'Other';
+    if (!d.netWorthSnapshots) d.netWorthSnapshots = [];
+    if (!('aiReport' in d)) d.aiReport = null;
     d.accounts.forEach(a => { if (!a._updatedAt) a._updatedAt = 0; });
     return d;
   } catch { return defaultData(); }

@@ -184,6 +184,19 @@
   <div id="themeList"></div>
 </div>
 
+<!-- AI Report Sheet -->
+<div class="sheet" id="aiReportSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Paste AI Report</div>
+  <div class="field">
+    <label>Markdown report from Claude</label>
+    <textarea id="aiReportText" rows="12" placeholder="Paste the Markdown report Claude returned…" style="width:100%;font-family:inherit;font-size:.9rem;line-height:1.4;resize:vertical"></textarea>
+  </div>
+  <div class="btn-row">
+    <button type="button" class="btn btn-primary btn-block" onclick="saveAiReportPaste()">Save Report</button>
+  </div>
+</div>
+
 <!-- Expense Sheet -->
 <div class="sheet" id="expenseSheet">
   <div class="sheet-handle"></div>
@@ -856,6 +869,7 @@
 <script src="finance-events.js"></script>
 <script src="finance-insurance.js"></script>
 <script src="finance-tax.js"></script>
+<script src="finance-ai.js"></script>
 <script src="finance-app.js"></script>
 <script src="finance-gmail.js"></script>
 </body>

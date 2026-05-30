@@ -402,6 +402,20 @@ function mergeData(local, remote) {
       .sort((a, b) => (a._ts || 0) - (b._ts || 0));
   });
 
+  // Net-worth snapshots: union by quarter key, prefer higher _ts
+  const nwMap = new Map();
+  [...(remote.netWorthSnapshots || []), ...(local.netWorthSnapshots || [])].forEach(s => {
+    const ex = nwMap.get(s.key);
+    if (!ex || (s._ts || 0) > (ex._ts || 0)) nwMap.set(s.key, s);
+  });
+  const netWorthSnapshots = [...nwMap.values()].sort((a, b) => a.key.localeCompare(b.key));
+
+  // AI report: last-writer-wins via _aiReportTs
+  const aiReport = (local._aiReportTs || 0) >= (remote._aiReportTs || 0)
+    ? (local.aiReport ?? remote.aiReport ?? null)
+    : (remote.aiReport ?? local.aiReport ?? null);
+  const aiReportTs = Math.max(local._aiReportTs || 0, remote._aiReportTs || 0);
+
   const merged = {
     accounts: [...accMap.values()],
     expenses: [...expMap.values()],
@@ -427,6 +441,9 @@ function mergeData(local, remote) {
     emailCatMap,
     emailCatDefault,
     _emailCatMapTs: emailCatMapTs,
+    netWorthSnapshots,
+    aiReport,
+    _aiReportTs: aiReportTs,
   };
   recalcBalances(merged, merged.expenses);
   recalcMonthlyAgg(merged, merged.expenses);
