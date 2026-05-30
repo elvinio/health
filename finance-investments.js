@@ -296,36 +296,148 @@ function currentValue(a) {
   return a.history.length ? a.history[a.history.length - 1].value * units : 0;
 }
 
+// ── CPF balance helper (used here and in finance-ai.js) ──────────────────────
+function latestCpfBalances() {
+  const recs = (data.cpfRecords || []).slice().sort((a, b) => a.year - b.year);
+  const r = recs[recs.length - 1];
+  if (!r) return { year: null, oa: 0, sa: 0, ma: 0, total: 0 };
+  const oa = r.oaBalance || 0, sa = r.saBalance || 0, ma = r.maBalance || 0;
+  return { year: r.year, oa, sa, ma, total: oa + sa + ma };
+}
+
 // ── Asset allocation ──────────────────────────────────────────────────────────
 const ASSET_CLASS_COLORS = {
   'Cash': '#16a085', 'Equities': '#2980b9', 'Bonds': '#8e44ad',
-  'Property (rental)': '#d35400', 'Home (own use)': '#7f8c8d',
-  'Crypto': '#f39c12', 'Commodities': '#c0392b', 'Other': '#95a5a6'
+  'Gold': '#f1c40f', 'Property (rental)': '#d35400', 'Home (own use)': '#7f8c8d',
+  'Crypto': '#f39c12', 'Commodities': '#c0392b', 'CPF': '#27ae60', 'Other': '#95a5a6'
 };
 function assetClassColor(c) { return ASSET_CLASS_COLORS[c] || '#95a5a6'; }
 
-function renderAssetAllocation() {
-  const assets = data.assets || [];
-  const investableAssets = assets.filter(a => isInvestable(a));
-  if (!investableAssets.length) return '';
+const ALLOCATION_CATS = ['Equities', 'Bonds', 'Gold', 'Crypto', 'Cash', 'CPF'];
+
+function computeAllocationAmounts() {
   const byClass = {};
-  investableAssets.forEach(a => { const c = assetClass(a); byClass[c] = (byClass[c] || 0) + currentValue(a); });
+  (data.assets || []).forEach(a => {
+    if (!isInvestable(a)) return;
+    const c = assetClass(a);
+    byClass[c] = (byClass[c] || 0) + currentValue(a);
+  });
+  const liquidCash = (data.accounts || []).reduce((s, a) => s + (a.balance || 0), 0);
+  byClass['Cash'] = (byClass['Cash'] || 0) + liquidCash;
+  byClass['CPF'] = (byClass['CPF'] || 0) + latestCpfBalances().total;
+  return byClass;
+}
+
+function renderAssetAllocation() {
+  const byClass = computeAllocationAmounts();
   const total = Object.values(byClass).reduce((s, v) => s + v, 0);
   if (total <= 0) return '';
-  const rows = Object.entries(byClass).sort((a, b) => b[1] - a[1]);
 
-  const bar = rows.map(([c, v]) =>
-    `<div style="width:${(v / total * 100).toFixed(2)}%;background:${assetClassColor(c)}" title="${esc(c)}"></div>`
+  const ratios = data.allocationRatios || {};
+  const hasTarget = ALLOCATION_CATS.some(c => (ratios[c] || 0) > 0);
+
+  const sortedForBar = Object.entries(byClass).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const bar = sortedForBar.map(([c, v]) =>
+    `<div style="width:${(v / total * 100).toFixed(2)}%;background:${assetClassColor(c)}" title="${esc(c)}: ${(v / total * 100).toFixed(1)}%"></div>`
   ).join('');
-  const legend = rows.map(([c, v]) => {
-    const pct = (v / total * 100).toFixed(1);
-    return `<div class="legend-item"><div class="legend-dot" style="background:${assetClassColor(c)}"></div><span>${esc(c)} <span style="color:var(--muted)">${pct}% · ${fmtDollar(v)}</span></span></div>`;
-  }).join('');
+
+  const otherClasses = Object.keys(byClass).filter(c => !ALLOCATION_CATS.includes(c) && byClass[c] > 0);
+  const displayCats = [...ALLOCATION_CATS, ...otherClasses];
+
+  const td = 'padding:5px 6px;border-top:1px solid var(--border)';
+  const tableRows = displayCats.map(c => {
+    const amt = byClass[c] || 0;
+    const workingPct = ALLOCATION_CATS.includes(c) ? (ratios[c] || 0) : 0;
+    if (amt <= 0 && workingPct <= 0) return '';
+    const curPct = total > 0 ? (amt / total * 100) : 0;
+    const targetAmt = workingPct > 0 ? (workingPct / 100) * total : 0;
+    const diff = targetAmt - amt;
+    const diffEl = workingPct > 0
+      ? `<div style="font-size:.7rem;color:${diff >= 0 ? 'var(--green)' : 'var(--red)'}">${diff >= 0 ? '+' : ''}${fmtDollar(diff)}</div>`
+      : '';
+    return `<tr>
+      <td style="${td};white-space:nowrap">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${assetClassColor(c)};margin-right:4px;vertical-align:middle"></span>${esc(c)}
+      </td>
+      <td style="${td};text-align:right">${fmtDollar(amt)}</td>
+      <td style="${td};text-align:right">${curPct.toFixed(1)}%</td>
+      <td style="${td};text-align:right">${workingPct > 0 ? workingPct.toFixed(1) + '%' : '<span style="color:var(--muted)">—</span>'}</td>
+      <td style="${td};text-align:right">${workingPct > 0 ? fmtDollar(targetAmt) + diffEl : '<span style="color:var(--muted)">—</span>'}</td>
+    </tr>`;
+  }).filter(Boolean).join('');
+
+  const totalTargetPct = ALLOCATION_CATS.reduce((s, c) => s + (ratios[c] || 0), 0);
+  const thStyle = 'text-align:right;padding:0 6px 6px;font-size:.72rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap';
+
   return `<div class="chart-wrap">
     <div class="chart-title">Asset Allocation</div>
     <div class="alloc-bar">${bar}</div>
-    <div class="chart-legend">${legend}</div>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+      <table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:.82rem">
+        <thead><tr>
+          <th style="text-align:left;padding:0 6px 6px 0;${thStyle.slice(thStyle.indexOf(';')+1)}">Type</th>
+          <th style="${thStyle}">Amount</th>
+          <th style="${thStyle}">Current</th>
+          <th style="${thStyle}">Target %</th>
+          <th style="${thStyle}">Target $</th>
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
+        <tfoot><tr style="font-weight:700">
+          <td style="padding:6px 6px 0 0;border-top:2px solid var(--border)">Total</td>
+          <td style="text-align:right;padding:6px;border-top:2px solid var(--border)">${fmtDollar(total)}</td>
+          <td style="text-align:right;padding:6px;border-top:2px solid var(--border)">100%</td>
+          <td style="text-align:right;padding:6px;border-top:2px solid var(--border)">${hasTarget ? totalTargetPct.toFixed(1) + '%' : '—'}</td>
+          <td style="border-top:2px solid var(--border)"></td>
+        </tr></tfoot>
+      </table>
+    </div>
+    ${!hasTarget ? '<div style="font-size:.78rem;color:var(--muted);margin-top:6px">Tap ··· → Allocation Ratios to set targets.</div>' : ''}
   </div>`;
+}
+
+// ── Allocation Ratio Sheet ────────────────────────────────────────────────────
+function openAllocationRatioSheet() {
+  document.getElementById('mainMenu').classList.remove('open');
+  const ratios = data.allocationRatios || {};
+  document.getElementById('allocationRatioFields').innerHTML = ALLOCATION_CATS.map(cat => `
+    <div class="field">
+      <label>${esc(cat)}</label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="number" id="allocRatio_${cat}" value="${ratios[cat] || ''}" min="0" max="100" step="0.1" placeholder="0" inputmode="decimal" oninput="updateAllocTotal()" style="flex:1">
+        <span style="color:var(--muted);font-weight:600;min-width:1.2rem">%</span>
+      </div>
+    </div>`).join('');
+  updateAllocTotal();
+  openSheet('allocationRatioSheet');
+}
+
+function updateAllocTotal() {
+  const total = ALLOCATION_CATS.reduce((s, cat) => {
+    return s + (parseFloat(document.getElementById('allocRatio_' + cat)?.value) || 0);
+  }, 0);
+  const el = document.getElementById('allocationRatioTotal');
+  if (!el) return;
+  el.textContent = total.toFixed(1) + '%';
+  el.style.color = Math.abs(total - 100) < 0.05 ? 'var(--green)' : 'var(--red)';
+}
+
+function saveAllocationRatios() {
+  let total = 0;
+  const ratios = {};
+  ALLOCATION_CATS.forEach(cat => {
+    const v = parseFloat(document.getElementById('allocRatio_' + cat)?.value) || 0;
+    ratios[cat] = v;
+    total += v;
+  });
+  if (Math.abs(total - 100) > 0.1) {
+    showToast(`Total must be 100% (currently ${total.toFixed(1)}%)`);
+    return;
+  }
+  data.allocationRatios = ratios;
+  saveData(data);
+  closeSheet();
+  renderAll();
+  showToast('Allocation targets saved');
 }
 
 // ── Render: Assets sub-tab (Tax page) ────────────────────────────────────────

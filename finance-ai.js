@@ -42,14 +42,6 @@ function mortgageBalance(m) {
   return bals.length ? bals[0].amount : (m.principal || 0);
 }
 
-function latestCpfBalances() {
-  const recs = (data.cpfRecords || []).slice().sort((a, b) => a.year - b.year);
-  const r = recs[recs.length - 1];
-  if (!r) return { year: null, oa: 0, sa: 0, ma: 0, total: 0 };
-  const oa = r.oaBalance || 0, sa = r.saBalance || 0, ma = r.maBalance || 0;
-  return { year: r.year, oa, sa, ma, total: oa + sa + ma };
-}
-
 // Current net worth = liquid (accounts) + assets + CPF − mortgage debt.
 function computeNetWorth() {
   const liquid = (data.accounts || []).reduce((s, a) => s + (a.balance || 0), 0);

@@ -41,12 +41,12 @@ function renderThemePicker() {
     (THEMES.find(t => t.id === saved) || THEMES[0]).primary;
 })();
 
-const DEFAULT_CATS = ['Grocery', 'Travel'];
+const DEFAULT_CATS = ['Grocery', 'Travel', 'Income Tax', 'Allowance'];
 
 // Asset classes for allocation. "Home (own use)" is counted in net worth but
 // excluded from investable assets / retirement drawdown (you can't sell the roof
 // over your family's head to fund retirement).
-const ASSET_CLASSES = ['Cash', 'Equities', 'Bonds', 'Property (rental)', 'Home (own use)', 'Crypto', 'Commodities', 'Other'];
+const ASSET_CLASSES = ['Cash', 'Equities', 'Bonds', 'Gold', 'Property (rental)', 'Home (own use)', 'Crypto', 'Commodities', 'CPF', 'Other'];
 const NON_INVESTABLE_CLASSES = ['Home (own use)'];
 function assetClass(a) { return a.class || 'Other'; }
 function isInvestable(a) { return !NON_INVESTABLE_CLASSES.includes(assetClass(a)); }
@@ -117,6 +117,7 @@ function defaultData() {
     netWorthSnapshots: [], // [{ key: 'YYYY-Qn', date, liquid, assets, cpf, debt, net, _ts }]
     aiReport: null,        // { markdown, generatedAt, period }
     dependents: [],        // [{ id, name, relationship, birthYear, sex, _ts }]
+    allocationRatios: {},  // { Equities: 40, Bonds: 20, ... } target allocation %
   };
 }
 
@@ -155,6 +156,8 @@ function loadData() {
     if (!d.netWorthSnapshots) d.netWorthSnapshots = [];
     if (!('aiReport' in d)) d.aiReport = null;
     if (!d.dependents) d.dependents = [];
+    if (!d.allocationRatios) d.allocationRatios = {};
+    if (d.expenseCats) d.expenseCats = d.expenseCats.replace(/\bMisc\b/g, 'Allowance');
     d.accounts.forEach(a => { if (!a._updatedAt) a._updatedAt = 0; });
     return d;
   } catch { return defaultData(); }
