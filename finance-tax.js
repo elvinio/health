@@ -1005,8 +1005,7 @@ function renderRetirement() {
           oninput="document.getElementById('retSliderValDeath').textContent=Math.round(this.value)"
           onchange="saveRetirementSettings('deathAge',this.value)">
       </div>
-    </div>
-    <div style="font-size:.78rem;color:var(--muted);margin-bottom:12px">Accumulation uses avg monthly spend from your expense tracker: ${fmtDollar(Math.round(computeCashflow().avgMonthlyExpense || 0))}/mo</div>`;
+    </div>`;
 
   let plan;
   try { plan = calcRetirementPlan(); }
