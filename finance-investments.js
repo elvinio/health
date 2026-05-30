@@ -332,7 +332,6 @@ function renderAssetAllocation() {
     const pct = (v / total * 100).toFixed(1);
     return `<div class="legend-item"><div class="legend-dot" style="background:${assetClassColor(c)}"></div><span>${esc(c)} <span style="color:var(--muted)">${pct}% · ${fmtDollar(v)}</span></span></div>`;
   }).join('');
-  const homeVal = assets.filter(a => !isInvestable(a)).reduce((s, a) => s + currentValue(a), 0);
   return `<div class="chart-wrap">
     <div class="chart-title">Asset Allocation</div>
     <div class="alloc-bar">${bar}</div>
