@@ -175,15 +175,6 @@ function buildAiSummary() {
     cat, budgetYTD: Math.round(monthly * monthsElapsed), actualYTD: catYTD[cat] || 0
   }));
 
-  // Net worth + history + deltas (date-based: compare to before this quarter / a year ago).
-  const nw = computeNetWorth();
-  const snaps = (data.netWorthSnapshots || []).slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-  const { start: qStart } = quarterBounds();
-  const yearAgoDate = (d => { d.setFullYear(d.getFullYear() - 1); return d.toISOString().slice(0, 10); })(new Date());
-  const prevQ = [...snaps].reverse().find(s => (s.date || '') < qStart);
-  const yearAgo = [...snaps].reverse().find(s => (s.date || '') <= yearAgoDate);
-  const netWorthHistory = snaps.map(s => ({ date: s.date, net: s.net, liquid: s.liquid, assets: s.assets, cpf: s.cpf, debt: s.debt }));
-
   // Assets with class + allocation share.
   const assetSum = (data.assets || []).reduce((s, a) => s + currentValue(a), 0);
   const investableSum = (data.assets || []).reduce((s, a) => s + (isInvestable(a) ? currentValue(a) : 0), 0);
@@ -221,13 +212,16 @@ function buildAiSummary() {
     };
   } catch (e) { /* no DOB set */ }
 
-  // Latest income-tax estimate.
+  // Latest income-tax estimate — including gross annual income.
   let tax = null;
   const taxRecs = (data.taxRecords || []).slice().sort((a, b) => b.year - a.year);
   if (taxRecs.length && typeof calcEffectiveTax === 'function') {
     const r = taxRecs[0];
     try {
-      tax = { year: r.year, estimatedTaxPayable: Math.round(calcEffectiveTax(r)) };
+      const annualIncome = r.isHistorical
+        ? (r.totalIncome || 0)
+        : (r.basicSalary || 0) + (r.bonus || 0) + (r.otherIncome || 0);
+      tax = { year: r.year, annualIncome: Math.round(annualIncome), estimatedTaxPayable: Math.round(calcEffectiveTax(r)) };
     } catch (e) { /* ignore */ }
   }
 
@@ -270,12 +264,6 @@ function buildAiSummary() {
     currency: 'SGD',
     generatedAt: new Date().toISOString(),
     period: period.key,
-    netWorth: {
-      ...nw,
-      qoqDelta: prevQ ? nw.net - prevQ.net : null,
-      yoyDelta: yearAgo ? nw.net - yearAgo.net : null
-    },
-    netWorthHistory,
     cashflow: computeCashflow(),
     annualRecurringExpenses: Math.round(annualRecurring()),
     insurance: { policies: (data.insurances || []).length, annualPremium: Math.round(insAnnual) },
@@ -300,16 +288,15 @@ function aiReportPrompt() {
   return `You are a Singapore-based personal financial advisor. Below is a JSON snapshot of my consolidated finances for ${label} (all amounts in SGD). Write me a concise quarterly review in GitHub-flavoured Markdown with these sections:
 
 1. **Executive summary** — 2-3 sentences on overall financial health.
-2. **Net worth** — current value, quarter-on-quarter and year-on-year change, and what's driving it.
-3. **Cash flow & savings** — assess my savings rate, emergency-fund runway vs the ${EMERGENCY_FUND_MONTHS}-month target, and spending vs budget.
-4. **Spending** — notable categories, trends across quarters, and any recurring/subscription costs worth reviewing.
-5. **Mortgage & debt** — payoff trajectory and whether prepayment makes sense.
-6. **Asset allocation** — comment on diversification across asset classes (note: my own-home is in net worth but excluded from investable assets, since I can't sell it).
-7. **CPF & retirement readiness** — progress toward FRS/ERS, projected CPF LIFE payout, and whether my sustainable retirement withdrawal (based on investable assets) covers my target expenses.
-8. **Family & protection** — given my dependents (ages/sex in the data), comment on insurance coverage adequacy, education planning, and any Singapore tax reliefs I may be eligible for.
-9. **Tax** — brief note on my income-tax position and relief opportunities.
-10. **Action items** — 3 to 5 specific, prioritised next steps.
-11. **Risks & gaps** — anything missing from the data I should start tracking.
+2. **Cash flow & savings** — assess my savings rate (use annualIncome from the tax field as gross income), emergency-fund runway vs the ${EMERGENCY_FUND_MONTHS}-month target, and spending vs budget.
+3. **Spending** — notable categories, trends across quarters, and any recurring/subscription costs worth reviewing.
+4. **Mortgage & debt** — payoff trajectory and whether prepayment makes sense.
+5. **Asset allocation** — comment on diversification across asset classes (note: my own-home is excluded from investable assets since I can't sell it).
+6. **CPF & retirement readiness** — progress toward FRS/ERS, projected CPF LIFE payout, and whether my sustainable retirement withdrawal (based on investable assets) covers my target expenses.
+7. **Family & protection** — given my dependents (ages/sex in the data), comment on insurance coverage adequacy, education planning, and any Singapore tax reliefs I may be eligible for.
+8. **Tax** — brief note on my income-tax position and relief opportunities.
+9. **Action items** — 3 to 5 specific, prioritised next steps.
+10. **Risks & gaps** — anything missing from the data I should start tracking.
 
 Be specific and quantitative, reference the actual numbers, and keep it under ~700 words. Respond with ONLY the Markdown report (no preamble).
 
