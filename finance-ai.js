@@ -68,20 +68,41 @@ function computeNetWorth() {
   };
 }
 
-// Persist one net-worth snapshot per quarter so trends accumulate over time even
-// when individual asset/account histories are sparse. Idempotent within a quarter.
+// Quarter date bounds for a given Date (start inclusive, next-quarter start exclusive).
+function quarterBounds(d) {
+  const now = d || new Date();
+  const y = now.getFullYear();
+  const q = Math.floor(now.getMonth() / 3) + 1;
+  const start = `${y}-${String((q - 1) * 3 + 1).padStart(2, '0')}-01`;
+  const nextStart = q === 4 ? `${y + 1}-01-01` : `${y}-${String(q * 3 + 1).padStart(2, '0')}-01`;
+  return { start, nextStart };
+}
+
+// Persist net-worth snapshots so trends accumulate. Auto-records at most one per
+// quarter (on load); the manual "Snapshot now" button (force) captures a point for
+// today on demand, so you can build a trend whenever you update balances.
 function recordNetWorthSnapshot(force) {
   if (!data.netWorthSnapshots) data.netWorthSnapshots = [];
   const nw = computeNetWorth();
-  if (!force && !nw.liquid && !nw.assets && !nw.cpf && !nw.debt) return;
-  const { key } = currentQuarter();
-  const existing = data.netWorthSnapshots.find(s => s.key === key);
-  if (existing && !force) return;
-  const snap = { key, date: today(), ...nw, _ts: Date.now() };
+  if (!force && !nw.liquid && !nw.assets && !nw.cpf && !nw.debt) return false;
+  const { start, nextStart } = quarterBounds();
+  const hasThisQuarter = data.netWorthSnapshots.some(s => s.date >= start && s.date < nextStart);
+  if (!force && hasThisQuarter) return false;
+  const date = today();
+  const existing = data.netWorthSnapshots.find(s => s.date === date);
+  const snap = { key: date, date, ...nw, _ts: Date.now() };
   if (existing) Object.assign(existing, snap);
   else data.netWorthSnapshots.push(snap);
-  data.netWorthSnapshots.sort((a, b) => a.key.localeCompare(b.key));
+  data.netWorthSnapshots.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   saveData(data);
+  return true;
+}
+
+// Manual capture from the AI card.
+function snapshotNetWorthNow() {
+  recordNetWorthSnapshot(true);
+  if (currentTab === 'analysis') renderAnalysis();
+  showToast('Net worth snapshot saved: ' + fmtDollar(computeNetWorth().net));
 }
 
 // Average monthly spend, logged income, salary, savings rate and runway.
@@ -154,12 +175,14 @@ function buildAiSummary() {
     cat, budgetYTD: Math.round(monthly * monthsElapsed), actualYTD: catYTD[cat] || 0
   }));
 
-  // Net worth + history + deltas.
+  // Net worth + history + deltas (date-based: compare to before this quarter / a year ago).
   const nw = computeNetWorth();
-  const snaps = (data.netWorthSnapshots || []).slice().sort((a, b) => a.key.localeCompare(b.key));
-  const prevQ = snaps.filter(s => s.key < period.key).slice(-1)[0];
-  const yearAgo = snaps.filter(s => s.key <= `${period.year - 1}-Q${period.q}`).slice(-1)[0];
-  const netWorthHistory = snaps.map(s => ({ key: s.key, net: s.net, liquid: s.liquid, assets: s.assets, cpf: s.cpf, debt: s.debt }));
+  const snaps = (data.netWorthSnapshots || []).slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const { start: qStart } = quarterBounds();
+  const yearAgoDate = (d => { d.setFullYear(d.getFullYear() - 1); return d.toISOString().slice(0, 10); })(new Date());
+  const prevQ = [...snaps].reverse().find(s => (s.date || '') < qStart);
+  const yearAgo = [...snaps].reverse().find(s => (s.date || '') <= yearAgoDate);
+  const netWorthHistory = snaps.map(s => ({ date: s.date, net: s.net, liquid: s.liquid, assets: s.assets, cpf: s.cpf, debt: s.debt }));
 
   // Assets with class + allocation share.
   const assetSum = (data.assets || []).reduce((s, a) => s + currentValue(a), 0);
@@ -431,9 +454,9 @@ function fmtPct(n) { return n == null ? '—' : Math.round(n * 100) + '%'; }
 function renderAiKpis() {
   const nw = computeNetWorth();
   const cf = computeCashflow();
-  const period = currentQuarter();
-  const snaps = (data.netWorthSnapshots || []).filter(s => s.key < period.key).sort((a, b) => a.key.localeCompare(b.key));
-  const prev = snaps[snaps.length - 1];
+  const { start: qStart } = quarterBounds();
+  const prev = (data.netWorthSnapshots || []).slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+    .reverse().find(s => (s.date || '') < qStart);
   const delta = prev ? nw.net - prev.net : null;
   const deltaStr = delta == null ? '' :
     `<span style="font-size:.8rem;font-weight:700;color:${delta >= 0 ? 'var(--green)' : 'var(--red)'}">${delta >= 0 ? '▲' : '▼'} ${fmtDollar(Math.abs(delta))} QoQ</span>`;
@@ -453,11 +476,13 @@ function renderAiKpis() {
   </div>`;
 }
 
-// Net-worth trend from the persisted quarterly snapshots.
+// Net-worth trend from the persisted snapshots (auto quarterly + manual captures).
 function renderNetWorthChart() {
-  const snaps = (data.netWorthSnapshots || []).slice().sort((a, b) => a.key.localeCompare(b.key));
-  if (snaps.length < 2) return '';
+  const snaps = (data.netWorthSnapshots || []).slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  if (!snaps.length) return '';
+  const single = snaps.length < 2;
   const short = n => (typeof fmtShort === 'function') ? fmtShort(Math.abs(n)) : '$' + Math.round(n);
+  const dateLbl = d => new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
 
   const COL_W = 64, H = 150, PAD_L = 44, PAD_B = 28, PAD_T = 10, PAD_R = 12;
   const svgW = PAD_L + snaps.length * COL_W + PAD_R;
@@ -474,17 +499,18 @@ function renderNetWorthChart() {
     `<text x="${(PAD_L - 4).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="#7a6a52">${short(v)}</text>`
   ).join('');
   const pts = vals.map((v, i) => [xPos(i), yPos(v)]);
-  const area = `M${pts[0][0].toFixed(1)},${yPos(lo).toFixed(1)} ` +
+  const area = single ? '' : `M${pts[0][0].toFixed(1)},${yPos(lo).toFixed(1)} ` +
     pts.map(p => `L${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ') +
     ` L${pts[pts.length - 1][0].toFixed(1)},${yPos(lo).toFixed(1)} Z`;
-  const path = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+  const path = single ? '' : pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
   const dots = pts.map(([cx, cy], i) =>
     `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.5" fill="var(--primary)" stroke="#fff" stroke-width="1.5"/>` +
     `<text x="${cx.toFixed(1)}" y="${(cy - 8).toFixed(1)}" text-anchor="middle" font-size="8" font-weight="700" fill="var(--primary)">${short(vals[i])}</text>`
   ).join('');
   const xLabels = snaps.map((s, i) =>
-    `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="8" fill="#7a6a52">${s.key}</text>`
+    `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="8" fill="#7a6a52">${dateLbl(s.date)}</text>`
   ).join('');
+  const hint = single ? `<div style="font-size:.72rem;color:var(--muted);margin-top:4px;padding:0 4px">Tap “Snapshot now” over time to build the trend.</div>` : '';
 
   return `<div class="chart-wrap" style="margin-top:14px;margin-bottom:0">
     <div class="chart-title">Net Worth Trend</div>
@@ -496,6 +522,7 @@ function renderNetWorthChart() {
         ${dots}${xLabels}
       </svg>
     </div>
+    ${hint}
   </div>`;
 }
 
@@ -518,6 +545,9 @@ function renderAiReport() {
     </div>
     ${renderAiKpis()}
     ${renderNetWorthChart()}
+    <div style="text-align:right;margin:10px 0 2px">
+      <button class="btn btn-secondary" style="font-size:.78rem;padding:6px 12px" onclick="snapshotNetWorthNow()">📸 Snapshot now</button>
+    </div>
     <div class="btn-row" style="flex-wrap:wrap">
       <button class="btn btn-primary" style="flex:1" onclick="copyAiSummary()">📋 Copy summary</button>
       <button class="btn btn-secondary" style="flex:1" onclick="openAiReportPaste()">✍️ Paste report</button>

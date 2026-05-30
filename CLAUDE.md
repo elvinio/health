@@ -48,7 +48,7 @@ All files share a global scope. Each file may reference globals defined in files
 
 ```js
 // sw.js line 1
-const CACHE = 'finance-v63';  // increment this number
+const CACHE = 'finance-v64';  // increment this number
 ```
 
 Current ASSETS list (17 files):
@@ -191,13 +191,14 @@ Two Drive files per user: `finance-elvis.json` (main) and `finance-elvis-history
 A card at the top of the **Analysis** tab. It computes derived metrics and a
 consolidated, AI-ready summary, then renders a Markdown report.
 
-- **Net-worth snapshots**: `recordNetWorthSnapshot()` runs on load and persists one
-  `netWorthSnapshots` entry per quarter (`computeNetWorth()` = accounts + assets + CPF − mortgage debt).
+- **Net-worth snapshots**: `recordNetWorthSnapshot(force)` auto-records at most one
+  `netWorthSnapshots` entry per quarter on load; the *📸 Snapshot now* button (`snapshotNetWorthNow()`)
+  captures a dated point on demand. (`computeNetWorth()` = accounts + assets + CPF − mortgage debt.)
 - **Cash flow**: `computeCashflow()` → avg monthly spend, savings rate, runway (vs a 6-month
   emergency-fund target). Shown as a KPI strip via `renderAiKpis()`.
 - **Asset allocation**: `renderAssetAllocation()` (on Tax › Assets) groups assets by `class` with a
   stacked bar; own-home shown but flagged as excluded from the investable total.
-- **Net-worth chart**: `renderNetWorthChart()` plots `netWorthSnapshots` (shows once ≥2 quarters exist).
+- **Net-worth chart**: `renderNetWorthChart()` plots `netWorthSnapshots` by date (single point + hint until a second capture exists).
 - **Dependents**: edited in Account Settings (`data.dependents`); ages/sex feed the AI summary.
 - **Summary**: `buildAiSummary()` assembles a compact object (net worth + history, cash flow,
   quarterly/YTD expenses, budgets, asset allocation by class, household, mortgages, CPF projection,
