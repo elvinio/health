@@ -122,7 +122,18 @@ function computeCashflow() {
   const loggedMonthlyIncome = topUps.reduce((s, e) => s + e.amount, 0) / 12;
 
   const monthlySalary = parseFloat((data.cpfSettings || {}).monthlySalary) || 0;
-  const referenceIncome = monthlySalary > 0 ? monthlySalary : loggedMonthlyIncome;
+
+  // Derive monthly income from the latest tax estimate year (basicSalary + bonus) / 12.
+  let taxMonthlyIncome = 0;
+  const latestTaxRec = (data.taxRecords || []).slice().sort((a, b) => b.year - a.year)
+    .find(r => !r.isHistorical);
+  if (latestTaxRec) {
+    taxMonthlyIncome = ((latestTaxRec.basicSalary || 0) + (latestTaxRec.bonus || 0)) / 12;
+  }
+
+  const referenceIncome = taxMonthlyIncome > 0 ? taxMonthlyIncome
+    : monthlySalary > 0 ? monthlySalary
+    : loggedMonthlyIncome;
   const savingsRate = referenceIncome > 0 ? (referenceIncome - avgMonthlyExpense) / referenceIncome : null;
   const runwayMonths = avgMonthlyExpense > 0 ? liquid / avgMonthlyExpense : null;
 
@@ -130,6 +141,7 @@ function computeCashflow() {
     avgMonthlyExpense: Math.round(avgMonthlyExpense),
     loggedMonthlyIncome: Math.round(loggedMonthlyIncome),
     monthlySalary: Math.round(monthlySalary),
+    taxMonthlyIncome: Math.round(taxMonthlyIncome),
     referenceIncome: Math.round(referenceIncome),
     savingsRate: savingsRate == null ? null : Math.round(savingsRate * 1000) / 1000,
     runwayMonths: runwayMonths == null ? null : Math.round(runwayMonths * 10) / 10,
