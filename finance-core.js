@@ -106,7 +106,7 @@ function defaultData() {
     taxRecords: [],
     cpfRecords: [],
     cpfSettings: { dateOfBirth: '', retirementAge: 60, monthlySalary: 0 },
-    retirementSettings: { inflationRate: 2.5, investmentRate: 5.0, retirementAge: 62, deathAge: 85, monthlyExpenses: 3000, annualSavings: 150000 },
+    retirementSettings: { inflationRate: 2.5, investmentRate: 5.0, retirementAge: 62, deathAge: 85, monthlyExpenses: 3000, annualSavings: 150000, safeWithdrawalRate: 4.0 },
     _deletedIds: [],
     budgets: {},
     monthlyAgg: {},
@@ -150,6 +150,7 @@ function loadData() {
     if (d.retirementSettings.deathAge == null) d.retirementSettings.deathAge = 85;
     if (d.retirementSettings.monthlyExpenses == null) d.retirementSettings.monthlyExpenses = 3000;
     if (d.retirementSettings.annualSavings == null) d.retirementSettings.annualSavings = 150000;
+  if (d.retirementSettings.safeWithdrawalRate == null) d.retirementSettings.safeWithdrawalRate = 4.0;
     if (!('expenseCats' in d)) d.expenseCats = '';
     if (!d.emailCatMap) d.emailCatMap = [];
     if (!d.emailCatDefault) d.emailCatDefault = 'Other';
