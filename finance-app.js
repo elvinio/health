@@ -407,8 +407,6 @@ function renderAll() {
     renderExpenseList();
     if (currentExpSubTab === 'recurring') renderOngoingListInline();
     else if (currentExpSubTab === 'mortgage') renderMortgageListInline();
-  } else if (currentTab === 'investments') {
-    renderInvestments();
   } else if (currentTab === 'analysis') {
     renderAnalysis();
   } else if (currentTab === 'insurance') {

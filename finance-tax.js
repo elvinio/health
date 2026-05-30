@@ -1,3 +1,54 @@
+// ── Tax PIN ───────────────────────────────────────────────────────────────────
+let taxPinUnlocked = false;
+let taxPinBuffer = '';
+
+function maybeShowTaxPin() {
+  const pin = localStorage.getItem('finance:taxPin');
+  if (!pin || taxPinUnlocked) return;
+  taxPinBuffer = '';
+  renderTaxPinDots();
+  document.getElementById('taxPinError').textContent = '';
+  document.getElementById('taxPinOverlay').style.display = '';
+}
+
+function taxPinKey(k) {
+  const pin = localStorage.getItem('finance:taxPin') || '';
+  if (k === 'back') {
+    taxPinBuffer = taxPinBuffer.slice(0, -1);
+    renderTaxPinDots();
+    document.getElementById('taxPinError').textContent = '';
+    return;
+  }
+  if (taxPinBuffer.length >= pin.length) return;
+  taxPinBuffer += k;
+  renderTaxPinDots();
+  if (taxPinBuffer.length === pin.length) setTimeout(taxPinVerify, 80);
+}
+
+function taxPinVerify() {
+  const pin = localStorage.getItem('finance:taxPin') || '';
+  if (taxPinBuffer === pin) {
+    taxPinUnlocked = true;
+    document.getElementById('taxPinOverlay').style.display = 'none';
+  } else {
+    document.getElementById('taxPinError').textContent = 'Incorrect PIN';
+    const pad = document.getElementById('taxPinPad');
+    pad.classList.remove('tax-pin-shake');
+    void pad.offsetWidth;
+    pad.classList.add('tax-pin-shake');
+    taxPinBuffer = '';
+    setTimeout(renderTaxPinDots, 400);
+  }
+}
+
+function renderTaxPinDots() {
+  const pin = localStorage.getItem('finance:taxPin') || '';
+  const filled = taxPinBuffer.length;
+  document.getElementById('taxPinDots').innerHTML = Array.from({ length: pin.length }, (_, i) =>
+    `<div class="tax-pin-dot${i < filled ? ' filled' : ''}"></div>`
+  ).join('');
+}
+
 // ── Income/Tax Chart ──────────────────────────────────────────────────────────
 function renderTaxChart() {
   const records = (data.taxRecords || []).slice()

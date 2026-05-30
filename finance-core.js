@@ -309,6 +309,7 @@ document.querySelectorAll('.tab').forEach(btn => {
     document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b === btn));
     document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + currentTab));
     renderAll();
+    if (currentTab === 'tax') maybeShowTaxPin();
   });
 });
 
@@ -350,6 +351,5 @@ document.getElementById('fabBtn').addEventListener('click', () => {
     else if (currentTaxSubTab === 'retirement') { /* no-op */ }
     else openTaxSheet(null);
   }
-  else openAssetSheet(null);
 });
 

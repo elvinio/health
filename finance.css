@@ -777,3 +777,45 @@
   font-size: .75rem; color: var(--muted); margin-top: 3px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+
+/* ── Tax PIN overlay ── */
+.tax-pin-overlay {
+  position: fixed; inset: 0; z-index: 600;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+}
+.tax-pin-modal {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 20px; width: 100%; max-width: 320px; padding: 0 24px;
+}
+.tax-pin-title {
+  font-size: 1.5rem; font-weight: 800; color: var(--primary); letter-spacing: .02em;
+}
+.tax-pin-subtitle { font-size: .9rem; color: var(--muted); margin-top: -12px; }
+.tax-pin-dots { display: flex; gap: 14px; min-height: 18px; }
+.tax-pin-dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid var(--primary); background: transparent; transition: background .1s;
+}
+.tax-pin-dot.filled { background: var(--primary); }
+.tax-pin-error { font-size: .82rem; color: var(--red); min-height: 1.2em; text-align: center; }
+.tax-pin-pad {
+  display: grid; grid-template-columns: repeat(3, 72px); gap: 12px;
+}
+.tax-pin-pad button {
+  width: 72px; height: 72px; border-radius: 50%; border: none;
+  background: var(--card); font-size: 1.4rem; font-weight: 600;
+  color: var(--text); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .1s;
+}
+.tax-pin-pad button:active { background: var(--primary-light); color: var(--primary); }
+.tax-pin-pad button.pin-empty { background: transparent; cursor: default; pointer-events: none; }
+@keyframes tax-pin-shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-10px); }
+  40%       { transform: translateX(10px); }
+  60%       { transform: translateX(-7px); }
+  80%       { transform: translateX(7px); }
+}
+.tax-pin-shake { animation: tax-pin-shake .4s ease; }
