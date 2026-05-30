@@ -59,6 +59,30 @@ function openAccountSettings() {
       </div>
     </div>`;
 
+  const depsList = data.dependents || [];
+  const depRowHtml = (i, d) => {
+    const rel = d.relationship || '';
+    const sex = d.sex || '';
+    const relOpts = ['Child', 'Spouse', 'Parent', 'Other'].map(o => `<option ${o === rel ? 'selected' : ''}>${o}</option>`).join('');
+    return `<div style="display:flex;gap:6px;margin-bottom:8px">
+      <input type="text" id="depName${i}" value="${esc(d.name || '')}" placeholder="Name" style="flex:2;min-width:0">
+      <select id="depRel${i}" style="flex:1.4;min-width:0"><option value=""></option>${relOpts}</select>
+      <input type="number" id="depYear${i}" value="${d.birthYear || ''}" placeholder="Born" style="flex:1;min-width:0" inputmode="numeric">
+      <select id="depSex${i}" style="width:3.6rem;flex-shrink:0"><option value=""></option><option value="F" ${sex === 'F' ? 'selected' : ''}>F</option><option value="M" ${sex === 'M' ? 'selected' : ''}>M</option></select>
+    </div>`;
+  };
+  let depRows = '';
+  for (let i = 0; i < depsList.length + 2; i++) depRows += depRowHtml(i, depsList[i] || {});
+  const dependentsSection = `
+    <div style="padding-top:4px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+      <div class="section-heading">Household / Dependents</div>
+      <p style="font-size:.8rem;color:var(--muted);margin-bottom:10px">Enriches the AI financial analysis (insurance needs, education planning, tax reliefs). Age is derived from birth year. Leave a name blank to skip a row.</p>
+      <div style="display:flex;gap:6px;margin-bottom:4px;font-size:.72rem;color:var(--muted);padding:0 2px">
+        <span style="flex:2">Name</span><span style="flex:1.4">Relationship</span><span style="flex:1">Birth yr</span><span style="width:3.6rem;text-align:center;flex-shrink:0">Sex</span>
+      </div>
+      ${depRows}
+    </div>`;
+
   const td = data.termDates || {};
   const tagsSection = `
     <div style="padding-top:4px;padding-bottom:16px;border-bottom:1px solid var(--border)">
@@ -107,7 +131,7 @@ function openAccountSettings() {
         <input type="number" id="accStart${i}" value="${acc.startingBalance}" step="0.01" placeholder="0.00">
       </div>
     </div>
-  `).join('') + pinSection + cpfSection + tagsSection + budgetSection;
+  `).join('') + pinSection + cpfSection + dependentsSection + tagsSection + budgetSection;
   openSheet('settingsSheet');
 }
 
@@ -169,6 +193,27 @@ function saveAccountSettings() {
     if (val > 0) data.budgets[cat] = val;
     else delete data.budgets[cat];
   });
+
+  // Dependents — read existing rows plus the two blank ones rendered
+  const depCount = (data.dependents || []).length + 2;
+  const newDeps = [];
+  for (let i = 0; i < depCount; i++) {
+    const nameEl = document.getElementById('depName' + i);
+    if (!nameEl) continue;
+    const name = nameEl.value.trim();
+    if (!name) continue;
+    const existing = (data.dependents || [])[i] || {};
+    newDeps.push({
+      id: existing.id || uid(),
+      name,
+      relationship: document.getElementById('depRel' + i).value || '',
+      birthYear: parseInt(document.getElementById('depYear' + i).value) || null,
+      sex: document.getElementById('depSex' + i).value || '',
+      _ts: Date.now()
+    });
+  }
+  data.dependents = newDeps;
+  data._dependentsTs = Date.now();
 
   if (!data.cpfSettings) data.cpfSettings = {};
   data.cpfSettings.dateOfBirth   = (document.getElementById('cpfDOB')?.value || '').trim();
@@ -262,6 +307,42 @@ function currentValue(a) {
   return a.history.length ? a.history[a.history.length - 1].value * units : 0;
 }
 
+// ── Asset allocation ──────────────────────────────────────────────────────────
+const ASSET_CLASS_COLORS = {
+  'Cash': '#16a085', 'Equities': '#2980b9', 'Bonds': '#8e44ad',
+  'Property (rental)': '#d35400', 'Home (own use)': '#7f8c8d',
+  'Crypto': '#f39c12', 'Commodities': '#c0392b', 'Other': '#95a5a6'
+};
+function assetClassColor(c) { return ASSET_CLASS_COLORS[c] || '#95a5a6'; }
+
+function renderAssetAllocation() {
+  const assets = data.assets || [];
+  if (!assets.length) return '';
+  const byClass = {};
+  assets.forEach(a => { const c = assetClass(a); byClass[c] = (byClass[c] || 0) + currentValue(a); });
+  const total = Object.values(byClass).reduce((s, v) => s + v, 0);
+  if (total <= 0) return '';
+  const investable = assets.reduce((s, a) => s + (isInvestable(a) ? currentValue(a) : 0), 0);
+  const rows = Object.entries(byClass).sort((a, b) => b[1] - a[1]);
+
+  const bar = rows.map(([c, v]) =>
+    `<div style="width:${(v / total * 100).toFixed(2)}%;background:${assetClassColor(c)}" title="${esc(c)}"></div>`
+  ).join('');
+  const legend = rows.map(([c, v]) => {
+    const pct = (v / total * 100).toFixed(1);
+    return `<div class="legend-item"><div class="legend-dot" style="background:${assetClassColor(c)}"></div><span>${esc(c)} <span style="color:var(--muted)">${pct}% · ${fmtDollar(v)}</span></span></div>`;
+  }).join('');
+  const investableNote = investable !== total
+    ? `<div style="font-size:.78rem;color:var(--muted);margin-top:8px;padding:0 2px">Investable (excl. own-home): <strong style="color:var(--text)">${fmtDollar(investable)}</strong> — used for retirement drawdown.</div>`
+    : '';
+  return `<div class="chart-wrap">
+    <div class="chart-title">Asset Allocation</div>
+    <div class="alloc-bar">${bar}</div>
+    <div class="chart-legend">${legend}</div>
+    ${investableNote}
+  </div>`;
+}
+
 // ── Render: Assets sub-tab (Tax page) ────────────────────────────────────────
 function renderAssetsSubTab() {
   const el = document.getElementById('taxAssetsContent');
@@ -286,6 +367,7 @@ function renderAssetsSubTab() {
       <span class="cpf-settings-value">${fmtDollar(total)}</span>
     </div>
     ${data.assets.length && prevTotal !== total ? `<div style="font-size:.8rem;color:var(--muted);margin-bottom:8px;padding:0 4px">${diff >= 0 ? '+' : ''}${fmtDollar(diff)} (${diff >= 0 ? '+' : ''}${pct.toFixed(2)}%) from last update</div>` : ''}
+    ${renderAssetAllocation()}
     ${data.assets.map(a => {
       const cur = currentValue(a);
       const prev = prevValue(a);
@@ -295,6 +377,7 @@ function renderAssetsSubTab() {
       const deltaText = prev > 0 ? `${d2 >= 0 ? '+' : ''}${fmtDollar(d2)} (${d2 >= 0 ? '+' : ''}${p2.toFixed(2)}%)` : 'No prior value';
       const lastDate = a.history.length ? a.history[a.history.length - 1].date : '';
       const unitsLabel = (a.units != null && a.units !== 1) ? `<span style="color:var(--muted);font-size:.75rem;font-weight:500"> ×${a.units}</span>` : '';
+      const classChip = `<span class="asset-class-chip" style="background:${assetClassColor(assetClass(a))}1f;color:${assetClassColor(assetClass(a))}">${esc(assetClass(a))}</span>`;
       return `
         <div class="asset-card" onclick="openAssetSheet('${a.id}')">
           <div class="asset-row-main">
@@ -305,7 +388,7 @@ function renderAssetsSubTab() {
             </div>
           </div>
           <div class="asset-meta">
-            <span class="asset-delta ${deltaClass}">${deltaText}</span>${lastDate ? ` <span style="color:var(--muted)">· ${formatDate(lastDate)}</span>` : ''}
+            ${classChip} <span class="asset-delta ${deltaClass}">${deltaText}</span>${lastDate ? ` <span style="color:var(--muted)">· ${formatDate(lastDate)}</span>` : ''}
           </div>
         </div>`;
     }).join('')}`;
@@ -325,12 +408,17 @@ function openAssetSheet(id) {
   document.getElementById('assetUnits').value = '';
   document.getElementById('assetDeleteBtn').style.display = 'none';
 
+  const classSel = document.getElementById('assetClass');
+  classSel.innerHTML = ASSET_CLASSES.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  classSel.value = 'Other';
+
   if (id) {
     const asset = data.assets.find(a => a.id === id);
     if (!asset) return;
     document.getElementById('assetSheetTitle').textContent = 'Update Asset';
     document.getElementById('assetId').value = id;
     document.getElementById('assetName').value = asset.name;
+    classSel.value = assetClass(asset);
     document.getElementById('assetUnits').value = asset.units != null ? asset.units : 1;
     const lastEntry = asset.history[asset.history.length - 1];
     document.getElementById('assetValue').value = lastEntry ? lastEntry.value : '';
@@ -346,6 +434,7 @@ document.getElementById('assetForm').addEventListener('submit', e => {
   e.preventDefault();
   const id = document.getElementById('assetId').value;
   const name = document.getElementById('assetName').value.trim();
+  const cls = document.getElementById('assetClass').value || 'Other';
   const value = parseFloat(document.getElementById('assetValue').value);
   const unitsRaw = document.getElementById('assetUnits').value;
   const units = unitsRaw !== '' ? parseFloat(unitsRaw) : 1;
@@ -355,13 +444,14 @@ document.getElementById('assetForm').addEventListener('submit', e => {
     const asset = data.assets.find(a => a.id === id);
     if (!asset) return;
     asset.name = name;
+    asset.class = cls;
     asset.units = units;
     const last = asset.history[asset.history.length - 1];
     if (!last || last.value !== value || last.date !== date) {
       asset.history.push({ date, value, _ts: Date.now() });
     }
   } else {
-    data.assets.push({ id: uid(), name, units, history: [{ date, value, _ts: Date.now() }] });
+    data.assets.push({ id: uid(), name, class: cls, units, history: [{ date, value, _ts: Date.now() }] });
   }
   saveData(data);
   closeSheet();

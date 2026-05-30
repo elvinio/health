@@ -860,7 +860,8 @@ function calcRetirementPlan() {
   const retireAge = Math.round(s.retirementAge);
   const deathAge = Math.round(s.deathAge);
 
-  const physAssets = data.assets.reduce((sum, a) => sum + currentValue(a), 0);
+  // Exclude own-home (non-investable) — it can't be drawn down to fund retirement.
+  const physAssets = data.assets.reduce((sum, a) => sum + (isInvestable(a) ? currentValue(a) : 0), 0);
   const accAssets = data.accounts.reduce((sum, ac) => sum + (ac.balance || 0), 0);
   const currentAssets = physAssets + accAssets;
 

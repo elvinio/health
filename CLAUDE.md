@@ -48,7 +48,7 @@ All files share a global scope. Each file may reference globals defined in files
 
 ```js
 // sw.js line 1
-const CACHE = 'finance-v62';  // increment this number
+const CACHE = 'finance-v63';  // increment this number
 ```
 
 Current ASSETS list (17 files):
@@ -127,7 +127,7 @@ Two localStorage keys:
 {
   accounts: [{ id, name, startingBalance, balance, _updatedAt }],
   expenses: [],          // { id, ac, date, desc, amount, cat, _ts }
-  assets: [],            // { id, name, units, history: [{ date, value, _ts }] }
+  assets: [],            // { id, name, class, units, history: [{ date, value, _ts }] } — class ∈ ASSET_CLASSES; "Home (own use)" is non-investable
   events: [],            // { id, title, description, startDate, startTime, endDate, endTime, tags, reminderHours, _ts }
   insurances: [],        // { id, name, personInsured, startDate, contractId, details, paymentAmount, paymentFrequency, agentContacts, _updatedAt }
   taxRecords: [],        // { id, year, isHistorical, basicSalary, bonus, otherIncome, cpfEmployee, reliefs, taxRebate, _ts }
@@ -142,9 +142,12 @@ Two localStorage keys:
   emailCatMap: [],       // [{ match, value }]
   emailCatDefault: 'Other',
   netWorthSnapshots: [], // { key: 'YYYY-Qn', date, liquid, assets, cpf, debt, net, _ts } — one per quarter
-  aiReport: null         // { markdown, generatedAt, period } — latest AI advisor report
+  aiReport: null,        // { markdown, generatedAt, period } — latest AI advisor report
+  dependents: []         // { id, name, relationship, birthYear, sex, _ts } — household, enriches AI analysis
 }
 ```
+
+`ASSET_CLASSES` (in `finance-core.js`): Cash, Equities, Bonds, Property (rental), Home (own use), Crypto, Commodities, Other. `isInvestable(a)` excludes `Home (own use)` — counted in net worth but excluded from investable allocation and `calcRetirementPlan()` drawdown.
 
 **Adding a new data collection:**
 1. Add `myCollection: []` to `defaultData()`
@@ -174,8 +177,8 @@ Two localStorage keys:
 Two Drive files per user: `finance-elvis.json` (main) and `finance-elvis-history.json` (history).
 
 **Merge strategy** (bidirectional, conflict-resolved):
-- Expenses/Events/Tax/CPF/Insurance/OngoingExpenses: union by ID, prefer higher `_ts` / `_updatedAt`, exclude `_deletedIds`
-- Assets: union by ID, merge `history[]`, deduplicate by `_ts`
+- Expenses/Events/Tax/CPF/Insurance/OngoingExpenses/Dependents: union by ID, prefer higher `_ts` / `_updatedAt`, exclude `_deletedIds`
+- Assets: union by ID, merge `history[]`, deduplicate by `_ts`; `name`/`units`/`class` prefer local
 - Mortgages: union by ID, merge `entries[]`, deduplicate by ID
 - Accounts: prefer higher `_updatedAt`
 - Scalars (termDates, eventTags, expenseCats, emailParsers, emailCatMap, `aiReport` via `_aiReportTs`): last-writer-wins via timestamp
@@ -192,8 +195,13 @@ consolidated, AI-ready summary, then renders a Markdown report.
   `netWorthSnapshots` entry per quarter (`computeNetWorth()` = accounts + assets + CPF − mortgage debt).
 - **Cash flow**: `computeCashflow()` → avg monthly spend, savings rate, runway (vs a 6-month
   emergency-fund target). Shown as a KPI strip via `renderAiKpis()`.
+- **Asset allocation**: `renderAssetAllocation()` (on Tax › Assets) groups assets by `class` with a
+  stacked bar; own-home shown but flagged as excluded from the investable total.
+- **Net-worth chart**: `renderNetWorthChart()` plots `netWorthSnapshots` (shows once ≥2 quarters exist).
+- **Dependents**: edited in Account Settings (`data.dependents`); ages/sex feed the AI summary.
 - **Summary**: `buildAiSummary()` assembles a compact object (net worth + history, cash flow,
-  quarterly/YTD expenses, budgets, assets, mortgages, CPF projection, tax, retirement) reusing
+  quarterly/YTD expenses, budgets, asset allocation by class, household, mortgages, CPF projection,
+  tax, retirement) reusing
   `calcCpfProjection()` / `calcRetirementPlan()` / `currentValue()`. `aiReportPrompt()` wraps it
   with an advisor prompt.
 - **Two delivery paths** (see `apps-script/README.md`):

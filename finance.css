@@ -397,6 +397,17 @@
   .ai-report hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
   .ai-report > *:first-child { margin-top: 0; }
 
+  /* ── Asset allocation ── */
+  .alloc-bar {
+    display: flex; height: 14px; border-radius: 7px;
+    overflow: hidden; background: var(--border); margin-bottom: 12px;
+  }
+  .alloc-bar > div { height: 100%; }
+  .asset-class-chip {
+    display: inline-block; font-size: .66rem; font-weight: 700;
+    padding: 1px 7px; border-radius: 10px; margin-right: 6px; vertical-align: middle;
+  }
+
   /* ── Time picker ── */
   .time-picker-row { display: grid; grid-template-columns: 2fr 2fr 1fr; gap: 8px; }
 

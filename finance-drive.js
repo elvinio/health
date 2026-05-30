@@ -288,6 +288,8 @@ function mergeData(local, remote) {
     existing.name = latestName;
     if (localAsset && localAsset.units != null) existing.units = localAsset.units;
     else if (remoteAsset && remoteAsset.units != null) existing.units = remoteAsset.units;
+    if (localAsset && localAsset.class != null) existing.class = localAsset.class;
+    else if (remoteAsset && remoteAsset.class != null) existing.class = remoteAsset.class;
   });
   // Deduplicate history by _ts within each asset, sort ascending
   assetMap.forEach(a => {
@@ -416,6 +418,16 @@ function mergeData(local, remote) {
     : (remote.aiReport ?? local.aiReport ?? null);
   const aiReportTs = Math.max(local._aiReportTs || 0, remote._aiReportTs || 0);
 
+  // Dependents: union by id, prefer higher _ts, exclude deleted
+  const depMap = new Map();
+  [...(remote.dependents || []), ...(local.dependents || [])].forEach(d => {
+    if (deletedIds.has(d.id)) return;
+    const ex = depMap.get(d.id);
+    if (!ex || (d._ts || 0) > (ex._ts || 0)) depMap.set(d.id, d);
+  });
+  const dependents = [...depMap.values()];
+  const dependentsTs = Math.max(local._dependentsTs || 0, remote._dependentsTs || 0);
+
   const merged = {
     accounts: [...accMap.values()],
     expenses: [...expMap.values()],
@@ -444,6 +456,8 @@ function mergeData(local, remote) {
     netWorthSnapshots,
     aiReport,
     _aiReportTs: aiReportTs,
+    dependents,
+    _dependentsTs: dependentsTs,
   };
   recalcBalances(merged, merged.expenses);
   recalcMonthlyAgg(merged, merged.expenses);

@@ -55,11 +55,13 @@ function latestCpfBalances() {
 function computeNetWorth() {
   const liquid = (data.accounts || []).reduce((s, a) => s + (a.balance || 0), 0);
   const assets = (data.assets || []).reduce((s, a) => s + currentValue(a), 0);
+  const investableAssets = (data.assets || []).reduce((s, a) => s + (isInvestable(a) ? currentValue(a) : 0), 0);
   const cpf = latestCpfBalances().total;
   const debt = (data.mortgages || []).reduce((s, m) => s + mortgageBalance(m), 0);
   return {
     liquid: Math.round(liquid),
     assets: Math.round(assets),
+    investableAssets: Math.round(investableAssets),
     cpf: Math.round(cpf),
     debt: Math.round(debt),
     net: Math.round(liquid + assets + cpf - debt)
@@ -159,12 +161,16 @@ function buildAiSummary() {
   const yearAgo = snaps.filter(s => s.key <= `${period.year - 1}-Q${period.q}`).slice(-1)[0];
   const netWorthHistory = snaps.map(s => ({ key: s.key, net: s.net, liquid: s.liquid, assets: s.assets, cpf: s.cpf, debt: s.debt }));
 
-  // Assets with allocation share.
-  const assetTotal = (data.assets || []).reduce((s, a) => s + currentValue(a), 0) || 1;
+  // Assets with class + allocation share.
+  const assetSum = (data.assets || []).reduce((s, a) => s + currentValue(a), 0);
+  const investableSum = (data.assets || []).reduce((s, a) => s + (isInvestable(a) ? currentValue(a) : 0), 0);
+  const assetTotal = assetSum || 1;
   const assets = (data.assets || []).map(a => {
     const v = currentValue(a);
-    return { name: a.name, value: Math.round(v), share: Math.round((v / assetTotal) * 1000) / 10 };
+    return { name: a.name, class: assetClass(a), value: Math.round(v), share: Math.round((v / assetTotal) * 1000) / 10 };
   }).sort((x, y) => y.value - x.value);
+  const byClass = {};
+  (data.assets || []).forEach(a => { const c = assetClass(a); byClass[c] = Math.round((byClass[c] || 0) + currentValue(a)); });
 
   // Mortgages.
   const mortgages = (data.mortgages || []).map(m => ({
@@ -221,6 +227,16 @@ function buildAiSummary() {
     };
   } catch (e) { /* ignore */ }
 
+  // Household / dependents.
+  const yrNow = new Date().getFullYear();
+  const household = {
+    dependents: (data.dependents || []).map(d => ({
+      relationship: d.relationship || 'Other',
+      age: d.birthYear ? yrNow - d.birthYear : null,
+      sex: d.sex || null
+    }))
+  };
+
   // Insurance overview.
   const insAnnual = (data.insurances || []).reduce((s, i) => {
     const mult = i.paymentFrequency === 'annual' ? 1 : i.paymentFrequency === 'quarterly' ? 4 : 12;
@@ -247,7 +263,8 @@ function buildAiSummary() {
       quarterTotals: recentQuarters,
       budgetVsActualYTD: budgetVsActual
     },
-    assets: { total: Math.round(assetTotal === 1 ? 0 : assetTotal), holdings: assets },
+    household,
+    assets: { total: Math.round(assetSum), investable: Math.round(investableSum), byClass, holdings: assets },
     mortgages,
     cpf,
     tax,
@@ -265,12 +282,14 @@ function aiReportPrompt() {
 3. **Cash flow & savings** — assess my savings rate, emergency-fund runway vs the ${EMERGENCY_FUND_MONTHS}-month target, and spending vs budget.
 4. **Spending** — notable categories, trends across quarters, and any recurring/subscription costs worth reviewing.
 5. **Mortgage & debt** — payoff trajectory and whether prepayment makes sense.
-6. **CPF & retirement readiness** — progress toward FRS/ERS, projected CPF LIFE payout, and whether my sustainable retirement withdrawal covers my target expenses.
-7. **Tax** — brief note on my income-tax position and any relief opportunities.
-8. **Action items** — 3 to 5 specific, prioritised next steps.
-9. **Risks & gaps** — anything missing from the data I should start tracking.
+6. **Asset allocation** — comment on diversification across asset classes (note: my own-home is in net worth but excluded from investable assets, since I can't sell it).
+7. **CPF & retirement readiness** — progress toward FRS/ERS, projected CPF LIFE payout, and whether my sustainable retirement withdrawal (based on investable assets) covers my target expenses.
+8. **Family & protection** — given my dependents (ages/sex in the data), comment on insurance coverage adequacy, education planning, and any Singapore tax reliefs I may be eligible for.
+9. **Tax** — brief note on my income-tax position and relief opportunities.
+10. **Action items** — 3 to 5 specific, prioritised next steps.
+11. **Risks & gaps** — anything missing from the data I should start tracking.
 
-Be specific and quantitative, reference the actual numbers, and keep it under ~600 words. Respond with ONLY the Markdown report (no preamble).
+Be specific and quantitative, reference the actual numbers, and keep it under ~700 words. Respond with ONLY the Markdown report (no preamble).
 
 \`\`\`json
 ${JSON.stringify(buildAiSummary(), null, 2)}
@@ -434,6 +453,52 @@ function renderAiKpis() {
   </div>`;
 }
 
+// Net-worth trend from the persisted quarterly snapshots.
+function renderNetWorthChart() {
+  const snaps = (data.netWorthSnapshots || []).slice().sort((a, b) => a.key.localeCompare(b.key));
+  if (snaps.length < 2) return '';
+  const short = n => (typeof fmtShort === 'function') ? fmtShort(Math.abs(n)) : '$' + Math.round(n);
+
+  const COL_W = 64, H = 150, PAD_L = 44, PAD_B = 28, PAD_T = 10, PAD_R = 12;
+  const svgW = PAD_L + snaps.length * COL_W + PAD_R;
+  const svgH = H + PAD_T + PAD_B;
+  const vals = snaps.map(s => s.net);
+  const lo = Math.min(0, ...vals), hi = Math.max(...vals, 1);
+  const range = (hi - lo) || 1;
+  const xPos = i => PAD_L + i * COL_W + COL_W / 2;
+  const yPos = v => PAD_T + H - ((v - lo) / range) * H;
+
+  const ticks = [0, .25, .5, .75, 1].map(f => ({ v: lo + range * f, y: yPos(lo + range * f) }));
+  const grid = ticks.map(({ v, y }) =>
+    `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${(svgW - PAD_R).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#e8dece" stroke-width="1"/>` +
+    `<text x="${(PAD_L - 4).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="#7a6a52">${short(v)}</text>`
+  ).join('');
+  const pts = vals.map((v, i) => [xPos(i), yPos(v)]);
+  const area = `M${pts[0][0].toFixed(1)},${yPos(lo).toFixed(1)} ` +
+    pts.map(p => `L${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ') +
+    ` L${pts[pts.length - 1][0].toFixed(1)},${yPos(lo).toFixed(1)} Z`;
+  const path = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+  const dots = pts.map(([cx, cy], i) =>
+    `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.5" fill="var(--primary)" stroke="#fff" stroke-width="1.5"/>` +
+    `<text x="${cx.toFixed(1)}" y="${(cy - 8).toFixed(1)}" text-anchor="middle" font-size="8" font-weight="700" fill="var(--primary)">${short(vals[i])}</text>`
+  ).join('');
+  const xLabels = snaps.map((s, i) =>
+    `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="8" fill="#7a6a52">${s.key}</text>`
+  ).join('');
+
+  return `<div class="chart-wrap" style="margin-top:14px;margin-bottom:0">
+    <div class="chart-title">Net Worth Trend</div>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+      <svg width="${svgW}" height="${svgH}" style="display:block">
+        ${grid}
+        <path d="${area}" fill="var(--primary)" opacity="0.08"/>
+        <path d="${path}" fill="none" stroke="var(--primary)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+        ${dots}${xLabels}
+      </svg>
+    </div>
+  </div>`;
+}
+
 function renderAiReport() {
   const r = data.aiReport;
   const when = r && r.generatedAt ? new Date(r.generatedAt).toLocaleDateString() : null;
@@ -452,6 +517,7 @@ function renderAiReport() {
       <span style="font-weight:800;font-size:1.05rem">AI Financial Advisor</span>
     </div>
     ${renderAiKpis()}
+    ${renderNetWorthChart()}
     <div class="btn-row" style="flex-wrap:wrap">
       <button class="btn btn-primary" style="flex:1" onclick="copyAiSummary()">📋 Copy summary</button>
       <button class="btn btn-secondary" style="flex:1" onclick="openAiReportPaste()">✍️ Paste report</button>
