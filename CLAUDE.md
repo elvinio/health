@@ -15,8 +15,10 @@ Personal health and finance tools, all served as static files under `/health/`.
 | `finance-events.js` | Events tab, calendar, bus panel, Leaflet map | 847 |
 | `finance-insurance.js` | Insurance, recurring expenses, mortgages | 613 |
 | `finance-tax.js` | Income tax, CPF projection, retirement planning | 1040 |
+| `finance-ai.js` | AI advisor — net-worth snapshots, savings/runway, consolidated summary builder, Drive push/fetch, Markdown report render | 380 |
 | `finance-app.js` | Analysis tab, `renderAll()`, theme picker, init sequence | 394 |
 | `finance-gmail.js` | Email parser rules (expense + event parsers) | 264 |
+| `apps-script/quarterly-report.gs` | Optional Google Apps Script — quarterly Claude API call → Drive report | — |
 | `sw.js` | Service worker for `finance.html` | 50 |
 | `tracker.html` | Health tracker PWA | — |
 | `sw-tracker.js` | Service worker for `tracker.html` | — |
@@ -33,7 +35,7 @@ Personal health and finance tools, all served as static files under `/health/`.
 
 ```
 finance-core.js → finance-drive.js → finance-expenses.js → finance-investments.js
-→ finance-events.js → finance-insurance.js → finance-tax.js → finance-app.js → finance-gmail.js
+→ finance-events.js → finance-insurance.js → finance-tax.js → finance-ai.js → finance-app.js → finance-gmail.js
 ```
 
 All files share a global scope. Each file may reference globals defined in files that load before it.
@@ -46,15 +48,15 @@ All files share a global scope. Each file may reference globals defined in files
 
 ```js
 // sw.js line 1
-const CACHE = 'finance-v59';  // increment this number
+const CACHE = 'finance-v64';  // increment this number
 ```
 
-Current ASSETS list (16 files):
+Current ASSETS list (17 files):
 ```
 /health/finance.html, /health/finance.css,
 /health/finance-core.js, /health/finance-drive.js, /health/finance-expenses.js,
 /health/finance-investments.js, /health/finance-events.js, /health/finance-insurance.js,
-/health/finance-tax.js, /health/finance-app.js, /health/finance-gmail.js,
+/health/finance-tax.js, /health/finance-ai.js, /health/finance-app.js, /health/finance-gmail.js,
 /health/themes.css, /health/icons/icon-192.png, /health/icons/icon-512.png,
 /health/fonts/material-symbols-outlined.css, /health/fonts/material-symbols-outlined.woff2
 ```
@@ -67,7 +69,7 @@ Same rule applies to `tracker.html` — bump the version in `sw-tracker.js` if t
 
 ## Finance PWA architecture
 
-- **Split-file app**: HTML in `finance.html`, CSS in `finance.css`, JS split across 9 domain files. No build step, no bundler.
+- **Split-file app**: HTML in `finance.html`, CSS in `finance.css`, JS split across 10 domain files. No build step, no bundler.
 - **Icons**: Google Material Symbols Outlined, self-hosted as a subset in `fonts/` (see section below).
 - **Offline-first**: service worker caches all assets; Drive sync is optional.
 - **No frameworks**: vanilla JS, no React/Vue/etc.
@@ -104,6 +106,7 @@ Tab switching is driven by `data-tab` attributes and the `currentTab` variable. 
 | `mortgageEntrySheet` | Add balance/payment/interest entry to mortgage |
 | `parserEditorSheet` | Add/edit expense email parser |
 | `evParserEditorSheet` | Add/edit event email parser |
+| `aiReportSheet` | Paste/save the AI advisor Markdown report |
 
 Modal overlays: `backdrop`, `mortgageOverlay`, `historyOverlay`, `driveOverlay`.
 
@@ -124,7 +127,7 @@ Two localStorage keys:
 {
   accounts: [{ id, name, startingBalance, balance, _updatedAt }],
   expenses: [],          // { id, ac, date, desc, amount, cat, _ts }
-  assets: [],            // { id, name, units, history: [{ date, value, _ts }] }
+  assets: [],            // { id, name, class, units, history: [{ date, value, _ts }] } — class ∈ ASSET_CLASSES; "Home (own use)" is non-investable
   events: [],            // { id, title, description, startDate, startTime, endDate, endTime, tags, reminderHours, _ts }
   insurances: [],        // { id, name, personInsured, startDate, contractId, details, paymentAmount, paymentFrequency, agentContacts, _updatedAt }
   taxRecords: [],        // { id, year, isHistorical, basicSalary, bonus, otherIncome, cpfEmployee, reliefs, taxRebate, _ts }
@@ -137,9 +140,14 @@ Two localStorage keys:
   mortgages: [],         // { id, name, principal, startDate, interestRate, tenorYears, entries: [{ id, date, type, amount, note, _ts }], _updatedAt }
   ongoingExpenses: [],   // { id, name, amount, frequency, startDate, category, accountId, note, lastAutoGenPeriod, _updatedAt }
   emailCatMap: [],       // [{ match, value }]
-  emailCatDefault: 'Other'
+  emailCatDefault: 'Other',
+  netWorthSnapshots: [], // { key: 'YYYY-Qn', date, liquid, assets, cpf, debt, net, _ts } — one per quarter
+  aiReport: null,        // { markdown, generatedAt, period } — latest AI advisor report
+  dependents: []         // { id, name, relationship, birthYear, sex, _ts } — household, enriches AI analysis
 }
 ```
+
+`ASSET_CLASSES` (in `finance-core.js`): Cash, Equities, Bonds, Property (rental), Home (own use), Crypto, Commodities, Other. `isInvestable(a)` excludes `Home (own use)` — counted in net worth but excluded from investable allocation and `calcRetirementPlan()` drawdown.
 
 **Adding a new data collection:**
 1. Add `myCollection: []` to `defaultData()`
@@ -160,6 +168,8 @@ Two localStorage keys:
 | `finance:balanceHidden` | Bool — hide balance amounts |
 | `finance:lastAcct` | Last-used account ID |
 | `finance:lastSync` | Timestamp of last Drive sync |
+| `finance:driveSummaryFileId` | Drive file ID for `finance-elvis-summary.json` (AI summary) |
+| `finance:driveReportFileId` | Drive file ID for `finance-elvis-report.json` (AI report) |
 | `busMapCenter` | Saved map centre `[lat, lng]` |
 
 ### Google Drive sync
@@ -167,13 +177,41 @@ Two localStorage keys:
 Two Drive files per user: `finance-elvis.json` (main) and `finance-elvis-history.json` (history).
 
 **Merge strategy** (bidirectional, conflict-resolved):
-- Expenses/Events/Tax/CPF/Insurance/OngoingExpenses: union by ID, prefer higher `_ts` / `_updatedAt`, exclude `_deletedIds`
-- Assets: union by ID, merge `history[]`, deduplicate by `_ts`
+- Expenses/Events/Tax/CPF/Insurance/OngoingExpenses/Dependents: union by ID, prefer higher `_ts` / `_updatedAt`, exclude `_deletedIds`
+- Assets: union by ID, merge `history[]`, deduplicate by `_ts`; `name`/`units`/`class` prefer local
 - Mortgages: union by ID, merge `entries[]`, deduplicate by ID
 - Accounts: prefer higher `_updatedAt`
-- Scalars (termDates, eventTags, expenseCats, emailParsers, emailCatMap): last-writer-wins via timestamp
+- Scalars (termDates, eventTags, expenseCats, emailParsers, emailCatMap, `aiReport` via `_aiReportTs`): last-writer-wins via timestamp
+- `netWorthSnapshots`: union by quarter `key`, prefer higher `_ts`
 
 **Share code**: `makeShareCode(clientId, fileId, historyFileId)` encodes a base64 string the partner can paste via `applyConnectCode()` to share the same Drive files.
+
+### AI Financial Advisor (`finance-ai.js`)
+
+A card at the top of the **Analysis** tab. It computes derived metrics and a
+consolidated, AI-ready summary, then renders a Markdown report.
+
+- **Net-worth snapshots**: `recordNetWorthSnapshot(force)` auto-records at most one
+  `netWorthSnapshots` entry per quarter on load; the *📸 Snapshot now* button (`snapshotNetWorthNow()`)
+  captures a dated point on demand. (`computeNetWorth()` = accounts + assets + CPF − mortgage debt.)
+- **Cash flow**: `computeCashflow()` → avg monthly spend, savings rate, runway (vs a 6-month
+  emergency-fund target). Shown as a KPI strip via `renderAiKpis()`.
+- **Asset allocation**: `renderAssetAllocation()` (on Tax › Assets) groups assets by `class` with a
+  stacked bar; own-home shown but flagged as excluded from the investable total.
+- **Net-worth chart**: `renderNetWorthChart()` plots `netWorthSnapshots` by date (single point + hint until a second capture exists).
+- **Dependents**: edited in Account Settings (`data.dependents`); ages/sex feed the AI summary.
+- **Summary**: `buildAiSummary()` assembles a compact object (net worth + history, cash flow,
+  quarterly/YTD expenses, budgets, asset allocation by class, household, mortgages, CPF projection,
+  tax, retirement) reusing
+  `calcCpfProjection()` / `calcRetirementPlan()` / `currentValue()`. `aiReportPrompt()` wraps it
+  with an advisor prompt.
+- **Two delivery paths** (see `apps-script/README.md`):
+  - **Manual** — *📋 Copy summary* → paste into claude.ai → *✍️ Paste report* (`saveAiReportPaste`).
+  - **Automated** — *☁ Summary → Drive* (`pushSummaryToDrive` → `finance-elvis-summary.json`); an
+    Apps Script (`apps-script/quarterly-report.gs`) calls the Claude API and writes
+    `finance-elvis-report.json`; *⬇ Fetch report* (`fetchAiReportFromDrive`) loads it.
+- The report is stored in `data.aiReport` (syncs with normal data). `renderMarkdownLite()` is an
+  XSS-safe Markdown→HTML renderer (the report is treated as untrusted).
 
 ### Expense categories
 
