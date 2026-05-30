@@ -900,31 +900,9 @@ function calcRetirementPlan() {
   }
 
   const retirementPortfolio = assets;
-  const totalYears = deathAge - retireAge;
 
-  function simulate(W_real) {
-    let a = retirementPortfolio;
-    for (let age = retireAge; age < deathAge; age++) {
-      const yearsFromNow = age - currentAge;
-      const inflFactor = Math.pow(1 + g, yearsFromNow);
-      const withdrawalNom = W_real * inflFactor;
-      const cpfNom = age >= 65 ? cpfAnnualPayout : 0;
-      const portfolioWithdrawal = Math.max(0, withdrawalNom - cpfNom);
-      a = a * (1 + r) - portfolioWithdrawal;
-    }
-    return a;
-  }
-
-  let W_real = 0;
-  if (totalYears > 0 && retirementPortfolio > 0) {
-    let lo = 0;
-    let hi = retirementPortfolio * 3;
-    for (let i = 0; i < 60; i++) {
-      const mid = (lo + hi) / 2;
-      if (simulate(mid) > 0) lo = mid; else hi = mid;
-    }
-    W_real = (lo + hi) / 2;
-  }
+  const swr = (s.safeWithdrawalRate != null ? s.safeWithdrawalRate : 4.0) / 100;
+  const W_real = retirementPortfolio > 0 ? retirementPortfolio * swr : 0;
 
   for (let age = retireAge; age < deathAge; age++) {
     const yearsFromNow = age - currentAge;
@@ -947,7 +925,8 @@ function calcRetirementPlan() {
     });
   }
 
-  return { rows, W_real, cpfAnnualPayout, retirementPortfolio, currentAge, currentAssets, annualSavings };
+  const endPortfolio = assets;
+  return { rows, W_real, cpfAnnualPayout, retirementPortfolio, endPortfolio, currentAge, currentAssets, annualSavings };
 }
 
 function renderRetirement() {
@@ -1013,6 +992,16 @@ function renderRetirement() {
           oninput="document.getElementById('retSliderValDeath').textContent=Math.round(this.value)"
           onchange="saveRetirementSettings('deathAge',this.value)">
       </div>
+      <div class="slider-group">
+        <div class="slider-row">
+          <span class="slider-label">Safe Withdrawal Rate</span>
+          <span class="slider-value" id="retSliderValSwr">${(s.safeWithdrawalRate != null ? s.safeWithdrawalRate : 4.0).toFixed(1)}%</span>
+        </div>
+        <input type="range" min="2.5" max="5.0" step="0.1" value="${s.safeWithdrawalRate != null ? s.safeWithdrawalRate : 4.0}"
+          oninput="document.getElementById('retSliderValSwr').textContent=parseFloat(this.value).toFixed(1)+'%'"
+          onchange="saveRetirementSettings('safeWithdrawalRate',this.value)">
+        <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted);margin-top:1px"><span>2.5%</span><span>5.0%</span></div>
+      </div>
     </div>`;
 
   let plan;
@@ -1022,7 +1011,8 @@ function renderRetirement() {
     return;
   }
 
-  const { rows, W_real, cpfAnnualPayout, retirementPortfolio, annualSavings: planSavings } = plan;
+  const { rows, W_real, cpfAnnualPayout, retirementPortfolio, endPortfolio, annualSavings: planSavings } = plan;
+  const endColor = endPortfolio >= 0 ? 'var(--green,#27ae60)' : 'var(--red,#e74c3c)';
 
   el.innerHTML += `
     <div class="ret-summary-grid">
@@ -1037,8 +1027,9 @@ function renderRetirement() {
         <div style="font-size:.72rem;color:var(--muted);margin-top:2px">grows with inflation each year</div>
       </div>
       <div class="ret-summary-item">
-        <div class="ret-summary-label">Annual Drawdown (today's $)</div>
+        <div class="ret-summary-label">SWR Annual Withdrawal (today's $)</div>
         <div class="ret-summary-value">${fmtDollar(W_real)}</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">${(s.safeWithdrawalRate != null ? s.safeWithdrawalRate : 4.0).toFixed(1)}% of portfolio at retirement</div>
       </div>
       <div class="ret-summary-item">
         <div class="ret-summary-label">CPF LIFE Payout / yr</div>
@@ -1047,6 +1038,11 @@ function renderRetirement() {
       <div class="ret-summary-item">
         <div class="ret-summary-label">Monthly Spending (today's $)</div>
         <div class="ret-summary-value">${fmtDollar(W_real / 12)}</div>
+      </div>
+      <div class="ret-summary-item">
+        <div class="ret-summary-label">Portfolio at Death Age</div>
+        <div class="ret-summary-value" style="color:${endColor}">${fmtDollar(endPortfolio)}</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">${endPortfolio >= 0 ? 'surplus — estate / buffer' : 'shortfall — raise savings or lower SWR'}</div>
       </div>
     </div>`;
 
