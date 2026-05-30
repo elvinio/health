@@ -317,12 +317,12 @@ function assetClassColor(c) { return ASSET_CLASS_COLORS[c] || '#95a5a6'; }
 
 function renderAssetAllocation() {
   const assets = data.assets || [];
-  if (!assets.length) return '';
+  const investableAssets = assets.filter(a => isInvestable(a));
+  if (!investableAssets.length) return '';
   const byClass = {};
-  assets.forEach(a => { const c = assetClass(a); byClass[c] = (byClass[c] || 0) + currentValue(a); });
+  investableAssets.forEach(a => { const c = assetClass(a); byClass[c] = (byClass[c] || 0) + currentValue(a); });
   const total = Object.values(byClass).reduce((s, v) => s + v, 0);
   if (total <= 0) return '';
-  const investable = assets.reduce((s, a) => s + (isInvestable(a) ? currentValue(a) : 0), 0);
   const rows = Object.entries(byClass).sort((a, b) => b[1] - a[1]);
 
   const bar = rows.map(([c, v]) =>
@@ -332,24 +332,26 @@ function renderAssetAllocation() {
     const pct = (v / total * 100).toFixed(1);
     return `<div class="legend-item"><div class="legend-dot" style="background:${assetClassColor(c)}"></div><span>${esc(c)} <span style="color:var(--muted)">${pct}% · ${fmtDollar(v)}</span></span></div>`;
   }).join('');
-  const investableNote = investable !== total
-    ? `<div style="font-size:.78rem;color:var(--muted);margin-top:8px;padding:0 2px">Investable (excl. own-home): <strong style="color:var(--text)">${fmtDollar(investable)}</strong> — used for retirement drawdown.</div>`
+  const homeVal = assets.filter(a => !isInvestable(a)).reduce((s, a) => s + currentValue(a), 0);
+  const homeNote = homeVal > 0
+    ? `<div style="font-size:.78rem;color:var(--muted);margin-top:8px;padding:0 2px">Home (own use) ${fmtDollar(homeVal)} counted in net worth only — excluded from allocation and retirement drawdown.</div>`
     : '';
   return `<div class="chart-wrap">
     <div class="chart-title">Asset Allocation</div>
     <div class="alloc-bar">${bar}</div>
     <div class="chart-legend">${legend}</div>
-    ${investableNote}
+    ${homeNote}
   </div>`;
 }
 
 // ── Render: Assets sub-tab (Tax page) ────────────────────────────────────────
 function renderAssetsSubTab() {
   const el = document.getElementById('taxAssetsContent');
-  const total = data.assets.reduce((s, a) => s + currentValue(a), 0);
-  const prevTotal = data.assets.reduce((s, a) => s + prevValue(a), 0);
+  const total = data.assets.reduce((s, a) => s + (isInvestable(a) ? currentValue(a) : 0), 0);
+  const prevTotal = data.assets.reduce((s, a) => s + (isInvestable(a) ? prevValue(a) : 0), 0);
   const diff = total - prevTotal;
   const pct = prevTotal ? (diff / prevTotal * 100) : 0;
+  const homeTotal = data.assets.reduce((s, a) => s + (!isInvestable(a) ? currentValue(a) : 0), 0);
 
   if (!data.assets.length) {
     el.innerHTML = `
@@ -366,6 +368,7 @@ function renderAssetsSubTab() {
       <span class="cpf-settings-label">Total Assets</span>
       <span class="cpf-settings-value">${fmtDollar(total)}</span>
     </div>
+    ${homeTotal > 0 ? `<div style="font-size:.78rem;color:var(--muted);margin-bottom:4px;padding:0 4px">Home (own use) ${fmtDollar(homeTotal)} excluded — counted in net worth only</div>` : ''}
     ${data.assets.length && prevTotal !== total ? `<div style="font-size:.8rem;color:var(--muted);margin-bottom:8px;padding:0 4px">${diff >= 0 ? '+' : ''}${fmtDollar(diff)} (${diff >= 0 ? '+' : ''}${pct.toFixed(2)}%) from last update</div>` : ''}
     ${renderAssetAllocation()}
     ${data.assets.map(a => {

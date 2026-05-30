@@ -866,7 +866,9 @@ function calcRetirementPlan() {
   const currentAssets = physAssets + accAssets;
 
   const annualIncome = (cpfSet.monthlySalary || 0) * 12;
-  const annualExpenses = s.monthlyExpenses * 12;
+  const cf = computeCashflow();
+  const monthlyExpenses = cf.avgMonthlyExpense > 0 ? cf.avgMonthlyExpense : (s.monthlyExpenses || 0);
+  const annualExpenses = monthlyExpenses * 12;
 
   let cpfAnnualPayout = 0;
   try {
@@ -1003,15 +1005,8 @@ function renderRetirement() {
           oninput="document.getElementById('retSliderValDeath').textContent=Math.round(this.value)"
           onchange="saveRetirementSettings('deathAge',this.value)">
       </div>
-      <div class="slider-group">
-        <div class="slider-row">
-          <span class="slider-label">Monthly Expenses (today's $)</span>
-        </div>
-        <input type="number" min="0" step="100" value="${s.monthlyExpenses}"
-          style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:.95rem;font-family:inherit"
-          onchange="saveRetirementSettings('monthlyExpenses',this.value)">
-      </div>
-    </div>`;
+    </div>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:12px">Accumulation uses avg monthly spend from your expense tracker: ${fmtDollar(Math.round(computeCashflow().avgMonthlyExpense || 0))}/mo</div>`;
 
   let plan;
   try { plan = calcRetirementPlan(); }
@@ -1027,6 +1022,7 @@ function renderRetirement() {
       <div class="ret-summary-item">
         <div class="ret-summary-label">Retirement Portfolio</div>
         <div class="ret-summary-value">${fmtDollar(retirementPortfolio)}</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">investable assets + cash, home excluded</div>
       </div>
       <div class="ret-summary-item">
         <div class="ret-summary-label">Annual Drawdown (today's $)</div>
