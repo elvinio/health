@@ -21,7 +21,6 @@
 <div class="tabs">
   <button class="tab active" data-tab="events"><span class="material-symbols-outlined">event</span></button>
   <button class="tab" data-tab="expenses"><span class="material-symbols-outlined">credit_card</span></button>
-  <button class="tab" data-tab="investments"><span class="material-symbols-outlined">trending_up</span></button>
   <button class="tab" data-tab="analysis"><span class="material-symbols-outlined">bar_chart</span></button>
   <button class="tab" data-tab="insurance"><span class="material-symbols-outlined">shield</span></button>
   <button class="tab" data-tab="tax"><span class="material-symbols-outlined">receipt_long</span></button>
@@ -111,16 +110,6 @@
   <div id="analysisList"></div>
 </div>
 
-<!-- Investments Page -->
-<div class="page" id="page-investments">
-  <div class="portfolio-banner">
-    <div class="portfolio-label">Total Portfolio</div>
-    <div class="portfolio-total" id="portfolioTotal">—</div>
-    <div class="portfolio-change" id="portfolioChange"></div>
-  </div>
-  <div id="assetList"></div>
-</div>
-
 <!-- Insurance Page -->
 <div class="page" id="page-insurance">
   <div id="insuranceList"></div>
@@ -160,6 +149,30 @@
 
 <!-- FAB -->
 <button class="fab" id="fabBtn" aria-label="Add">+</button>
+
+<!-- Tax PIN Overlay -->
+<div id="taxPinOverlay" class="tax-pin-overlay" style="display:none">
+  <div class="tax-pin-modal">
+    <div class="tax-pin-title">Finance</div>
+    <div class="tax-pin-subtitle">Enter PIN to view</div>
+    <div class="tax-pin-dots" id="taxPinDots"></div>
+    <div class="tax-pin-error" id="taxPinError"></div>
+    <div class="tax-pin-pad" id="taxPinPad">
+      <button onclick="taxPinKey('1')">1</button>
+      <button onclick="taxPinKey('2')">2</button>
+      <button onclick="taxPinKey('3')">3</button>
+      <button onclick="taxPinKey('4')">4</button>
+      <button onclick="taxPinKey('5')">5</button>
+      <button onclick="taxPinKey('6')">6</button>
+      <button onclick="taxPinKey('7')">7</button>
+      <button onclick="taxPinKey('8')">8</button>
+      <button onclick="taxPinKey('9')">9</button>
+      <button class="pin-empty" disabled></button>
+      <button onclick="taxPinKey('0')">0</button>
+      <button onclick="taxPinKey('back')"><span class="material-symbols-outlined" style="font-size:1.3rem">backspace</span></button>
+    </div>
+  </div>
+</div>
 
 <!-- Backdrop -->
 <div class="backdrop" id="backdrop"></div>

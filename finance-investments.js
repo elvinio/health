@@ -85,6 +85,18 @@ function openAccountSettings() {
       </div>
     </div>`;
 
+  const pinSet = !!localStorage.getItem('finance:taxPin');
+  const pinSection = `
+    <div style="padding-top:4px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+      <div class="section-heading">Tax Page PIN</div>
+      <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Shows a PIN overlay when you navigate to the Tax tab — prevents casual glances only. To reset a forgotten PIN, open DevTools → Application → Local Storage and delete <code style="font-size:.78rem">finance:taxPin</code>.</p>
+      <div class="field" style="margin-bottom:8px">
+        <label>New PIN <span style="font-weight:400;color:var(--muted)">(digits only${pinSet ? ', leave blank to keep current' : ''})</span></label>
+        <input type="password" id="settingsPinInput" inputmode="numeric" pattern="[0-9]*" placeholder="${pinSet ? 'Enter new PIN to change' : 'e.g. 1234'}" autocomplete="new-password" style="letter-spacing:.15em;font-size:1.1rem">
+      </div>
+      ${pinSet ? `<div style="display:flex;align-items:center;gap:12px;margin-top:4px"><span style="font-size:.82rem;color:var(--muted)">PIN is currently <strong>set</strong>.</span><button type="button" class="btn btn-secondary" onclick="clearTaxPin()" style="font-size:.78rem;padding:5px 12px">Clear PIN</button></div>` : `<div style="font-size:.82rem;color:var(--muted)">No PIN set.</div>`}
+    </div>`;
+
   body.innerHTML = data.accounts.map((acc, i) => `
     <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)">
       <div class="section-heading">Account ${i + 1}</div>
@@ -95,7 +107,7 @@ function openAccountSettings() {
         <input type="number" id="accStart${i}" value="${acc.startingBalance}" step="0.01" placeholder="0.00">
       </div>
     </div>
-  `).join('') + cpfSection + tagsSection + budgetSection;
+  `).join('') + pinSection + cpfSection + tagsSection + budgetSection;
   openSheet('settingsSheet');
 }
 
@@ -177,11 +189,24 @@ function saveAccountSettings() {
   data.emailCatDefault = (document.getElementById('emailCatDefault')?.value || 'Other').trim() || 'Other';
   data._emailCatMapTs = Date.now();
 
+  const newPin = (document.getElementById('settingsPinInput')?.value || '').replace(/\D/g, '');
+  if (newPin.length >= 1) {
+    localStorage.setItem('finance:taxPin', newPin);
+    taxPinUnlocked = false;
+  }
+
   recalcBalances(data, allExpenses());
   saveData(data);
   closeSheet();
   renderAll();
   showToast('Settings saved');
+}
+
+function clearTaxPin() {
+  localStorage.removeItem('finance:taxPin');
+  taxPinUnlocked = false;
+  closeSheet();
+  showToast('PIN cleared');
 }
 
 
