@@ -322,9 +322,6 @@ function computeAllocationAmounts() {
     const c = assetClass(a);
     byClass[c] = (byClass[c] || 0) + currentValue(a);
   });
-  const liquidCash = (data.accounts || []).reduce((s, a) => s + (a.balance || 0), 0);
-  byClass['Cash'] = (byClass['Cash'] || 0) + liquidCash;
-  byClass['CPF'] = (byClass['CPF'] || 0) + latestCpfBalances().total;
   return byClass;
 }
 
