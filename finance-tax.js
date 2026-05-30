@@ -860,15 +860,14 @@ function calcRetirementPlan() {
   const retireAge = Math.round(s.retirementAge);
   const deathAge = Math.round(s.deathAge);
 
-  // Exclude own-home (non-investable) — it can't be drawn down to fund retirement.
   const physAssets = data.assets.reduce((sum, a) => sum + (isInvestable(a) ? currentValue(a) : 0), 0);
-  const accAssets = data.accounts.reduce((sum, ac) => sum + (ac.balance || 0), 0);
-  const currentAssets = physAssets + accAssets;
+  const mortgageDebt = (data.mortgages || []).reduce((s, m) => {
+    const bals = (m.entries || []).filter(e => e.type === 'balance').sort((a, b) => b.date.localeCompare(a.date));
+    return s + (bals.length ? bals[0].amount : (m.principal || 0));
+  }, 0);
+  const currentAssets = physAssets - mortgageDebt;
 
-  const annualIncome = (cpfSet.monthlySalary || 0) * 12;
-  const cf = computeCashflow();
-  const monthlyExpenses = cf.avgMonthlyExpense > 0 ? cf.avgMonthlyExpense : (s.monthlyExpenses || 0);
-  const annualExpenses = monthlyExpenses * 12;
+  const annualSavings = s.annualSavings != null ? s.annualSavings : 150000;
 
   let cpfAnnualPayout = 0;
   try {
@@ -888,16 +887,14 @@ function calcRetirementPlan() {
   for (let age = currentAge; age < retireAge; age++) {
     const yearsFromNow = age - currentAge;
     const inflFactor = Math.pow(1 + g, yearsFromNow);
-    const incomeNom = annualIncome * inflFactor;
-    const expNom = annualExpenses * inflFactor;
-    const netNom = incomeNom - expNom;
+    const savingsNom = annualSavings * inflFactor;
     const investReturn = assets * r;
     const assetsStart = assets;
-    assets = assetsStart * (1 + r) + netNom;
+    assets = assetsStart * (1 + r) + savingsNom;
     rows.push({
       year: currentYear + yearsFromNow, age, phase: 'accumulation',
-      assetsStart, investReturn, income: incomeNom, expenses: expNom,
-      net: netNom, assetsEnd: assets,
+      assetsStart, investReturn, savings: savingsNom,
+      assetsEnd: assets,
       assetsEndReal: assets / Math.pow(1 + g, yearsFromNow + 1)
     });
   }
@@ -950,7 +947,7 @@ function calcRetirementPlan() {
     });
   }
 
-  return { rows, W_real, cpfAnnualPayout, retirementPortfolio, currentAge, currentAssets, annualIncome, annualExpenses };
+  return { rows, W_real, cpfAnnualPayout, retirementPortfolio, currentAge, currentAssets, annualSavings };
 }
 
 function renderRetirement() {
@@ -967,8 +964,19 @@ function renderRetirement() {
     return;
   }
 
+  const savingsVal = s.annualSavings != null ? s.annualSavings : 150000;
   el.innerHTML = `
     <div class="ret-sliders">
+      <div class="slider-group">
+        <div class="slider-row">
+          <span class="slider-label">Annual Savings</span>
+          <span class="slider-value" id="retSliderValSavings">${fmtDollar(savingsVal)}</span>
+        </div>
+        <input type="range" min="100000" max="200000" step="10000" value="${savingsVal}"
+          oninput="document.getElementById('retSliderValSavings').textContent=fmtDollar(+this.value)"
+          onchange="saveRetirementSettings('annualSavings',this.value)">
+        <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted);margin-top:1px"><span>$100k</span><span>$200k</span></div>
+      </div>
       <div class="slider-group">
         <div class="slider-row">
           <span class="slider-label">Inflation Rate</span>
@@ -1014,14 +1022,19 @@ function renderRetirement() {
     return;
   }
 
-  const { rows, W_real, cpfAnnualPayout, retirementPortfolio } = plan;
+  const { rows, W_real, cpfAnnualPayout, retirementPortfolio, annualSavings: planSavings } = plan;
 
   el.innerHTML += `
     <div class="ret-summary-grid">
       <div class="ret-summary-item">
-        <div class="ret-summary-label">Retirement Portfolio</div>
+        <div class="ret-summary-label">Portfolio at Retirement</div>
         <div class="ret-summary-value">${fmtDollar(retirementPortfolio)}</div>
-        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">investable assets + cash, home excluded</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">investable assets − mortgage liability (home &amp; cash excluded)</div>
+      </div>
+      <div class="ret-summary-item">
+        <div class="ret-summary-label">Annual Savings (today's $)</div>
+        <div class="ret-summary-value">${fmtDollar(planSavings)}</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">grows with inflation each year</div>
       </div>
       <div class="ret-summary-item">
         <div class="ret-summary-label">Annual Drawdown (today's $)</div>
@@ -1052,8 +1065,8 @@ function renderRetirement() {
             <th style="text-align:left">Phase</th>
             <th>Portfolio Start</th>
             <th>Returns</th>
-            <th>Income / CPF</th>
-            <th>Expenses / Withdrawal</th>
+            <th>Savings / CPF</th>
+            <th>Withdrawal (nom.)</th>
             <th>Withdrawal Today's $</th>
             <th>Portfolio End</th>
             <th>End Today's $</th>
@@ -1062,21 +1075,22 @@ function renderRetirement() {
         <tbody>
           ${rows.map(row => {
             const isDrawdown = row.phase === 'drawdown';
-            const incomeOrCPF = isDrawdown ? (row.cpf || 0) : row.income;
-            const expOrWith = isDrawdown ? row.withdrawal : row.expenses;
             const phaseLabel = isDrawdown
               ? (row.age >= 65 ? '<span style="color:var(--green,#27ae60)">Drawdown+CPF</span>' : '<span style="color:var(--red,#e74c3c)">Drawdown</span>')
               : '<span style="color:var(--primary)">Accumulation</span>';
             const endNeg = row.assetsEnd < 0 ? 'color:var(--red,#e74c3c)' : '';
+            const savingsOrCpf = isDrawdown ? fmtDollar(row.cpf || 0) : `<span style="color:var(--green,#27ae60)">${fmtDollar(row.savings)}</span>`;
+            const withdrawalNom = isDrawdown ? `<span style="color:var(--red,#e74c3c)">${fmtDollar(row.withdrawal)}</span>` : '—';
+            const withdrawalReal = isDrawdown ? fmtDollar(row.withdrawalReal) : '—';
             return `<tr>
               <td style="text-align:left">${row.year}</td>
               <td>${row.age}</td>
               <td style="text-align:left;white-space:nowrap">${phaseLabel}</td>
               <td>${fmtDollar(row.assetsStart)}</td>
               <td style="color:var(--green,#27ae60)">${fmtDollar(row.investReturn)}</td>
-              <td>${fmtDollar(incomeOrCPF)}</td>
-              <td style="color:var(--red,#e74c3c)">${fmtDollar(expOrWith)}</td>
-              <td style="color:var(--muted)">${isDrawdown ? fmtDollar(row.withdrawalReal) : '—'}</td>
+              <td>${savingsOrCpf}</td>
+              <td>${withdrawalNom}</td>
+              <td style="color:var(--muted)">${withdrawalReal}</td>
               <td style="${endNeg}">${fmtDollar(row.assetsEnd)}</td>
               <td style="${endNeg}">${fmtDollar(row.assetsEndReal)}</td>
             </tr>`;
