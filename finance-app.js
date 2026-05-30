@@ -1,3 +1,18 @@
+// ── Analysis sub-tab state ────────────────────────────────────────────────────
+let currentAnalysisSubTab = 'ai';
+
+function switchAnalysisSubTab(tab) {
+  currentAnalysisSubTab = tab;
+  document.querySelectorAll('.analysis-sub-tab').forEach(b => {
+    b.classList.toggle('active', b.id === 'analysisSubTab-' + tab);
+  });
+  ['ai', 'expense'].forEach(t => {
+    const el = document.getElementById('analysisSubContent-' + t);
+    if (el) el.style.display = t === tab ? '' : 'none';
+  });
+  renderAnalysis();
+}
+
 // ── Category chart helpers ────────────────────────────────────────────────────
 const CAT_COLORS = {
   Food: '#e67e22', Transport: '#3498db', Shopping: '#9b59b6',
@@ -323,10 +338,15 @@ function renderAssetMortgageChart() {
 }
 
 function renderAnalysis() {
+  if (currentAnalysisSubTab === 'ai') {
+    const el = document.getElementById('aiAnalysisList');
+    if (el) el.innerHTML = (typeof renderAiReport === 'function') ? renderAiReport() : '';
+    return;
+  }
+
+  // Expense analysis sub-tab
   const el = document.getElementById('analysisList');
   const allYears = getExpenseYears();
-
-  const aiSection = (typeof renderAiReport === 'function') ? renderAiReport() : '';
 
   const yearPillsHtml = `<div class="filter-pills" style="margin-bottom:16px">${
     allYears.map(y =>
@@ -334,7 +354,6 @@ function renderAnalysis() {
     ).join('')
   }</div>`;
 
-  // Build byMonth from pre-computed monthlyAgg, filtered by selected years, excluding 'Other'
   const byMonth = {};
   Object.entries(data.monthlyAgg || {}).forEach(([month, cats]) => {
     if (!analysisYears.has(month.slice(0, 4))) return;
@@ -348,7 +367,7 @@ function renderAnalysis() {
   const assetMortgageChart = `<div id="assetMortgageChart">${renderAssetMortgageChart()}</div>`;
 
   if (!Object.keys(byMonth).length) {
-    el.innerHTML = aiSection + yearPillsHtml + assetMortgageChart + '<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">bar_chart</span></div>No expense data yet.</div>';
+    el.innerHTML = yearPillsHtml + assetMortgageChart + '<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">bar_chart</span></div>No expense data yet.</div>';
     return;
   }
 
@@ -392,7 +411,7 @@ function renderAnalysis() {
 
   const yearlyChart = `<div id="yearlyChart">${renderYearlyChart()}</div>`;
   const budgetSummary = renderYearBudgetSummary();
-  el.innerHTML = aiSection + yearPillsHtml + assetMortgageChart + chart + yearlyChart + budgetSummary + cards;
+  el.innerHTML = yearPillsHtml + assetMortgageChart + chart + yearlyChart + budgetSummary + cards;
 }
 
 // ── Render all ────────────────────────────────────────────────────────────────

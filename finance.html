@@ -38,6 +38,8 @@
       <div class="dropdown-sep"></div>
       <button class="dropdown-item" onclick="openDriveMenu()">☁ Google Drive</button>
       <div class="dropdown-sep"></div>
+      <button class="dropdown-item" onclick="openAllocationRatioSheet()">📊 Allocation Ratios</button>
+      <div class="dropdown-sep"></div>
       <button class="dropdown-item" onclick="openThemePicker()"><span class="material-symbols-outlined">palette</span> Theme</button>
       <div class="dropdown-sep"></div>
       <button class="dropdown-item" onclick="refreshPwaCache()"><span class="material-symbols-outlined">refresh</span> Refresh Cache</button>
@@ -107,7 +109,16 @@
 
 <!-- Analysis Page -->
 <div class="page" id="page-analysis">
-  <div id="analysisList"></div>
+  <div class="analysis-sub-tabs">
+    <button class="analysis-sub-tab active" id="analysisSubTab-ai" onclick="switchAnalysisSubTab('ai')">🤖 AI Analysis</button>
+    <button class="analysis-sub-tab" id="analysisSubTab-expense" onclick="switchAnalysisSubTab('expense')"><span class="material-symbols-outlined">bar_chart</span>Expenses</button>
+  </div>
+  <div id="analysisSubContent-ai">
+    <div id="aiAnalysisList"></div>
+  </div>
+  <div id="analysisSubContent-expense" style="display:none">
+    <div id="analysisList"></div>
+  </div>
 </div>
 
 <!-- Insurance Page -->
@@ -855,6 +866,19 @@
     </div>
   </div>
   <button class="btn btn-primary btn-full" style="margin-top:16px" onclick="saveEventParserEditor()">Save Parser</button>
+</div>
+
+<!-- Allocation Ratio Sheet -->
+<div class="sheet" id="allocationRatioSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Target Allocation</div>
+  <p style="font-size:.85rem;color:var(--muted);margin-bottom:4px">Set target allocation percentages. Must sum to 100%.</p>
+  <div id="allocationRatioFields"></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0 16px;padding:8px 0;border-top:1px solid var(--border)">
+    <span style="font-weight:700;font-size:.95rem">Total</span>
+    <span id="allocationRatioTotal" style="font-weight:800;font-size:1.1rem;color:var(--red)">0%</span>
+  </div>
+  <button class="btn btn-primary btn-block" onclick="saveAllocationRatios()">Save</button>
 </div>
 
 <!-- Hidden file input for import -->
