@@ -333,14 +333,10 @@ function renderAssetAllocation() {
     return `<div class="legend-item"><div class="legend-dot" style="background:${assetClassColor(c)}"></div><span>${esc(c)} <span style="color:var(--muted)">${pct}% · ${fmtDollar(v)}</span></span></div>`;
   }).join('');
   const homeVal = assets.filter(a => !isInvestable(a)).reduce((s, a) => s + currentValue(a), 0);
-  const homeNote = homeVal > 0
-    ? `<div style="font-size:.78rem;color:var(--muted);margin-top:8px;padding:0 2px">Home (own use) ${fmtDollar(homeVal)} counted in net worth only — excluded from allocation and retirement drawdown.</div>`
-    : '';
   return `<div class="chart-wrap">
     <div class="chart-title">Asset Allocation</div>
     <div class="alloc-bar">${bar}</div>
     <div class="chart-legend">${legend}</div>
-    ${homeNote}
   </div>`;
 }
 
