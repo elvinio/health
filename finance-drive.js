@@ -363,8 +363,8 @@ function mergeData(local, remote) {
 
   // CPF settings: last-writer-wins via _cpfSettingsTs
   const cpfSettings = (local._cpfSettingsTs || 0) >= (remote._cpfSettingsTs || 0)
-    ? (local.cpfSettings || remote.cpfSettings || { dateOfBirth: '', retirementAge: 65, monthlySalary: 0 })
-    : (remote.cpfSettings || local.cpfSettings || { dateOfBirth: '', retirementAge: 65, monthlySalary: 0 });
+    ? (local.cpfSettings || remote.cpfSettings || { dateOfBirth: '' })
+    : (remote.cpfSettings || local.cpfSettings || { dateOfBirth: '' });
   const cpfSettingsTs = Math.max(local._cpfSettingsTs || 0, remote._cpfSettingsTs || 0);
 
   // Insurances: union by id, prefer higher _updatedAt, exclude deleted
