@@ -447,21 +447,11 @@ function renderAssetsSubTab() {
   const homeTotal = data.assets.reduce((s, a) => s + (!isInvestable(a) ? currentValue(a) : 0), 0);
 
   if (!data.assets.length) {
-    el.innerHTML = `
-      <div class="cpf-settings-bar" style="margin:12px 0 8px">
-        <span class="cpf-settings-label">Total Assets</span>
-        <span class="cpf-settings-value">${fmtDollar(0)}</span>
-      </div>
-      <div class="empty-state"><div class="icon"><span class="material-symbols-outlined">account_balance</span></div>No assets yet.<br>Tap + to add one.</div>`;
+    el.innerHTML = `<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">account_balance</span></div>No assets yet.<br>Tap + to add one.</div>`;
     return;
   }
 
   el.innerHTML = `
-    <div class="cpf-settings-bar" style="margin:12px 0 4px">
-      <span class="cpf-settings-label">Total Assets</span>
-      <span class="cpf-settings-value">${fmtDollar(total)}</span>
-    </div>
-    ${homeTotal > 0 ? `<div style="font-size:.78rem;color:var(--muted);margin-bottom:4px;padding:0 4px">Home (own use) ${fmtDollar(homeTotal)} excluded — counted in net worth only</div>` : ''}
     ${data.assets.length && prevTotal !== total ? `<div style="font-size:.8rem;color:var(--muted);margin-bottom:8px;padding:0 4px">${diff >= 0 ? '+' : ''}${fmtDollar(diff)} (${diff >= 0 ? '+' : ''}${pct.toFixed(2)}%) from last update</div>` : ''}
     ${renderAssetAllocation()}
     ${data.assets.map(a => {
