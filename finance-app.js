@@ -10,6 +10,7 @@ function switchAnalysisSubTab(tab) {
     const el = document.getElementById('analysisSubContent-' + t);
     if (el) el.style.display = t === tab ? '' : 'none';
   });
+  document.getElementById('fabBtn').style.display = tab === 'power' ? '' : 'none';
   renderAnalysis();
 }
 
