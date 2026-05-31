@@ -109,7 +109,7 @@ function openExpenseSheet(id, preAcct) {
   sel.innerHTML = data.accounts.map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join('');
 
   // Populate category select from existing data, TopUp first then alphabetical
-  const cats = [...new Set([...expenseCatDefaults(), ...allExpenses().map(e => e.cat)])].sort();
+  const cats = [...new Set([...expenseCatDefaults(), 'Other', ...allExpenses().map(e => e.cat)])].sort();
   if (!cats.includes('TopUp')) cats.unshift('TopUp'); else { cats.splice(cats.indexOf('TopUp'), 1); cats.unshift('TopUp'); }
   document.getElementById('expCat').innerHTML = cats.map(c => `<option>${esc(c)}</option>`).join('');
 
@@ -122,7 +122,9 @@ function openExpenseSheet(id, preAcct) {
     document.getElementById('expDate').value = exp.date;
     document.getElementById('expAmount').value = exp.amount;
     document.getElementById('expDesc').value = exp.desc;
-    document.getElementById('expCat').value = exp.cat;
+    const catSel = document.getElementById('expCat');
+    catSel.value = exp.cat;
+    if (catSel.value !== exp.cat) catSel.value = 'Other';
     document.getElementById('expDeleteBtn').style.display = '';
   } else {
     document.getElementById('expenseSheetTitle').textContent = 'Add Expense';

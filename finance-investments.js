@@ -2,42 +2,6 @@
 function openAccountSettings() {
   document.getElementById('mainMenu').classList.remove('open');
   const body = document.getElementById('accountSettingsBody');
-  const allCats = [...new Set([
-    ...expenseCatDefaults(),
-    ...allExpenses().filter(e => e.cat !== 'TopUp').map(e => e.cat),
-    ...Object.keys(data.budgets || {})
-  ])].sort();
-  const budgets = data.budgets || {};
-  const catEmojis = parseCatEmojis();
-  const catKeywordsMap = {};
-  (data.emailCatMap || []).forEach(rule => {
-    if (!catKeywordsMap[rule.value]) catKeywordsMap[rule.value] = [];
-    catKeywordsMap[rule.value].push(rule.match);
-  });
-
-  const budgetSection = allCats.length ? `
-    <div style="padding-top:4px">
-      <div class="section-heading">Monthly Budget by Category</div>
-      <p style="font-size:.8rem;color:var(--muted);margin-bottom:8px">Leave blank for no budget limit. Keywords are matched against email descriptions to auto-categorise (comma-separated, regex supported).</p>
-      <div class="field" style="margin-bottom:12px">
-        <label style="font-size:.8rem">Default category (no keyword match)</label>
-        <input type="text" id="emailCatDefault" value="${esc(data.emailCatDefault || 'Other')}" placeholder="Other" style="font-size:.82rem">
-      </div>
-      <div style="display:flex;gap:8px;margin-bottom:4px;font-size:.75rem;color:var(--muted);padding:0 2px">
-        <span style="width:3.2rem;text-align:center;flex-shrink:0">Emoji</span>
-        <span style="flex:1;min-width:0">Budget/mo</span>
-        <span style="flex:2;min-width:0">Email keywords</span>
-      </div>
-      ${allCats.map((cat, ci) => `
-        <div class="field">
-          <label><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${catColor(cat, ci)};margin-right:6px;vertical-align:middle"></span>${esc(cat)}</label>
-          <div style="display:flex;gap:8px">
-            <input type="text" id="budgetEmoji${ci}" value="${esc(catEmojis[cat] || '')}" placeholder="😀" style="width:3.2rem;text-align:center;font-size:1.1rem;padding:8px 4px;flex-shrink:0">
-            <input type="number" id="budgetCat${ci}" value="${budgets[cat] || ''}" step="0.01" min="0" placeholder="No limit" style="flex:1;min-width:0">
-            <input type="text" id="budgetKeywords${ci}" value="${esc((catKeywordsMap[cat] || []).join(', '))}" placeholder="grab, gojek" style="flex:2;min-width:0;font-size:.82rem;font-family:monospace">
-          </div>
-        </div>`).join('')}
-    </div>` : '';
 
   const cpfS = data.cpfSettings || {};
   const cpfSection = `
@@ -91,13 +55,6 @@ function openAccountSettings() {
       <div class="field">
         <input type="text" id="eventTagsInput" value="${esc((data.eventTags || []).join(', '))}" placeholder="Work, Personal, Travel">
       </div>
-    </div>
-    <div style="padding-top:4px">
-      <div class="section-heading">Expense Categories</div>
-      <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Comma-separated, emoji first. Sets the emoji shown per category in the expense list. E.g. 🎬 Entertainment, 🛒 Grocery</p>
-      <div class="field">
-        <input type="text" id="expenseCatsInput" value="${esc(data.expenseCats || '')}" placeholder="🎬 Entertainment, 🛒 Grocery, 🚗 Transport">
-      </div>
     </div>`;
 
   const pinSet = !!localStorage.getItem('finance:taxPin');
@@ -122,7 +79,7 @@ function openAccountSettings() {
         <input type="number" id="accStart${i}" value="${acc.startingBalance}" step="0.01" placeholder="0.00">
       </div>
     </div>
-  `).join('') + pinSection + cpfSection + dependentsSection + tagsSection + budgetSection;
+  `).join('') + pinSection + cpfSection + dependentsSection + tagsSection;
   openSheet('settingsSheet');
 }
 
@@ -147,14 +104,109 @@ function saveAccountSettings() {
   data.eventTags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
   data._eventTagsTs = Date.now();
 
-  // allCats must match what was rendered (computed from unchanged data)
+  // Dependents — read existing rows plus the two blank ones rendered
+  const depCount = (data.dependents || []).length + 2;
+  const newDeps = [];
+  for (let i = 0; i < depCount; i++) {
+    const nameEl = document.getElementById('depName' + i);
+    if (!nameEl) continue;
+    const name = nameEl.value.trim();
+    if (!name) continue;
+    const existing = (data.dependents || [])[i] || {};
+    newDeps.push({
+      id: existing.id || uid(),
+      name,
+      relationship: document.getElementById('depRel' + i).value || '',
+      birthYear: parseInt(document.getElementById('depYear' + i).value) || null,
+      sex: document.getElementById('depSex' + i).value || '',
+      _ts: Date.now()
+    });
+  }
+  data.dependents = newDeps;
+  data._dependentsTs = Date.now();
+
+  if (!data.cpfSettings) data.cpfSettings = {};
+  data.cpfSettings.dateOfBirth = (document.getElementById('cpfDOB')?.value || '').trim();
+  data._cpfSettingsTs = Date.now();
+
+  const newPin = (document.getElementById('settingsPinInput')?.value || '').replace(/\D/g, '');
+  if (newPin.length >= 1) {
+    localStorage.setItem('finance:taxPin', newPin);
+    taxPinUnlocked = false;
+  }
+
+  recalcBalances(data, allExpenses());
+  saveData(data);
+  closeSheet();
+  renderAll();
+  showToast('Settings saved');
+}
+
+function clearTaxPin() {
+  localStorage.removeItem('finance:taxPin');
+  taxPinUnlocked = false;
+  closeSheet();
+  showToast('PIN cleared');
+}
+
+function openExpenseBudget() {
+  document.getElementById('mainMenu').classList.remove('open');
+  const body = document.getElementById('expenseBudgetBody');
   const allCats = [...new Set([
     ...expenseCatDefaults(),
+    'Other',
+    ...allExpenses().filter(e => e.cat !== 'TopUp').map(e => e.cat),
+    ...Object.keys(data.budgets || {})
+  ])].sort();
+  const budgets = data.budgets || {};
+  const catEmojis = parseCatEmojis();
+  const catKeywordsMap = {};
+  (data.emailCatMap || []).forEach(rule => {
+    if (!catKeywordsMap[rule.value]) catKeywordsMap[rule.value] = [];
+    catKeywordsMap[rule.value].push(rule.match);
+  });
+
+  body.innerHTML = `
+    <div style="padding-bottom:16px;border-bottom:1px solid var(--border)">
+      <div class="section-heading">Expense Categories</div>
+      <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Comma-separated, emoji first. Sets the emoji shown per category. E.g. 🎬 Entertainment, 🛒 Grocery</p>
+      <div class="field">
+        <input type="text" id="expenseCatsInput" value="${esc(data.expenseCats || '')}" placeholder="🎬 Entertainment, 🛒 Grocery, 🚗 Transport">
+      </div>
+    </div>
+    <div style="padding-top:4px">
+      <div class="section-heading">Monthly Budget by Category</div>
+      <p style="font-size:.8rem;color:var(--muted);margin-bottom:8px">Leave blank for no budget limit. Keywords are matched against email descriptions to auto-categorise (comma-separated, regex supported).</p>
+      <div class="field" style="margin-bottom:12px">
+        <label style="font-size:.8rem">Default category (no keyword match)</label>
+        <input type="text" id="emailCatDefault" value="${esc(data.emailCatDefault || 'Other')}" placeholder="Other" style="font-size:.82rem">
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:4px;font-size:.75rem;color:var(--muted);padding:0 2px">
+        <span style="width:3.2rem;text-align:center;flex-shrink:0">Emoji</span>
+        <span style="flex:1;min-width:0">Budget/mo</span>
+        <span style="flex:2;min-width:0">Email keywords</span>
+      </div>
+      ${allCats.map((cat, ci) => `
+        <div class="field">
+          <label><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${catColor(cat, ci)};margin-right:6px;vertical-align:middle"></span>${esc(cat)}</label>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="budgetEmoji${ci}" value="${esc(catEmojis[cat] || '')}" placeholder="😀" style="width:3.2rem;text-align:center;font-size:1.1rem;padding:8px 4px;flex-shrink:0">
+            <input type="number" id="budgetCat${ci}" value="${budgets[cat] || ''}" step="0.01" min="0" placeholder="No limit" style="flex:1;min-width:0">
+            <input type="text" id="budgetKeywords${ci}" value="${esc((catKeywordsMap[cat] || []).join(', '))}" placeholder="grab, gojek" style="flex:2;min-width:0;font-size:.82rem;font-family:monospace">
+          </div>
+        </div>`).join('')}
+    </div>`;
+  openSheet('expenseBudgetSheet');
+}
+
+function saveExpenseBudget() {
+  const allCats = [...new Set([
+    ...expenseCatDefaults(),
+    'Other',
     ...allExpenses().filter(e => e.cat !== 'TopUp').map(e => e.cat),
     ...Object.keys(data.budgets || {})
   ])].sort();
 
-  // Merge expenseCatsInput text + per-row budget emoji inputs into data.expenseCats
   const expCatsRaw = (document.getElementById('expenseCatsInput').value || '').trim();
   const entries = expCatsRaw.split(',').map(p => {
     const s = p.trim(); if (!s) return null;
@@ -185,32 +237,6 @@ function saveAccountSettings() {
     else delete data.budgets[cat];
   });
 
-  // Dependents — read existing rows plus the two blank ones rendered
-  const depCount = (data.dependents || []).length + 2;
-  const newDeps = [];
-  for (let i = 0; i < depCount; i++) {
-    const nameEl = document.getElementById('depName' + i);
-    if (!nameEl) continue;
-    const name = nameEl.value.trim();
-    if (!name) continue;
-    const existing = (data.dependents || [])[i] || {};
-    newDeps.push({
-      id: existing.id || uid(),
-      name,
-      relationship: document.getElementById('depRel' + i).value || '',
-      birthYear: parseInt(document.getElementById('depYear' + i).value) || null,
-      sex: document.getElementById('depSex' + i).value || '',
-      _ts: Date.now()
-    });
-  }
-  data.dependents = newDeps;
-  data._dependentsTs = Date.now();
-
-  if (!data.cpfSettings) data.cpfSettings = {};
-  data.cpfSettings.dateOfBirth = (document.getElementById('cpfDOB')?.value || '').trim();
-  data._cpfSettingsTs = Date.now();
-
-  // Email category keywords (built from per-category keyword inputs)
   const newCatMap = [];
   allCats.forEach((cat, ci) => {
     const kwText = (document.getElementById(`budgetKeywords${ci}`)?.value || '').trim();
@@ -223,26 +249,11 @@ function saveAccountSettings() {
   data.emailCatDefault = (document.getElementById('emailCatDefault')?.value || 'Other').trim() || 'Other';
   data._emailCatMapTs = Date.now();
 
-  const newPin = (document.getElementById('settingsPinInput')?.value || '').replace(/\D/g, '');
-  if (newPin.length >= 1) {
-    localStorage.setItem('finance:taxPin', newPin);
-    taxPinUnlocked = false;
-  }
-
-  recalcBalances(data, allExpenses());
   saveData(data);
   closeSheet();
   renderAll();
-  showToast('Settings saved');
+  showToast('Expense budget saved');
 }
-
-function clearTaxPin() {
-  localStorage.removeItem('finance:taxPin');
-  taxPinUnlocked = false;
-  closeSheet();
-  showToast('PIN cleared');
-}
-
 
 // ── Render: Investments ───────────────────────────────────────────────────────
 function renderInvestments() {
