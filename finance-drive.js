@@ -605,6 +605,49 @@ async function driveSync() {
   }
 }
 
+async function forceSyncHistory() {
+  const clientId = localStorage.getItem(DRIVE_CLIENT_KEY);
+  const fileId = localStorage.getItem(DRIVE_FILE_KEY);
+  const historyFileId = localStorage.getItem(DRIVE_HISTORY_FILE_KEY);
+  if (!clientId || !fileId) { showToast('Not connected to Drive'); return; }
+  if (!historyFileId) { showToast('No history file linked — run a full sync first'); return; }
+  const btn = document.getElementById('forceHistorySyncBtn');
+  btn.disabled = true;
+  btn.textContent = 'Syncing…';
+  setDriveStatus('Authenticating…');
+  try {
+    const token = await getAccessToken(clientId);
+    setDriveStatus('Downloading history…');
+    const remoteHistory = await downloadFromDrive(token, historyFileId);
+    if (!Array.isArray(remoteHistory.expenses)) throw new Error('Invalid history file format');
+    setDriveStatus('Merging history…');
+    const mergedHistory = mergeHistoryData(historyData, remoteHistory);
+    // Apply any deleted IDs from local data
+    const deletedSet = new Set(data._deletedIds || []);
+    mergedHistory.expenses = mergedHistory.expenses.filter(e => !deletedSet.has(e.id));
+    mergedHistory.powerRecords = (mergedHistory.powerRecords || []).filter(r => !deletedSet.has(r.id));
+    setDriveStatus('Uploading history…');
+    mergedHistory._updatedAt = Date.now();
+    await uploadHistoryToDrive(token, historyFileId, mergedHistory);
+    // Update historyUpdatedAt in main data and push it
+    data.historyUpdatedAt = mergedHistory._updatedAt;
+    await uploadToDrive(token, fileId, data);
+    historyData = mergedHistory;
+    recalcMonthlyAgg(data, allExpenses());
+    saveData(data);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(historyData));
+    renderAll();
+    setDriveStatus('History sync complete ✓');
+    showToast(`History synced — ${historyData.expenses.length} records`);
+  } catch (err) {
+    setDriveStatus('Error: ' + err.message);
+    showToast('History sync failed');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⟳ Force History Sync';
+  }
+}
+
 async function uploadFileToDrive(token, fileId, payload, filename, storageKey) {
   const content = JSON.stringify(payload, null, 2);
   const metadata = { name: filename, mimeType: 'application/json' };
