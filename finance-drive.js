@@ -428,6 +428,12 @@ function mergeData(local, remote) {
   const dependents = [...depMap.values()];
   const dependentsTs = Math.max(local._dependentsTs || 0, remote._dependentsTs || 0);
 
+  // Allocation ratios: last-writer-wins via _allocationRatiosTs
+  const allocationRatios = (local._allocationRatiosTs || 0) >= (remote._allocationRatiosTs || 0)
+    ? (local.allocationRatios || remote.allocationRatios || {})
+    : (remote.allocationRatios || local.allocationRatios || {});
+  const allocationRatiosTs = Math.max(local._allocationRatiosTs || 0, remote._allocationRatiosTs || 0);
+
   const merged = {
     accounts: [...accMap.values()],
     expenses: [...expMap.values()],
@@ -458,6 +464,8 @@ function mergeData(local, remote) {
     _aiReportTs: aiReportTs,
     dependents,
     _dependentsTs: dependentsTs,
+    allocationRatios,
+    _allocationRatiosTs: allocationRatiosTs,
   };
   recalcBalances(merged, merged.expenses);
   recalcMonthlyAgg(merged, merged.expenses);
