@@ -442,6 +442,7 @@ function saveAllocationRatios() {
     return;
   }
   data.allocationRatios = ratios;
+  data._allocationRatiosTs = Date.now();
   saveData(data);
   closeSheet();
   renderAll();

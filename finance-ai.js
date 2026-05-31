@@ -239,10 +239,16 @@ function buildAiSummary() {
   };
 
   // Insurance overview.
-  const insAnnual = (data.insurances || []).reduce((s, i) => {
+  const insByCategory = {};
+  let insAnnual = 0;
+  const insPolicies = (data.insurances || []).map(i => {
     const mult = i.paymentFrequency === 'annual' ? 1 : i.paymentFrequency === 'quarterly' ? 4 : 12;
-    return s + (parseFloat(i.paymentAmount) || 0) * mult;
-  }, 0);
+    const annual = Math.round((parseFloat(i.paymentAmount) || 0) * mult);
+    insAnnual += annual;
+    const cat = i.category || 'Other';
+    insByCategory[cat] = (insByCategory[cat] || 0) + annual;
+    return { name: i.name, category: cat, personInsured: i.personInsured || '', annualPremium: annual };
+  });
 
   return {
     _schema: 1,
@@ -251,7 +257,11 @@ function buildAiSummary() {
     period: period.key,
     cashflow: computeCashflow(),
     annualRecurringExpenses: Math.round(annualRecurring()),
-    insurance: { policies: (data.insurances || []).length, annualPremium: Math.round(insAnnual) },
+    insurance: {
+      totalAnnualPremium: Math.round(insAnnual),
+      byCategory: insByCategory,
+      policies: insPolicies
+    },
     expenses: {
       thisQuarterByCategory: catThisQuarter,
       ytdByCategory: catYTD,
@@ -259,7 +269,7 @@ function buildAiSummary() {
       budgetVsActualYTD: budgetVsActual
     },
     household,
-    assets: { total: Math.round(assetSum), investable: Math.round(investableSum), byClass, holdings: assets },
+    assets: { total: Math.round(assetSum), investable: Math.round(investableSum), byClass, allocationTargets: data.allocationRatios || {}, holdings: assets },
     mortgages,
     cpf,
     tax,
