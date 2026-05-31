@@ -118,6 +118,7 @@ function defaultData() {
     aiReport: null,        // { markdown, generatedAt, period }
     dependents: [],        // [{ id, name, relationship, birthYear, sex, _ts }]
     allocationRatios: {},  // { Equities: 40, Bonds: 20, ... } target allocation %
+    medicalVisits: [],     // [{ id, title, person, description, date, amount, paymentType, _ts }]
   };
 }
 
@@ -157,6 +158,7 @@ function loadData() {
     if (!('aiReport' in d)) d.aiReport = null;
     if (!d.dependents) d.dependents = [];
     if (!d.allocationRatios) d.allocationRatios = {};
+    if (!d.medicalVisits) d.medicalVisits = [];
     if (d.expenseCats) d.expenseCats = d.expenseCats.replace(/\bMisc\b/g, 'Income Tax');
     d.expenses.forEach(e => { if (e.cat === 'Misc') e.cat = 'Income Tax'; });
     if (d.budgets && d.budgets['Misc'] !== undefined) {
@@ -368,7 +370,10 @@ document.getElementById('backdrop').addEventListener('click', closeSheet);
 document.getElementById('fabBtn').addEventListener('click', () => {
   if (currentTab === 'events') openEventSheet(null);
   else if (currentTab === 'expenses') openExpenseSheet(null);
-  else if (currentTab === 'insurance') openInsuranceSheet(null);
+  else if (currentTab === 'insurance') {
+    if (currentInsSubTab === 'medical') openMedicalSheet(null);
+    else openInsuranceSheet(null);
+  }
   else if (currentTab === 'tax') {
     if (currentTaxSubTab === 'cpf') openCpfEntrySheet(null);
     else if (currentTaxSubTab === 'assets') openAssetSheet(null);

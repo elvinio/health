@@ -434,6 +434,14 @@ function mergeData(local, remote) {
     : (remote.allocationRatios || local.allocationRatios || {});
   const allocationRatiosTs = Math.max(local._allocationRatiosTs || 0, remote._allocationRatiosTs || 0);
 
+  // Medical visits: union by id, prefer higher _ts, exclude deleted
+  const medicalMap = new Map();
+  [...(remote.medicalVisits || []), ...(local.medicalVisits || [])].forEach(v => {
+    if (deletedIds.has(v.id)) return;
+    const ex = medicalMap.get(v.id);
+    if (!ex || (v._ts || 0) > (ex._ts || 0)) medicalMap.set(v.id, v);
+  });
+
   const merged = {
     accounts: [...accMap.values()],
     expenses: [...expMap.values()],
@@ -466,6 +474,7 @@ function mergeData(local, remote) {
     _dependentsTs: dependentsTs,
     allocationRatios,
     _allocationRatiosTs: allocationRatiosTs,
+    medicalVisits: [...medicalMap.values()],
   };
   recalcBalances(merged, merged.expenses);
   recalcMonthlyAgg(merged, merged.expenses);
