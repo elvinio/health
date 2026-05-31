@@ -1,11 +1,28 @@
 // ── Insurance ─────────────────────────────────────────────────────────────────
 const INSURANCE_CATEGORIES = ['Life', 'Hospitalisation', 'Critical Illness', 'Disability', 'Personal Accident', 'Travel', 'Home', 'Motor', 'Other'];
 
+let insuranceFilterSearch = '';
+
+function onInsuranceSearchInput() {
+  insuranceFilterSearch = document.getElementById('insuranceSearch').value.toLowerCase();
+  renderInsurances();
+}
+
 function renderInsurances() {
   const el = document.getElementById('insuranceList');
-  const list = data.insurances || [];
+  let list = data.insurances || [];
+  if (insuranceFilterSearch) {
+    list = list.filter(ins =>
+      (ins.name || '').toLowerCase().includes(insuranceFilterSearch) ||
+      (ins.details || '').toLowerCase().includes(insuranceFilterSearch) ||
+      (ins.agentContacts || '').toLowerCase().includes(insuranceFilterSearch)
+    );
+  }
   if (!list.length) {
-    el.innerHTML = '<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">shield</span></div>No insurance policies yet.<br>Tap + to add one.</div>';
+    const isEmpty = !(data.insurances || []).length;
+    el.innerHTML = isEmpty
+      ? '<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">shield</span></div>No insurance policies yet.<br>Tap + to add one.</div>'
+      : '<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">search</span></div>No policies match your search.</div>';
     return;
   }
   el.innerHTML = list.map(ins => {
