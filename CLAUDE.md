@@ -117,7 +117,7 @@ Two localStorage keys:
 | Key | Contains |
 |---|---|
 | `finance:v1` | All main data (see `defaultData()` below) |
-| `finance:v1:history` | All past-year expenses |
+| `finance:v1:history` | Past-year expenses + all historyData collections (see below) |
 
 `saveData(data)` / `loadData()` handle the main key. Always call `saveData(data)` after mutating `data`, then `renderAll()` to refresh the UI.
 
@@ -149,11 +149,96 @@ Two localStorage keys:
 
 `ASSET_CLASSES` (in `finance-core.js`): Cash, Equities, Bonds, Property (rental), Home (own use), Crypto, Commodities, Other. `isInvestable(a)` excludes `Home (own use)` — counted in net worth but excluded from investable allocation and `calcRetirementPlan()` drawdown.
 
-**Adding a new data collection:**
+**Adding a new data collection to `data` (main key):**
 1. Add `myCollection: []` to `defaultData()`
 2. Add `if (!d.myCollection) d.myCollection = [];` in `loadData()`
 3. Write `renderMyCollection()` and call it from `renderAll()`
 4. Add a sheet, form, and CRUD functions following the insurance pattern
+5. Add a union-by-ID merge block in `mergeData()` in `finance-drive.js`
+
+---
+
+### historyData — structure, persistence, and sync
+
+`historyData` is a separate in-memory object (global in `finance-core.js`) backed by `finance:v1:history` in localStorage.
+
+**Current shape:**
+```js
+{
+  expenses: [],      // { id, ac, date, desc, amount, cat, _ts } — past-year expenses
+  powerRecords: [],  // { id, year, month, elecUsage, elecUnitCost, waterUsage, waterUnitCost, _ts }
+  _updatedAt: number // timestamp of last local write — drives Drive sync decisions
+}
+```
+
+**Key functions (`finance-core.js`):**
+- `loadHistory()` — parses localStorage, ensures every collection is an array, returns the object
+- `saveHistory(h)` — sets `h._updatedAt = Date.now()`, mirrors it to `data.historyUpdatedAt`, writes to localStorage. **Always call `saveHistory` then `saveData(data)` together when mutating `historyData`.**
+
+`data.historyUpdatedAt` is stored in the main Drive file and is the sole signal `driveSync()` uses to decide whether to download/upload the history file. It must always equal `historyData._updatedAt` after any write.
+
+#### Drive sync invariant — NEVER upload without merging first
+
+`driveSync()` (`finance-drive.js`) uses this rule: **if a `historyFileId` is known and timestamps differ, always download the remote history file and merge it into local before uploading.** Uploading local history without first pulling remote will silently overwrite records that only exist on the remote (e.g. power records added on a partner's device).
+
+Merge path in `driveSync` (simplified):
+```
+if (historyFileId && timestamps differ) {
+  download remote → mergeHistoryData(local, remote) → upload merged
+} else if (no historyFileId && local is newer) {
+  upload local as-is (creates the history file for the first time)
+}
+```
+
+`mergeHistoryData(localH, remoteH)` (`finance-drive.js`) does a union-by-ID merge for every collection, preferring the entry with the higher `_ts`. It returns a plain object containing all collections — **it does not carry `_updatedAt`**, which is set by the caller before uploading.
+
+#### Deletion propagation for historyData collections
+
+Because `historyData` is synced via merge (union), simply removing a record from the local array is not enough — the next merge with a partner would resurrect it. **Always add the deleted ID to `data._deletedIds`:**
+
+```js
+if (!data._deletedIds) data._deletedIds = [];
+if (!data._deletedIds.includes(id)) data._deletedIds.push(id);
+```
+
+`driveSync` applies `_deletedIds` to `mergedHistory` after the merge, so the deletion propagates to both devices.
+
+#### Adding a new collection to historyData
+
+Follow all five steps or the collection will be silently dropped during syncs and imports:
+
+1. **`loadHistory()` (`finance-core.js`)** — add a guard so old stored data gets the field:
+   ```js
+   if (!Array.isArray(d.myCollection)) d.myCollection = [];
+   ```
+
+2. **`mergeHistoryData(localH, remoteH)` (`finance-drive.js`)** — add a Map-based union block and include the field in the return value:
+   ```js
+   const myMap = new Map();
+   [...(remoteH.myCollection || []), ...(localH.myCollection || [])].forEach(r => {
+     const ex = myMap.get(r.id);
+     if (!ex || (r._ts || 0) > (ex._ts || 0)) myMap.set(r.id, r);
+   });
+   return { expenses: [...expMap.values()], powerRecords: [...pwrMap.values()], myCollection: [...myMap.values()] };
+   ```
+
+3. **`driveSync()` — deletedIds filter** — add a line after the existing filters:
+   ```js
+   mergedHistory.myCollection = (mergedHistory.myCollection || []).filter(r => !deletedSet.has(r.id));
+   ```
+
+4. **`forceSyncHistory()` — deletedIds filter** — same line as above.
+
+5. **History import handler (`historyImportFile` event, `finance-drive.js`)** — CRITICAL: when replacing `historyData` from an imported file, carry over every existing collection that the file may not contain. **Never** create a plain `{ expenses: ... }` object:
+   ```js
+   historyData = {
+     expenses: d.expenses,
+     powerRecords: historyData.powerRecords || [],
+     myCollection: historyData.myCollection || [],
+     _updatedAt: d._updatedAt || Date.now()
+   };
+   ```
+   Omitting a collection here silently drops all its records from both localStorage and Drive on the next sync.
 
 #### Other localStorage keys
 
@@ -177,12 +262,18 @@ Two localStorage keys:
 Two Drive files per user: `finance-elvis.json` (main) and `finance-elvis-history.json` (history).
 
 **Merge strategy** (bidirectional, conflict-resolved):
+
+*Main data (`mergeData` in `finance-drive.js`):*
 - Expenses/Events/Tax/CPF/Insurance/OngoingExpenses/Dependents: union by ID, prefer higher `_ts` / `_updatedAt`, exclude `_deletedIds`
 - Assets: union by ID, merge `history[]`, deduplicate by `_ts`; `name`/`units`/`class` prefer local
 - Mortgages: union by ID, merge `entries[]`, deduplicate by ID
 - Accounts: prefer higher `_updatedAt`
 - Scalars (termDates, eventTags, expenseCats, emailParsers, emailCatMap, `aiReport` via `_aiReportTs`): last-writer-wins via timestamp
 - `netWorthSnapshots`: union by quarter `key`, prefer higher `_ts`
+
+*History data (`mergeHistoryData` in `finance-drive.js`):*
+- `expenses` and every other collection (`powerRecords`, …): union by ID, prefer higher `_ts`
+- Sync rule: **always download remote and merge before uploading** when a `historyFileId` is known and timestamps differ — never upload local without pulling remote first (see historyData section above)
 
 **Share code**: `makeShareCode(clientId, fileId, historyFileId)` encodes a base64 string the partner can paste via `applyConnectCode()` to share the same Drive files.
 
