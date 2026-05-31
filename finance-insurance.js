@@ -1,4 +1,6 @@
 // ── Insurance ─────────────────────────────────────────────────────────────────
+const INSURANCE_CATEGORIES = ['Life', 'Hospitalisation', 'Critical Illness', 'Disability', 'Personal Accident', 'Travel', 'Home', 'Motor', 'Other'];
+
 function renderInsurances() {
   const el = document.getElementById('insuranceList');
   const list = data.insurances || [];
@@ -16,6 +18,7 @@ function renderInsurances() {
         <div class="ins-badge ${freq === 'annual' ? 'annual' : ''}">${freqLabel}</div>
       </div>
       <div class="ins-meta">
+        ${ins.category ? `<span><span class="cat-chip">${esc(ins.category)}</span></span>` : ''}
         <span><span class="label">Insured:</span>${esc(ins.personInsured || '—')}</span>
         <span><span class="label">Start:</span>${esc(ins.startDate || '—')}</span>
         ${ins.contractId ? `<span><span class="label">Policy ID:</span>${esc(ins.contractId)}</span>` : ''}
@@ -33,12 +36,16 @@ function openInsuranceSheet(id) {
   document.getElementById('insuranceId').value = '';
   document.getElementById('insuranceDeleteBtn').style.display = 'none';
 
+  const catSel = document.getElementById('insCategory');
+  catSel.innerHTML = INSURANCE_CATEGORIES.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+
   if (id) {
     const ins = (data.insurances || []).find(i => i.id === id);
     if (!ins) return;
     document.getElementById('insuranceSheetTitle').textContent = 'Edit Insurance';
     document.getElementById('insuranceId').value = id;
     document.getElementById('insName').value = ins.name || '';
+    catSel.value = ins.category || INSURANCE_CATEGORIES[0];
     document.getElementById('insPersonInsured').value = ins.personInsured || '';
     document.getElementById('insStartDate').value = ins.startDate || '';
     document.getElementById('insContractId').value = ins.contractId || '';
@@ -61,6 +68,7 @@ document.getElementById('insuranceForm').addEventListener('submit', e => {
   const entry = {
     id: id || uid(),
     name: document.getElementById('insName').value.trim(),
+    category: document.getElementById('insCategory').value,
     personInsured: document.getElementById('insPersonInsured').value.trim(),
     startDate: document.getElementById('insStartDate').value,
     contractId: document.getElementById('insContractId').value.trim(),
