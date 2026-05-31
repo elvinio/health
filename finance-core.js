@@ -116,6 +116,7 @@ function defaultData() {
     emailCatDefault: 'Other',
     netWorthSnapshots: [], // [{ key: 'YYYY-Qn', date, liquid, assets, cpf, debt, net, _ts }]
     aiReport: null,        // { markdown, generatedAt, period }
+    customAiPrompt: null,  // string | null — user-edited prompt template (null = use default)
     dependents: [],        // [{ id, name, relationship, birthYear, sex, _ts }]
     allocationRatios: {},  // { Equities: 40, Bonds: 20, ... } target allocation %
     medicalVisits: [],     // [{ id, title, person, description, date, amount, paymentType, _ts }]
@@ -156,6 +157,7 @@ function loadData() {
     if (!d.emailCatDefault) d.emailCatDefault = 'Other';
     if (!d.netWorthSnapshots) d.netWorthSnapshots = [];
     if (!('aiReport' in d)) d.aiReport = null;
+    if (!('customAiPrompt' in d)) d.customAiPrompt = null;
     if (!d.dependents) d.dependents = [];
     if (!d.allocationRatios) d.allocationRatios = {};
     if (!d.medicalVisits) d.medicalVisits = [];

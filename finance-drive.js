@@ -447,6 +447,12 @@ function mergeData(local, remote) {
     if (!ex || (v._ts || 0) > (ex._ts || 0)) medicalMap.set(v.id, v);
   });
 
+  // Custom AI prompt: last-writer-wins via _customAiPromptTs
+  const customAiPrompt = (local._customAiPromptTs || 0) >= (remote._customAiPromptTs || 0)
+    ? (local.customAiPrompt ?? remote.customAiPrompt ?? null)
+    : (remote.customAiPrompt ?? local.customAiPrompt ?? null);
+  const customAiPromptTs = Math.max(local._customAiPromptTs || 0, remote._customAiPromptTs || 0);
+
   const merged = {
     accounts: [...accMap.values()],
     expenses: [...expMap.values()],
@@ -480,6 +486,8 @@ function mergeData(local, remote) {
     allocationRatios,
     _allocationRatiosTs: allocationRatiosTs,
     medicalVisits: [...medicalMap.values()],
+    customAiPrompt,
+    _customAiPromptTs: customAiPromptTs,
   };
   recalcBalances(merged, merged.expenses);
   recalcMonthlyAgg(merged, merged.expenses);
