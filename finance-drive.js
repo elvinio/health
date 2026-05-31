@@ -256,7 +256,12 @@ function mergeHistoryData(localH, remoteH) {
     const existing = expMap.get(e.id);
     if (!existing || (e._ts || 0) > (existing._ts || 0)) expMap.set(e.id, e);
   });
-  return { expenses: [...expMap.values()] };
+  const pwrMap = new Map();
+  [...(remoteH.powerRecords || []), ...(localH.powerRecords || [])].forEach(r => {
+    const existing = pwrMap.get(r.id);
+    if (!existing || (r._ts || 0) > (existing._ts || 0)) pwrMap.set(r.id, r);
+  });
+  return { expenses: [...expMap.values()], powerRecords: [...pwrMap.values()] };
 }
 
 function mergeData(local, remote) {
@@ -561,6 +566,7 @@ async function driveSync() {
     // Apply deletedIds to history
     const deletedSet = new Set(merged._deletedIds);
     mergedHistory.expenses = mergedHistory.expenses.filter(e => !deletedSet.has(e.id));
+    mergedHistory.powerRecords = (mergedHistory.powerRecords || []).filter(r => !deletedSet.has(r.id));
 
     setDriveStatus('Uploading…');
     merged.busApiKey = getBusApiKey() || merged.busApiKey || '';

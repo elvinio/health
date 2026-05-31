@@ -6,7 +6,7 @@ function switchAnalysisSubTab(tab) {
   document.querySelectorAll('.analysis-sub-tab').forEach(b => {
     b.classList.toggle('active', b.id === 'analysisSubTab-' + tab);
   });
-  ['ai', 'expense'].forEach(t => {
+  ['ai', 'expense', 'power'].forEach(t => {
     const el = document.getElementById('analysisSubContent-' + t);
     if (el) el.style.display = t === tab ? '' : 'none';
   });
@@ -337,10 +337,172 @@ function renderAssetMortgageChart() {
   </div>`;
 }
 
+// ── Power (utility) sub-tab ───────────────────────────────────────────────────
+const POWER_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function renderPower() {
+  const el = document.getElementById('powerContent');
+  if (!el) return;
+
+  const records = [...(historyData.powerRecords || [])].sort((a, b) =>
+    a.year !== b.year ? b.year - a.year : b.month - a.month
+  );
+
+  if (!records.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">bolt</span></div>No power records yet. Tap + to add.</div>';
+    return;
+  }
+
+  const chartRecs = [...records].reverse().slice(-12);
+  const elecColor = '#ff9800', waterColor = '#2196f3';
+  const maxCost = Math.max(...chartRecs.map(r =>
+    (r.elecUsage || 0) * (r.elecUnitCost || 0) + (r.waterUsage || 0) * (r.waterUnitCost || 0)
+  ), 1);
+
+  const COL_W = 52, H = 120, PAD_L = 46, PAD_B = 28, PAD_T = 8, PAD_R = 8;
+  const svgW = Math.max(320, PAD_L + chartRecs.length * COL_W + PAD_R);
+  const svgH = H + PAD_B + PAD_T;
+
+  let grid = '';
+  for (let i = 0; i <= 4; i++) {
+    const y = PAD_T + H - (i / 4) * H;
+    const v = (i / 4) * maxCost;
+    grid += `<line x1="${PAD_L}" x2="${svgW - PAD_R}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1"/>`;
+    grid += `<text x="${PAD_L - 4}" y="${(y + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)">$${v < 10 ? v.toFixed(0) : Math.round(v)}</text>`;
+  }
+
+  let bars = '';
+  chartRecs.forEach((r, i) => {
+    const ec = (r.elecUsage || 0) * (r.elecUnitCost || 0);
+    const wc = (r.waterUsage || 0) * (r.waterUnitCost || 0);
+    const total = ec + wc;
+    const bx = PAD_L + i * COL_W + COL_W * 0.2;
+    const bw = COL_W * 0.6;
+    if (total > 0) {
+      const eh = (ec / maxCost) * H, wh = (wc / maxCost) * H;
+      const wy = PAD_T + H - wh, ey = wy - eh;
+      if (wh > 0.5) bars += `<rect x="${bx.toFixed(1)}" y="${wy.toFixed(1)}" width="${bw.toFixed(1)}" height="${wh.toFixed(1)}" fill="${waterColor}" rx="2"/>`;
+      if (eh > 0.5) bars += `<rect x="${bx.toFixed(1)}" y="${ey.toFixed(1)}" width="${bw.toFixed(1)}" height="${eh.toFixed(1)}" fill="${elecColor}" rx="2"/>`;
+    }
+    const lbl = POWER_MONTHS[r.month - 1] + '\'' + String(r.year).slice(2);
+    bars += `<text x="${(PAD_L + i * COL_W + COL_W / 2).toFixed(1)}" y="${(svgH - 8).toFixed(1)}" text-anchor="middle" font-size="9" fill="var(--muted)">${lbl}</text>`;
+  });
+
+  const chart = `<div class="chart-wrap">
+    <div class="chart-title">Monthly Utility Costs</div>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+      <svg width="${svgW}" height="${svgH}" style="display:block">${grid}${bars}</svg>
+    </div>
+    <div style="display:flex;gap:16px;margin-top:8px">
+      <span style="display:flex;align-items:center;gap:5px;font-size:.78rem;color:var(--muted)"><span style="width:10px;height:10px;background:${elecColor};border-radius:2px;display:inline-block"></span>Electricity</span>
+      <span style="display:flex;align-items:center;gap:5px;font-size:.78rem;color:var(--muted)"><span style="width:10px;height:10px;background:${waterColor};border-radius:2px;display:inline-block"></span>Water</span>
+    </div>
+  </div>`;
+
+  const latest = records[0];
+  const le = (latest.elecUsage || 0) * (latest.elecUnitCost || 0);
+  const lw = (latest.waterUsage || 0) * (latest.waterUnitCost || 0);
+  const kpi = (label, value) =>
+    `<div style="flex:1;min-width:90px">
+      <div style="font-size:.72rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em">${label}</div>
+      <div style="font-size:1rem;font-weight:800;color:var(--primary);margin-top:2px">${value}</div>
+    </div>`;
+  const kpiStrip = `<div style="display:flex;flex-wrap:wrap;gap:10px 14px;margin-bottom:14px;background:var(--card);padding:12px;border-radius:var(--radius);box-shadow:var(--shadow)">
+    ${kpi(POWER_MONTHS[latest.month - 1] + ' ' + latest.year, fmtCurrency(le + lw))}
+    ${kpi('Electricity', (latest.elecUsage || 0) + ' kWh')}
+    ${kpi('Water', (latest.waterUsage || 0) + ' m³')}
+  </div>`;
+
+  const rows = records.map(r => {
+    const ec = (r.elecUsage || 0) * (r.elecUnitCost || 0);
+    const wc = (r.waterUsage || 0) * (r.waterUnitCost || 0);
+    const mLabel = POWER_MONTHS[r.month - 1] + ' ' + r.year;
+    return `<div class="card" style="cursor:pointer" onclick="openPowerSheet('${esc(r.id)}')">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-weight:700">${esc(mLabel)}</div>
+        <div style="font-weight:800;font-size:1.05rem;color:var(--primary)">${fmtCurrency(ec + wc)}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <div style="font-size:.85rem">
+          <div style="color:var(--muted);font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.03em">Electricity</div>
+          <div>${r.elecUsage || 0} kWh @ $${r.elecUnitCost || 0}/kWh</div>
+          <div style="font-weight:700;color:var(--primary)">${fmtCurrency(ec)}</div>
+        </div>
+        <div style="font-size:.85rem">
+          <div style="color:var(--muted);font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.03em">Water</div>
+          <div>${r.waterUsage || 0} m³ @ $${r.waterUnitCost || 0}/m³</div>
+          <div style="font-weight:700;color:var(--primary)">${fmtCurrency(wc)}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = chart + kpiStrip + rows;
+}
+
+function openPowerSheet(id) {
+  const rec = id ? (historyData.powerRecords || []).find(r => r.id === id) : null;
+  document.getElementById('powerSheetTitle').textContent = id ? 'Edit Power Record' : 'Add Power Record';
+  document.getElementById('powerId').value = id || '';
+  const now = new Date();
+  document.getElementById('powerYear').value = rec ? rec.year : now.getFullYear();
+  document.getElementById('powerMonth').value = rec ? rec.month : now.getMonth() + 1;
+  document.getElementById('powerElecUsage').value = rec ? rec.elecUsage : '';
+  document.getElementById('powerElecUnitCost').value = rec ? rec.elecUnitCost : '';
+  document.getElementById('powerWaterUsage').value = rec ? rec.waterUsage : '';
+  document.getElementById('powerWaterUnitCost').value = rec ? rec.waterUnitCost : '';
+  document.getElementById('powerDeleteBtn').style.display = id ? '' : 'none';
+  openSheet('powerSheet');
+}
+
+function deletePowerRecord() {
+  const id = document.getElementById('powerId').value;
+  if (!id || !confirm('Delete this power record?')) return;
+  historyData.powerRecords = (historyData.powerRecords || []).filter(r => r.id !== id);
+  saveHistory(historyData);
+  saveData(data);
+  closeSheet();
+  renderPower();
+  showToast('Deleted');
+}
+
+document.getElementById('powerForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const id = document.getElementById('powerId').value;
+  const year = parseInt(document.getElementById('powerYear').value, 10);
+  const month = parseInt(document.getElementById('powerMonth').value, 10);
+  if (!year || !month) return;
+  const entry = {
+    id: id || uid(), year, month,
+    elecUsage: parseFloat(document.getElementById('powerElecUsage').value) || 0,
+    elecUnitCost: parseFloat(document.getElementById('powerElecUnitCost').value) || 0,
+    waterUsage: parseFloat(document.getElementById('powerWaterUsage').value) || 0,
+    waterUnitCost: parseFloat(document.getElementById('powerWaterUnitCost').value) || 0,
+    _ts: Date.now()
+  };
+  if (!historyData.powerRecords) historyData.powerRecords = [];
+  if (id) {
+    const idx = historyData.powerRecords.findIndex(r => r.id === id);
+    if (idx >= 0) historyData.powerRecords[idx] = entry; else historyData.powerRecords.push(entry);
+  } else {
+    historyData.powerRecords.push(entry);
+  }
+  saveHistory(historyData);
+  saveData(data);
+  closeSheet();
+  showToast(id ? 'Power record updated' : 'Power record added');
+  renderPower();
+});
+
 function renderAnalysis() {
   if (currentAnalysisSubTab === 'ai') {
     const el = document.getElementById('aiAnalysisList');
     if (el) el.innerHTML = (typeof renderAiReport === 'function') ? renderAiReport() : '';
+    return;
+  }
+
+  if (currentAnalysisSubTab === 'power') {
+    renderPower();
     return;
   }
 
@@ -418,7 +580,7 @@ function renderAnalysis() {
 // Only renders the active tab — invisible tabs are rendered on first visit.
 function renderAll() {
   document.getElementById('fabBtn').style.display =
-    (currentTab === 'analysis' || (currentTab === 'tax' && currentTaxSubTab === 'retirement')) ? 'none' : '';
+    ((currentTab === 'analysis' && currentAnalysisSubTab !== 'power') || (currentTab === 'tax' && currentTaxSubTab === 'retirement')) ? 'none' : '';
 
   if (currentTab === 'events') {
     renderEventList();
