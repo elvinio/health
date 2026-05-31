@@ -231,6 +231,20 @@
   </div>
 </div>
 
+<!-- Custom AI Prompt Sheet -->
+<div class="sheet" id="customPromptSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Customize AI Prompt</div>
+  <div class="field">
+    <label>Prompt template — use <code>{period}</code> where you want the current quarter inserted. Your financial data JSON is always appended automatically.</label>
+    <textarea id="customPromptText" rows="16" style="width:100%;font-family:inherit;font-size:.85rem;line-height:1.5;resize:vertical"></textarea>
+  </div>
+  <div class="btn-row">
+    <button type="button" class="btn btn-secondary" onclick="resetCustomPrompt()">Reset to default</button>
+    <button type="button" class="btn btn-primary" onclick="saveCustomPrompt()">Save Prompt</button>
+  </div>
+</div>
+
 <!-- Power Sheet -->
 <div class="sheet" id="powerSheet">
   <div class="sheet-handle"></div>

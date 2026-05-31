@@ -278,9 +278,7 @@ function buildAiSummary() {
 }
 
 // ── The instruction prompt for the AI ─────────────────────────────────────────
-function aiReportPrompt() {
-  const { label } = currentQuarter();
-  return `You are a Singapore-based personal financial advisor. Below is a JSON snapshot of my consolidated finances for ${label} (all amounts in SGD). Write me a concise quarterly review in GitHub-flavoured Markdown with these sections:
+const DEFAULT_AI_PROMPT = `You are a Singapore-based personal financial advisor. Below is a JSON snapshot of my consolidated finances for {period} (all amounts in SGD). Write me a concise quarterly review in GitHub-flavoured Markdown with these sections:
 
 1. **Executive summary** — 2-3 sentences on overall financial health.
 2. **Cash flow & savings** — assess my savings rate (use annualIncome from the tax field as gross income) and spending vs budget.
@@ -293,11 +291,37 @@ function aiReportPrompt() {
 9. **Action items** — 3 to 5 specific, prioritised next steps.
 10. **Risks & gaps** — anything missing from the data I should start tracking.
 
-Be specific and quantitative, reference the actual numbers, and keep it under ~700 words. Respond with ONLY the Markdown report (no preamble).
+Be specific and quantitative, reference the actual numbers, and keep it under ~700 words. Respond with ONLY the Markdown report (no preamble).`;
+
+function aiReportPrompt() {
+  const { label } = currentQuarter();
+  const template = (data.customAiPrompt && data.customAiPrompt.trim()) || DEFAULT_AI_PROMPT;
+  const promptText = template.replace(/\{period\}/g, label);
+  return `${promptText}
 
 \`\`\`json
 ${JSON.stringify(buildAiSummary(), null, 2)}
 \`\`\``;
+}
+
+// ── Custom prompt modal ───────────────────────────────────────────────────────
+function openCustomPromptSheet() {
+  document.getElementById('customPromptText').value =
+    (data.customAiPrompt && data.customAiPrompt.trim()) || DEFAULT_AI_PROMPT;
+  openSheet('customPromptSheet');
+}
+
+function resetCustomPrompt() {
+  document.getElementById('customPromptText').value = DEFAULT_AI_PROMPT;
+}
+
+function saveCustomPrompt() {
+  const val = document.getElementById('customPromptText').value.trim();
+  data.customAiPrompt = val || null;
+  data._customAiPromptTs = Date.now();
+  saveData(data);
+  closeSheet();
+  showToast('Prompt saved');
 }
 
 // ── Manual path: copy / download summary ──────────────────────────────────────
@@ -533,6 +557,9 @@ function renderAiReport() {
     <div class="btn-row" style="flex-wrap:wrap">
       <button class="btn btn-secondary" style="flex:1" onclick="pushSummaryToDrive()">☁ Summary → Drive</button>
       <button class="btn btn-secondary" style="flex:1" onclick="fetchAiReportFromDrive()">⬇ Fetch report</button>
+    </div>
+    <div class="btn-row" style="flex-wrap:wrap">
+      <button class="btn btn-secondary" style="flex:1;font-size:.78rem" onclick="openCustomPromptSheet()">✏️ Customize prompt</button>
     </div>
     ${reportHtml}
   </div>`;
