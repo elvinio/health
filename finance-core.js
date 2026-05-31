@@ -158,6 +158,12 @@ function loadData() {
     if (!d.dependents) d.dependents = [];
     if (!d.allocationRatios) d.allocationRatios = {};
     if (d.expenseCats) d.expenseCats = d.expenseCats.replace(/\bMisc\b/g, 'Income Tax');
+    d.expenses.forEach(e => { if (e.cat === 'Misc') e.cat = 'Income Tax'; });
+    if (d.budgets && d.budgets['Misc'] !== undefined) {
+      if (!d.budgets['Income Tax']) d.budgets['Income Tax'] = d.budgets['Misc'];
+      delete d.budgets['Misc'];
+    }
+    if (d.emailCatMap) d.emailCatMap.forEach(r => { if (r.value === 'Misc') r.value = 'Income Tax'; });
     d.accounts.forEach(a => { if (!a._updatedAt) a._updatedAt = 0; });
     return d;
   } catch { return defaultData(); }
@@ -173,6 +179,7 @@ function loadHistory() {
     if (!raw) return { expenses: [] };
     const d = JSON.parse(raw);
     if (!Array.isArray(d.expenses)) d.expenses = [];
+    d.expenses.forEach(e => { if (e.cat === 'Misc') e.cat = 'Income Tax'; });
     return d;
   } catch { return { expenses: [] }; }
 }
