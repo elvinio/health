@@ -215,9 +215,15 @@
   <div class="sheet-title" id="expenseSheetTitle">Add Expense</div>
   <form id="expenseForm">
     <input type="hidden" id="expenseId">
-    <div class="field">
-      <label>Account</label>
-      <select id="expAcct"></select>
+    <div class="field-row">
+      <div class="field">
+        <label>Account</label>
+        <select id="expAcct"></select>
+      </div>
+      <div class="field">
+        <label>Category</label>
+        <select id="expCat"></select>
+      </div>
     </div>
     <div class="field-row">
       <div class="field">
@@ -232,10 +238,6 @@
     <div class="field">
       <label>Description</label>
       <input type="text" id="expDesc" placeholder="What was this for?" required>
-    </div>
-    <div class="field">
-      <label>Category</label>
-      <select id="expCat"></select>
     </div>
     <div class="btn-row">
       <button type="submit" class="btn btn-primary btn-block">Save</button>
