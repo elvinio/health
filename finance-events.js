@@ -674,6 +674,21 @@ function showCalDay(dateStr) {
   detail.innerHTML = `<div class="cal-day-modal"><div class="cal-day-modal-title">${dateLabel}</div>${items}</div>`;
 }
 
+function timeObjTo24h(t) {
+  let h = t.hour % 12;
+  if (t.ampm === 'PM') h += 12;
+  return `${String(h).padStart(2, '0')}:${String(t.minute).padStart(2, '0')}`;
+}
+
+function time24ToObj(val) {
+  if (!val) return { hour: 12, minute: 0, ampm: 'AM' };
+  const [h24, m] = val.split(':').map(Number);
+  const ampm = h24 < 12 ? 'AM' : 'PM';
+  let h = h24 % 12;
+  if (h === 0) h = 12;
+  return { hour: h, minute: m, ampm };
+}
+
 function openEventSheet(id) {
   const form = document.getElementById('eventForm');
   form.reset();
@@ -681,23 +696,10 @@ function openEventSheet(id) {
   document.getElementById('evDate').value = today();
   document.getElementById('evDeleteBtn').style.display = 'none';
 
-  const hourSel = document.getElementById('evHour');
-  if (!hourSel.options.length) {
-    for (let h = 1; h <= 12; h++) hourSel.add(new Option(h, h));
-  }
-  const endHourSel = document.getElementById('evEndHour');
-  if (!endHourSel.options.length) {
-    for (let h = 1; h <= 12; h++) endHourSel.add(new Option(h, h));
-  }
-
   // Defaults: start 9 AM, end 6 PM
-  hourSel.value = '9';
-  document.getElementById('evAmpm').value = 'AM';
-  document.getElementById('evMinute').value = '0';
+  document.getElementById('evTime').value = '09:00';
   document.getElementById('evEndDate').value = today();
-  endHourSel.value = '6';
-  document.getElementById('evEndAmpm').value = 'PM';
-  document.getElementById('evEndMinute').value = '0';
+  document.getElementById('evEndTime').value = '18:00';
   document.getElementById('evReminder').value = '0';
 
   // Tags field
@@ -721,15 +723,9 @@ function openEventSheet(id) {
     document.getElementById('evTitle').value = ev.title;
     document.getElementById('evDesc').value = ev.description || '';
     document.getElementById('evDate').value = ev.startDate;
-    hourSel.value = ev.startTime.hour;
-    document.getElementById('evMinute').value = ev.startTime.minute;
-    document.getElementById('evAmpm').value = ev.startTime.ampm;
+    document.getElementById('evTime').value = timeObjTo24h(ev.startTime);
     document.getElementById('evEndDate').value = ev.endDate || ev.startDate;
-    if (ev.endTime) {
-      endHourSel.value = ev.endTime.hour;
-      document.getElementById('evEndMinute').value = ev.endTime.minute;
-      document.getElementById('evEndAmpm').value = ev.endTime.ampm;
-    }
+    if (ev.endTime) document.getElementById('evEndTime').value = timeObjTo24h(ev.endTime);
     document.getElementById('evReminder').value = ev.reminderHours;
     if (tags.length) {
       const evTags = ev.tags || [];
@@ -760,17 +756,9 @@ document.getElementById('eventForm').addEventListener('submit', e => {
     title: document.getElementById('evTitle').value.trim(),
     description: document.getElementById('evDesc').value.trim(),
     startDate: document.getElementById('evDate').value,
-    startTime: {
-      hour: parseInt(document.getElementById('evHour').value),
-      minute: parseInt(document.getElementById('evMinute').value),
-      ampm: document.getElementById('evAmpm').value
-    },
+    startTime: time24ToObj(document.getElementById('evTime').value),
     endDate: document.getElementById('evEndDate').value || null,
-    endTime: {
-      hour: parseInt(document.getElementById('evEndHour').value),
-      minute: parseInt(document.getElementById('evEndMinute').value),
-      ampm: document.getElementById('evEndAmpm').value
-    },
+    endTime: time24ToObj(document.getElementById('evEndTime').value),
     tags: selectedTags,
     reminderHours,
     _ts: Date.now()
