@@ -157,7 +157,7 @@ function loadData() {
     if (!('aiReport' in d)) d.aiReport = null;
     if (!d.dependents) d.dependents = [];
     if (!d.allocationRatios) d.allocationRatios = {};
-    if (d.expenseCats) d.expenseCats = d.expenseCats.replace(/\bMisc\b/g, 'Allowance');
+    if (d.expenseCats) d.expenseCats = d.expenseCats.replace(/\bMisc\b/g, 'Income Tax');
     d.accounts.forEach(a => { if (!a._updatedAt) a._updatedAt = 0; });
     return d;
   } catch { return defaultData(); }

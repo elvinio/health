@@ -28,6 +28,7 @@
     <button class="iconbtn" id="menuBtn" title="More options" aria-label="More options">⋯</button>
     <div class="dropdown" id="mainMenu">
       <button class="dropdown-item" onclick="openAccountSettings()">⚙️ Account Settings</button>
+      <button class="dropdown-item" onclick="openExpenseBudget()">💰 Expense Budget</button>
       <button class="dropdown-item" id="balanceToggleBtn" onclick="toggleBalanceVisibility()"><span class="material-symbols-outlined">visibility_off</span> Hide Balances</button>
       <div class="dropdown-sep"></div>
       <button class="dropdown-item" id="quickSyncMenuItem" onclick="driveSyncHeader()" style="display:none"><span class="material-symbols-outlined">sync</span> Quick Sync</button>
@@ -479,6 +480,14 @@
       <button type="button" class="btn btn-secondary" id="taxDeleteBtn" style="display:none;min-width:60px" onclick="deleteTaxRecord()">Delete</button>
     </div>
   </form>
+</div>
+
+<!-- Expense Budget Sheet -->
+<div class="sheet" id="expenseBudgetSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Expense Budget</div>
+  <div id="expenseBudgetBody"></div>
+  <button class="btn btn-primary btn-block" style="margin-top:8px" onclick="saveExpenseBudget()">Save</button>
 </div>
 
 <!-- Account Settings Sheet -->
