@@ -344,6 +344,10 @@ document.querySelectorAll('.tab').forEach(btn => {
 document.getElementById('menuBtn').addEventListener('click', e => {
   e.stopPropagation();
   document.getElementById('mainMenu').classList.toggle('open');
+  caches.keys().then(keys => {
+    const v = keys.find(k => k.startsWith('finance-v')) || 'uncached';
+    document.getElementById('swVersionLabel').textContent = v;
+  }).catch(() => {});
 });
 document.addEventListener('click', () => document.getElementById('mainMenu').classList.remove('open'));
 

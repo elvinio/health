@@ -117,7 +117,7 @@ document.getElementById('historyImportFile').addEventListener('change', e => {
     try {
       const d = JSON.parse(ev.target.result);
       if (!Array.isArray(d.expenses)) { showToast('Invalid history file'); return; }
-      historyData = { expenses: d.expenses, _updatedAt: d._updatedAt || Date.now() };
+      historyData = { expenses: d.expenses, powerRecords: historyData.powerRecords || [], _updatedAt: d._updatedAt || Date.now() };
       data.historyUpdatedAt = historyData._updatedAt;
       recalcMonthlyAgg(data, allExpenses());
       saveData(data);
@@ -540,23 +540,23 @@ async function driveSync() {
     const historyFileId = localStorage.getItem(DRIVE_HISTORY_FILE_KEY);
 
     let mergedHistory = historyData;
-    let uploadHistory = localHistTs > remoteHistTs; // local has changes remote hasn't seen
+    let uploadHistory = false;
 
-    if (remoteHistTs > localHistTs) {
-      // Remote history is newer — download and merge
-      if (historyFileId) {
-        let remoteHistory = { expenses: remoteHistFromMain };
-        try {
-          const dl = await downloadFromDrive(token, historyFileId);
-          if (Array.isArray(dl.expenses)) remoteHistory = mergeHistoryData(dl, { expenses: remoteHistFromMain });
-        } catch {}
-        mergedHistory = mergeHistoryData(historyData, remoteHistory);
-        uploadHistory = true;
-      }
-      // No historyFileId: can't download remote history, keep local as-is
-    } else if (remoteHistFromMain.length) {
-      // Old-format migration: past-year entries found in remote main file
-      mergedHistory = mergeHistoryData(historyData, { expenses: remoteHistFromMain });
+    if (historyFileId && (localHistTs !== remoteHistTs || remoteHistFromMain.length)) {
+      // Timestamps differ (or old-format entries exist): always download + merge before uploading
+      // so we never overwrite records that are only on the remote side.
+      let remoteHistory = { expenses: remoteHistFromMain };
+      try {
+        const dl = await downloadFromDrive(token, historyFileId);
+        if (Array.isArray(dl.expenses)) remoteHistory = mergeHistoryData(dl, { expenses: remoteHistFromMain });
+      } catch {}
+      mergedHistory = mergeHistoryData(historyData, remoteHistory);
+      uploadHistory = true;
+    } else if (!historyFileId && remoteHistTs > localHistTs) {
+      // Remote is newer but no history file linked — can't merge, keep local as-is
+    } else if (!historyFileId && (localHistTs > remoteHistTs || remoteHistFromMain.length)) {
+      // No history file yet: create one from local (+ any old-format entries)
+      if (remoteHistFromMain.length) mergedHistory = mergeHistoryData(historyData, { expenses: remoteHistFromMain });
       uploadHistory = true;
     }
 

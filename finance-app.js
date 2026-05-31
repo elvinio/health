@@ -460,6 +460,8 @@ function deletePowerRecord() {
   const id = document.getElementById('powerId').value;
   if (!id || !confirm('Delete this power record?')) return;
   historyData.powerRecords = (historyData.powerRecords || []).filter(r => r.id !== id);
+  if (!data._deletedIds) data._deletedIds = [];
+  if (!data._deletedIds.includes(id)) data._deletedIds.push(id);
   saveHistory(historyData);
   saveData(data);
   closeSheet();
