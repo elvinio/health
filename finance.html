@@ -113,12 +113,16 @@
   <div class="analysis-sub-tabs">
     <button class="analysis-sub-tab active" id="analysisSubTab-ai" onclick="switchAnalysisSubTab('ai')">🤖 AI Analysis</button>
     <button class="analysis-sub-tab" id="analysisSubTab-expense" onclick="switchAnalysisSubTab('expense')"><span class="material-symbols-outlined">bar_chart</span>Expenses</button>
+    <button class="analysis-sub-tab" id="analysisSubTab-power" onclick="switchAnalysisSubTab('power')"><span class="material-symbols-outlined">bolt</span>Power</button>
   </div>
   <div id="analysisSubContent-ai">
     <div id="aiAnalysisList"></div>
   </div>
   <div id="analysisSubContent-expense" style="display:none">
     <div id="analysisList"></div>
+  </div>
+  <div id="analysisSubContent-power" style="display:none">
+    <div id="powerContent"></div>
   </div>
 </div>
 
@@ -223,6 +227,65 @@
   <div class="btn-row">
     <button type="button" class="btn btn-primary btn-block" onclick="saveAiReportPaste()">Save Report</button>
   </div>
+</div>
+
+<!-- Power Sheet -->
+<div class="sheet" id="powerSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="powerSheetTitle">Add Power Record</div>
+  <form id="powerForm">
+    <input type="hidden" id="powerId">
+    <div class="field-row">
+      <div class="field">
+        <label>Year</label>
+        <input type="number" id="powerYear" min="2000" max="2100" step="1" required inputmode="numeric">
+      </div>
+      <div class="field">
+        <label>Month</label>
+        <select id="powerMonth" required>
+          <option value="1">January</option>
+          <option value="2">February</option>
+          <option value="3">March</option>
+          <option value="4">April</option>
+          <option value="5">May</option>
+          <option value="6">June</option>
+          <option value="7">July</option>
+          <option value="8">August</option>
+          <option value="9">September</option>
+          <option value="10">October</option>
+          <option value="11">November</option>
+          <option value="12">December</option>
+        </select>
+      </div>
+    </div>
+    <div class="section-heading" style="margin-top:4px">Electricity</div>
+    <div class="field-row">
+      <div class="field">
+        <label>Usage (kWh)</label>
+        <input type="number" id="powerElecUsage" min="0" step="0.1" placeholder="0" inputmode="decimal">
+      </div>
+      <div class="field">
+        <label>Unit Cost ($/kWh)</label>
+        <input type="number" id="powerElecUnitCost" min="0" step="0.0001" placeholder="0.2916" inputmode="decimal">
+      </div>
+    </div>
+    <div class="section-heading" style="margin-top:4px">Water</div>
+    <div class="field-row">
+      <div class="field">
+        <label>Usage (m³)</label>
+        <input type="number" id="powerWaterUsage" min="0" step="0.1" placeholder="0" inputmode="decimal">
+      </div>
+      <div class="field">
+        <label>Unit Cost ($/m³)</label>
+        <input type="number" id="powerWaterUnitCost" min="0" step="0.0001" placeholder="1.21" inputmode="decimal">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button type="submit" class="btn btn-primary btn-block">Save</button>
+      <button type="button" class="btn btn-danger" id="powerDeleteBtn"
+              style="display:none;min-width:60px" onclick="deletePowerRecord()">Delete</button>
+    </div>
+  </form>
 </div>
 
 <!-- Expense Sheet -->

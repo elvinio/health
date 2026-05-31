@@ -178,12 +178,13 @@ function saveData(d) {
 function loadHistory() {
   try {
     const raw = localStorage.getItem(HISTORY_KEY);
-    if (!raw) return { expenses: [] };
+    if (!raw) return { expenses: [], powerRecords: [] };
     const d = JSON.parse(raw);
     if (!Array.isArray(d.expenses)) d.expenses = [];
+    if (!Array.isArray(d.powerRecords)) d.powerRecords = [];
     d.expenses.forEach(e => { if (e.cat === 'Misc') e.cat = 'Income Tax'; });
     return d;
-  } catch { return { expenses: [] }; }
+  } catch { return { expenses: [], powerRecords: [] }; }
 }
 
 function saveHistory(h) {
@@ -373,6 +374,9 @@ document.getElementById('fabBtn').addEventListener('click', () => {
   else if (currentTab === 'insurance') {
     if (currentInsSubTab === 'medical') openMedicalSheet(null);
     else openInsuranceSheet(null);
+  }
+  else if (currentTab === 'analysis') {
+    if (currentAnalysisSubTab === 'power') openPowerSheet(null);
   }
   else if (currentTab === 'tax') {
     if (currentTaxSubTab === 'cpf') openCpfEntrySheet(null);
