@@ -260,44 +260,24 @@
       <label>Description</label>
       <textarea id="evDesc" rows="2" placeholder="Optional details…"></textarea>
     </div>
-    <div class="field">
-      <label>Start Date</label>
-      <input type="date" id="evDate" required oninput="syncEndDate()">
-    </div>
-    <div class="field">
-      <label>Start Time</label>
-      <div class="time-picker-row">
-        <select id="evHour"></select>
-        <select id="evMinute">
-          <option value="0">:00</option>
-          <option value="15">:15</option>
-          <option value="30">:30</option>
-          <option value="45">:45</option>
-        </select>
-        <select id="evAmpm">
-          <option value="AM">AM</option>
-          <option value="PM">PM</option>
-        </select>
+    <div class="field-row">
+      <div class="field">
+        <label>Start Date</label>
+        <input type="date" id="evDate" required oninput="syncEndDate()">
+      </div>
+      <div class="field">
+        <label>Start Time</label>
+        <input type="time" id="evTime">
       </div>
     </div>
-    <div class="field">
-      <label>End Date</label>
-      <input type="date" id="evEndDate">
-    </div>
-    <div class="field">
-      <label>End Time</label>
-      <div class="time-picker-row">
-        <select id="evEndHour"></select>
-        <select id="evEndMinute">
-          <option value="0">:00</option>
-          <option value="15">:15</option>
-          <option value="30">:30</option>
-          <option value="45">:45</option>
-        </select>
-        <select id="evEndAmpm">
-          <option value="AM">AM</option>
-          <option value="PM">PM</option>
-        </select>
+    <div class="field-row">
+      <div class="field">
+        <label>End Date</label>
+        <input type="date" id="evEndDate">
+      </div>
+      <div class="field">
+        <label>End Time</label>
+        <input type="time" id="evEndTime">
       </div>
     </div>
     <div class="field" id="evTagsField" style="display:none">
