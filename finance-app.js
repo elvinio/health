@@ -592,6 +592,13 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', () => {
+    const kb = Math.max(0, window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop);
+    document.documentElement.style.setProperty('--sheet-bottom', kb > 50 ? kb + 'px' : '0px');
+  });
+}
+
 document.querySelectorAll('input[type="date"]').forEach(makeDmyWidget);
 renderAll();
 if (balanceHidden) document.getElementById('balanceToggleBtn').innerHTML = '<span class="material-symbols-outlined">visibility</span> Show Balances';
