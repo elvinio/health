@@ -319,20 +319,20 @@ Both files are pre-cached by the service worker so icons load instantly offline.
 
 **When you add a new icon**, re-run the subset to include it:
 
-**Step 1 — find all unique characters across every icon name in use:**
+**Step 1 — collect all icon names in use:**
 ```bash
 grep -rh "material-symbols-outlined" finance.html finance-*.js \
-  | grep -oP "(?<=>)[a-z_]+(?=<)" | sort -u \
-  | tr -d '\n _' | grep -o . | sort -u | tr -d '\n'
+  | grep -oP "(?<=>)[a-z_]+(?=<)" | sort -u | tr '\n' ' '
 ```
-Copy the output string (e.g. `abcdefghiklmnoprstuvwxy`).
+Copy the output (space-separated icon names, e.g. `account_balance backspace bolt ...`).
 
-**Step 2 — fetch the subset CSS from Google Fonts** (replace `TEXT` with the string from step 1):
+**Step 2 — fetch the subset CSS from Google Fonts** (replace `TEXT` with the names from step 1):
 ```bash
-TEXT="abcdefghiklmnoprstuvwxy"
+TEXT="account_balance backspace bolt ..."   # paste icon names here
+ENCODED=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$TEXT")
 curl -sS \
   -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
-  "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0&text=${TEXT}"
+  "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0&text=${ENCODED}"
 ```
 Copy the `url(https://fonts.gstatic.com/...)` value from the output.
 
@@ -347,3 +347,6 @@ curl -sS \
 **Step 4 — bump the service worker cache version** in `sw.js` (required so users get the new font).
 
 No changes needed to `fonts/material-symbols-outlined.css` or `finance.html`.
+
+> **Note**: pass the full icon **names** (not individual characters) as the `text` parameter.
+> Individual characters produce a much smaller file (~83KB) that omits the icon ligature glyphs.
