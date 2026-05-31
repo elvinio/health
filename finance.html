@@ -124,10 +124,23 @@
 
 <!-- Insurance Page -->
 <div class="page" id="page-insurance">
-  <div class="filter-bar">
-    <input class="filter-search" id="insuranceSearch" type="search" placeholder="Search by title, description or agent…" oninput="onInsuranceSearchInput()">
+  <div class="ins-sub-tabs">
+    <button class="ins-sub-tab active" id="insSubTab-policy" onclick="switchInsSubTab('policy')">
+      <span class="material-symbols-outlined">shield</span>Policy
+    </button>
+    <button class="ins-sub-tab" id="insSubTab-medical" onclick="switchInsSubTab('medical')">
+      <span class="material-symbols-outlined">history</span>Medical
+    </button>
   </div>
-  <div id="insuranceList"></div>
+  <div id="insSubContent-policy">
+    <div class="filter-bar">
+      <input class="filter-search" id="insuranceSearch" type="search" placeholder="Search by title, description or agent…" oninput="onInsuranceSearchInput()">
+    </div>
+    <div id="insuranceList"></div>
+  </div>
+  <div id="insSubContent-medical" style="display:none">
+    <div id="medicalList"></div>
+  </div>
 </div>
 
 <!-- Tax Page -->
@@ -383,6 +396,45 @@
     <div class="btn-row">
       <button type="submit" class="btn btn-primary btn-block">Save</button>
       <button type="button" class="btn btn-secondary" id="insuranceDeleteBtn" style="display:none;min-width:60px" onclick="deleteInsurance()">Delete</button>
+    </div>
+  </form>
+</div>
+
+<!-- Medical Visit Sheet -->
+<div class="sheet" id="medicalSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="medicalSheetTitle">Add Visit</div>
+  <form id="medicalForm">
+    <input type="hidden" id="medicalId">
+    <div class="field">
+      <label>Title</label>
+      <input type="text" id="medTitle" placeholder="e.g. Annual checkup, Dental cleaning" required>
+    </div>
+    <div class="field">
+      <label>Person</label>
+      <input type="text" id="medPerson" placeholder="Full name" required>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Date</label>
+        <input type="date" id="medDate" required>
+      </div>
+      <div class="field">
+        <label>Amount ($)</label>
+        <input type="number" id="medAmount" min="0" step="0.01" placeholder="0.00" inputmode="decimal">
+      </div>
+    </div>
+    <div class="field">
+      <label>Payment Type</label>
+      <input type="text" id="medPaymentType" placeholder="e.g. MediSave, Cash, Insurance, CHAS">
+    </div>
+    <div class="field">
+      <label>Description</label>
+      <textarea id="medDescription" rows="3" placeholder="Notes, diagnosis, medication…"></textarea>
+    </div>
+    <div class="btn-row">
+      <button type="submit" class="btn btn-primary btn-block">Save</button>
+      <button type="button" class="btn btn-secondary" id="medicalDeleteBtn" style="display:none;min-width:60px" onclick="deleteMedical()">Delete</button>
     </div>
   </form>
 </div>

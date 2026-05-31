@@ -1,7 +1,21 @@
 // ── Insurance ─────────────────────────────────────────────────────────────────
 const INSURANCE_CATEGORIES = ['Life', 'Hospitalisation', 'Critical Illness', 'Disability', 'Personal Accident', 'Travel', 'Home', 'Motor', 'Other'];
 
+let currentInsSubTab = 'policy';
 let insuranceFilterSearch = '';
+
+function switchInsSubTab(tab) {
+  currentInsSubTab = tab;
+  document.querySelectorAll('.ins-sub-tab').forEach(b => {
+    b.classList.toggle('active', b.id === 'insSubTab-' + tab);
+  });
+  ['policy', 'medical'].forEach(t => {
+    const el = document.getElementById('insSubContent-' + t);
+    if (el) el.style.display = t === tab ? '' : 'none';
+  });
+  if (tab === 'medical') renderMedical();
+  else renderInsurances();
+}
 
 function onInsuranceSearchInput() {
   insuranceFilterSearch = document.getElementById('insuranceSearch').value.toLowerCase();
@@ -119,6 +133,96 @@ function deleteInsurance() {
   closeSheet();
   renderAll();
   showToast('Insurance deleted');
+}
+
+// ── Medical Visits ────────────────────────────────────────────────────────────
+function renderMedical() {
+  const el = document.getElementById('medicalList');
+  if (!el) return;
+  const list = [...(data.medicalVisits || [])].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  if (!list.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">history</span></div>No medical visits yet.<br>Tap + to add one.</div>';
+    return;
+  }
+  el.innerHTML = list.map(v => {
+    const amt = v.amount != null && v.amount !== '' ? fmtCurrency(parseFloat(v.amount) || 0) : '—';
+    return `<div class="medical-card" onclick="openMedicalSheet('${esc(v.id)}')">
+      <div class="med-header">
+        <div class="med-title">${esc(v.title)}</div>
+        <div class="med-date">${esc(v.date || '—')}</div>
+      </div>
+      <div class="med-meta">
+        <span><span class="label">Person:</span>${esc(v.person || '—')}</span>
+        ${v.paymentType ? `<span><span class="label">Payment:</span>${esc(v.paymentType)}</span>` : ''}
+        ${v.description ? `<span><span class="label">Notes:</span>${esc(v.description)}</span>` : ''}
+      </div>
+      <div class="med-amount">${amt}</div>
+    </div>`;
+  }).join('');
+}
+
+function openMedicalSheet(id) {
+  const form = document.getElementById('medicalForm');
+  form.reset();
+  document.getElementById('medicalId').value = '';
+  document.getElementById('medicalDeleteBtn').style.display = 'none';
+
+  if (id) {
+    const v = (data.medicalVisits || []).find(x => x.id === id);
+    if (!v) return;
+    document.getElementById('medicalSheetTitle').textContent = 'Edit Visit';
+    document.getElementById('medicalId').value = id;
+    document.getElementById('medTitle').value = v.title || '';
+    document.getElementById('medPerson').value = v.person || '';
+    document.getElementById('medDate').value = v.date || '';
+    document.getElementById('medAmount').value = v.amount != null ? v.amount : '';
+    document.getElementById('medPaymentType').value = v.paymentType || '';
+    document.getElementById('medDescription').value = v.description || '';
+    document.getElementById('medicalDeleteBtn').style.display = '';
+  } else {
+    document.getElementById('medicalSheetTitle').textContent = 'Add Visit';
+    document.getElementById('medDate').value = today();
+  }
+  openSheet('medicalSheet');
+  setTimeout(() => document.getElementById('medTitle').focus(), 350);
+}
+
+document.getElementById('medicalForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const id = document.getElementById('medicalId').value;
+  const entry = {
+    id: id || uid(),
+    title: document.getElementById('medTitle').value.trim(),
+    person: document.getElementById('medPerson').value.trim(),
+    date: document.getElementById('medDate').value,
+    amount: document.getElementById('medAmount').value !== '' ? parseFloat(document.getElementById('medAmount').value) || 0 : null,
+    paymentType: document.getElementById('medPaymentType').value.trim(),
+    description: document.getElementById('medDescription').value.trim(),
+    _ts: Date.now()
+  };
+  if (!data.medicalVisits) data.medicalVisits = [];
+  if (id) {
+    const idx = data.medicalVisits.findIndex(x => x.id === id);
+    if (idx >= 0) data.medicalVisits[idx] = entry;
+  } else {
+    data.medicalVisits.push(entry);
+  }
+  saveData(data);
+  closeSheet();
+  renderMedical();
+  showToast(id ? 'Visit updated' : 'Visit added');
+});
+
+function deleteMedical() {
+  const id = document.getElementById('medicalId').value;
+  if (!id) return;
+  if (!confirm('Delete this medical visit?')) return;
+  data._deletedIds.push(id);
+  data.medicalVisits = (data.medicalVisits || []).filter(x => x.id !== id);
+  saveData(data);
+  closeSheet();
+  renderMedical();
+  showToast('Visit deleted');
 }
 
 // ── Ongoing Expenses ──────────────────────────────────────────────────────────

@@ -431,7 +431,8 @@ function renderAll() {
   } else if (currentTab === 'analysis') {
     renderAnalysis();
   } else if (currentTab === 'insurance') {
-    renderInsurances();
+    if (currentInsSubTab === 'medical') renderMedical();
+    else renderInsurances();
   } else if (currentTab === 'tax') {
     renderTaxRecords();
     if (currentTaxSubTab === 'cpf') renderCpf();

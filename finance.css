@@ -163,6 +163,19 @@
   .asset-delta.down { color: var(--red); }
   .asset-delta.flat { color: var(--muted); }
 
+  /* ── Insurance sub-tabs ── */
+  .ins-sub-tabs {
+    display: flex; border-bottom: 2px solid var(--border); margin-bottom: 12px; margin-top: 10px;
+  }
+  .ins-sub-tab {
+    display: flex; align-items: center; gap: 4px; padding: 8px 14px;
+    font-size: .82rem; font-weight: 600; color: var(--muted);
+    background: none; border: none; border-bottom: 2px solid transparent;
+    margin-bottom: -2px; cursor: pointer; transition: color .15s, border-color .15s; white-space: nowrap;
+  }
+  .ins-sub-tab .material-symbols-outlined { font-size: 1rem; }
+  .ins-sub-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
   /* ── Insurance ── */
   .insurance-card {
     background: var(--card); border-radius: var(--radius);
@@ -181,6 +194,21 @@
   .ins-meta span { display: flex; gap: 6px; }
   .ins-meta .label { font-weight: 700; min-width: 90px; }
   .ins-amount { font-size: 1.05rem; font-weight: 800; margin-top: 6px; }
+
+  /* ── Medical Visits ── */
+  .medical-card {
+    background: var(--card); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 14px 16px;
+    margin-bottom: 8px; cursor: pointer; transition: background .1s;
+  }
+  .medical-card:active { background: var(--bg); }
+  .med-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .med-title { font-size: 1rem; font-weight: 700; }
+  .med-date { font-size: .78rem; color: var(--muted); white-space: nowrap; }
+  .med-meta { font-size: .82rem; color: var(--muted); margin-top: 6px; display: flex; flex-direction: column; gap: 3px; }
+  .med-meta span { display: flex; gap: 6px; }
+  .med-meta .label { font-weight: 700; min-width: 70px; }
+  .med-amount { font-size: 1.05rem; font-weight: 800; margin-top: 6px; color: var(--primary); }
 
   /* ── Ongoing Expenses ── */
   .ongoing-card {
