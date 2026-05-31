@@ -6,20 +6,20 @@ Personal health and finance tools, all served as static files under `/health/`.
 
 | File | Purpose | ~Lines |
 |---|---|---|
-| `finance.html` | Finance PWA shell — HTML only (no inline CSS or JS) | 850 |
+| `finance.html` | Finance PWA shell — HTML only (no inline CSS or JS) | 917 |
 | `finance.css` | Finance PWA styles | 716 |
-| `finance-core.js` | Constants, data layer, utilities, sheet/tab helpers | 599 |
-| `finance-drive.js` | Google Drive bidirectional sync + merge logic | 587 |
-| `finance-expenses.js` | Expenses tab — render, CRUD, filters, recurring, mortgage inline | 367 |
-| `finance-investments.js` | Accounts, assets, investment history modal | 407 |
-| `finance-events.js` | Events tab, calendar, bus panel, Leaflet map | 847 |
-| `finance-insurance.js` | Insurance, recurring expenses, mortgages | 613 |
-| `finance-tax.js` | Income tax, CPF projection, retirement planning | 1040 |
-| `finance-ai.js` | AI advisor — net-worth snapshots, savings/runway, consolidated summary builder, Drive push/fetch, Markdown report render | 380 |
-| `finance-app.js` | Analysis tab, `renderAll()`, theme picker, init sequence | 394 |
-| `finance-gmail.js` | Email parser rules (expense + event parsers) | 264 |
+| `finance-core.js` | Constants, data layer, utilities, sheet/tab helpers | 379 |
+| `finance-drive.js` | Google Drive bidirectional sync + merge logic | 626 |
+| `finance-expenses.js` | Expenses tab — render, CRUD, filters, recurring, mortgage inline | 369 |
+| `finance-investments.js` | Account settings, assets, allocation ratios, dependents (no longer a visible tab — loaded for its functions) | 618 |
+| `finance-events.js` | Events tab, calendar, bus panel, Leaflet map | 848 |
+| `finance-insurance.js` | Insurance, recurring expenses, mortgages | 621 |
+| `finance-tax.js` | Income tax, CPF projection, retirement planning | 1102 |
+| `finance-ai.js` | AI advisor — net-worth snapshots, savings/runway, consolidated summary builder, Drive push/fetch, Markdown report render | 542 |
+| `finance-app.js` | Analysis tab, `renderAll()`, theme picker, init sequence | 625 |
+| `finance-gmail.js` | Email parser rules (expense + event parsers) | 263 |
 | `apps-script/quarterly-report.gs` | Optional Google Apps Script — quarterly Claude API call → Drive report | — |
-| `sw.js` | Service worker for `finance.html` | 50 |
+| `sw.js` | Service worker for `finance.html` | 75 |
 | `tracker.html` | Health tracker PWA | — |
 | `sw-tracker.js` | Service worker for `tracker.html` | — |
 | `her.html` / `him.html` | Health plan pages | — |
@@ -48,7 +48,7 @@ All files share a global scope. Each file may reference globals defined in files
 
 ```js
 // sw.js line 1
-const CACHE = 'finance-v64';  // increment this number
+const CACHE = 'finance-v81';  // increment this number
 ```
 
 Current ASSETS list (17 files):
@@ -62,6 +62,8 @@ Current ASSETS list (17 files):
 ```
 
 Without bumping, users will keep being served old cached files after deployment.
+
+There is also `EXT_CACHE = 'finance-ext-v1'` for versioned external assets (Leaflet CSS/JS). This cache is evicted only if the key changes — bump it if you update the Leaflet version URLs.
 
 Same rule applies to `tracker.html` — bump the version in `sw-tracker.js` if that file changes.
 
@@ -80,12 +82,13 @@ Same rule applies to `tracker.html` — bump the version in `sw-tracker.js` if t
 |---|---|---|---|
 | Events | `events` | `event` | `page-events` |
 | Expenses | `expenses` | `credit_card` | `page-expenses` |
-| Investments | `investments` | `trending_up` | `page-investments` |
 | Analysis | `analysis` | `bar_chart` | `page-analysis` |
 | Insurance | `insurance` | `shield` | `page-insurance` |
 | Tax | `tax` | `receipt_long` | `page-tax` |
 
-Tab switching is driven by `data-tab` attributes and the `currentTab` variable. Each tab maps to a `#page-{tab}` div. The FAB (`+` button, id `fabBtn`) is hidden on the Analysis tab; its action depends on `currentTab`.
+> **Note**: The Investments tab was removed. Assets are now accessed via Tax › Assets sub-tab. `finance-investments.js` is still loaded (handles account settings, allocation ratios, asset sheets, dependents).
+
+Tab switching is driven by `data-tab` attributes and the `currentTab` variable. Each tab maps to a `#page-{tab}` div. The FAB (`+` button, id `fabBtn`) is hidden on the Analysis tab and on the Tax › Retirement sub-tab; its action depends on `currentTab`.
 
 ### Bottom sheets
 
@@ -107,6 +110,8 @@ Tab switching is driven by `data-tab` attributes and the `currentTab` variable. 
 | `parserEditorSheet` | Add/edit expense email parser |
 | `evParserEditorSheet` | Add/edit event email parser |
 | `aiReportSheet` | Paste/save the AI advisor Markdown report |
+| `expenseBudgetSheet` | Edit expense category budgets |
+| `allocationRatioSheet` | Edit target asset allocation ratios |
 
 Modal overlays: `backdrop`, `mortgageOverlay`, `historyOverlay`, `driveOverlay`.
 
@@ -132,8 +137,8 @@ Two localStorage keys:
   insurances: [],        // { id, name, personInsured, startDate, contractId, details, paymentAmount, paymentFrequency, agentContacts, _updatedAt }
   taxRecords: [],        // { id, year, isHistorical, basicSalary, bonus, otherIncome, cpfEmployee, reliefs, taxRebate, _ts }
   cpfRecords: [],        // { id, year, oaBalance, saBalance, maBalance, oaInterest, saInterest, maInterest, _ts }
-  cpfSettings: { dateOfBirth, retirementAge, monthlySalary, lifeExpectancy, ersGrowthRate, mortalityFactor, monthlyMortgage },
-  retirementSettings: { inflationRate, investmentRate, retirementAge, deathAge, monthlyExpenses },
+  cpfSettings: { dateOfBirth, lifeExpectancy, ersGrowthRate, mortalityFactor },
+  retirementSettings: { inflationRate, investmentRate, retirementAge, deathAge, monthlyExpenses, annualSavings, safeWithdrawalRate },
   _deletedIds: [],
   budgets: {},           // { [category]: amount }
   monthlyAgg: {},        // { [YYYY-MM]: { [category]: total } }
@@ -143,11 +148,12 @@ Two localStorage keys:
   emailCatDefault: 'Other',
   netWorthSnapshots: [], // { key: 'YYYY-Qn', date, liquid, assets, cpf, debt, net, _ts } — one per quarter
   aiReport: null,        // { markdown, generatedAt, period } — latest AI advisor report
-  dependents: []         // { id, name, relationship, birthYear, sex, _ts } — household, enriches AI analysis
+  dependents: [],        // { id, name, relationship, birthYear, sex, _ts } — household, enriches AI analysis
+  allocationRatios: {},  // { [assetClass]: number } — target allocation % per class
 }
 ```
 
-`ASSET_CLASSES` (in `finance-core.js`): Cash, Equities, Bonds, Property (rental), Home (own use), Crypto, Commodities, Other. `isInvestable(a)` excludes `Home (own use)` — counted in net worth but excluded from investable allocation and `calcRetirementPlan()` drawdown.
+`ASSET_CLASSES` (in `finance-core.js`): Cash, Equities, Bonds, Gold, Property (rental), Home (own use), Crypto, Commodities, CPF, Other. `isInvestable(a)` excludes `Home (own use)` (via `NON_INVESTABLE_CLASSES`) — counted in net worth but excluded from investable allocation and `calcRetirementPlan()` drawdown.
 
 **Adding a new data collection:**
 1. Add `myCollection: []` to `defaultData()`
@@ -170,6 +176,7 @@ Two localStorage keys:
 | `finance:lastSync` | Timestamp of last Drive sync |
 | `finance:driveSummaryFileId` | Drive file ID for `finance-elvis-summary.json` (AI summary) |
 | `finance:driveReportFileId` | Drive file ID for `finance-elvis-report.json` (AI report) |
+| `finance:taxPin` | PIN that gates access to the Tax tab (4-digit string) |
 | `busMapCenter` | Saved map centre `[lat, lng]` |
 
 ### Google Drive sync
@@ -215,7 +222,7 @@ consolidated, AI-ready summary, then renders a Markdown report.
 
 ### Expense categories
 
-Default: `Grocery` · `Travel` (plus any in `data.expenseCats` and any `.cat` values already on expenses)
+Default: `Grocery` · `Travel` · `Income Tax` · `Allowance` (plus any in `data.expenseCats` and any `.cat` values already on expenses)
 
 `TopUp` is income (adds to balance); all others are expenses (subtract). Categories are open — new ones can be added via import and will appear in the UI.
 
@@ -238,8 +245,8 @@ The Expenses page has four sub-tabs switched by `switchExpSubTab(tab)`:
 
 - `tax` — income tax estimates + historical records, SVG chart
 - `cpf` — CPF projection chart + recorded balances
-- `assets` — asset list (same data as Investments)
-- `retirement` — retirement drawdown projection
+- `assets` — asset list (primary asset management UI since the Investments tab was removed)
+- `retirement` — retirement drawdown projection (SWR-based safe withdrawal)
 
 ### Themes
 
@@ -281,18 +288,17 @@ Theme preference stored in `localStorage` under `finance:theme`.
 ### `renderAll()` call chain
 
 ```
-renderEventList()
-renderAccountFilterPills() + renderYearFilterPills()
-renderExpenseList()
-  → renderOngoingListInline()   [if currentExpSubTab === 'recurring']
-  → renderMortgageListInline()  [if currentExpSubTab === 'mortgage']
-renderInvestments()
-renderAnalysis()
-renderInsurances()
-renderTaxRecords()
-  → renderCpf()          [if currentTaxSubTab === 'cpf']
-  → renderAssetsSubTab() [if currentTaxSubTab === 'assets']
-  → renderRetirement()   [if currentTaxSubTab === 'retirement']
+// Only the active tab is rendered (lazy per-tab rendering)
+if events:    renderEventList()
+if expenses:  renderAccountFilterPills() + renderYearFilterPills() + renderExpenseList()
+                → renderOngoingListInline()   [if currentExpSubTab === 'recurring']
+                → renderMortgageListInline()  [if currentExpSubTab === 'mortgage']
+if analysis:  renderAnalysis()
+if insurance: renderInsurances()
+if tax:       renderTaxRecords()
+                → renderCpf()          [if currentTaxSubTab === 'cpf']
+                → renderAssetsSubTab() [if currentTaxSubTab === 'assets']
+                → renderRetirement()   [if currentTaxSubTab === 'retirement']
 ```
 
 ### Gmail email parser (`finance-gmail.js`)
