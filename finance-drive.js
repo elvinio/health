@@ -476,6 +476,14 @@ function mergeData(local, remote) {
     : (remote.customAiPrompt ?? local.customAiPrompt ?? null);
   const customAiPromptTs = Math.max(local._customAiPromptTs || 0, remote._customAiPromptTs || 0);
 
+  // retirementSettings: last-writer-wins via _retirementSettingsTs; fill in field defaults
+  const RS_DEFAULTS = { inflationRate: 2.5, investmentRate: 5.0, retirementAge: 62, deathAge: 85, monthlyExpenses: 3000, annualSavings: 150000, safeWithdrawalRate: 4.0 };
+  const retirementSettingsWinner = (local._retirementSettingsTs || 0) >= (remote._retirementSettingsTs || 0)
+    ? (local.retirementSettings || remote.retirementSettings)
+    : (remote.retirementSettings || local.retirementSettings);
+  const retirementSettings = { ...RS_DEFAULTS, ...(retirementSettingsWinner || {}) };
+  const retirementSettingsTs = Math.max(local._retirementSettingsTs || 0, remote._retirementSettingsTs || 0);
+
   const merged = {
     accounts: [...accMap.values()],
     expenses: [...expMap.values()],
@@ -511,6 +519,8 @@ function mergeData(local, remote) {
     medicalVisits: [...medicalMap.values()],
     customAiPrompt,
     _customAiPromptTs: customAiPromptTs,
+    retirementSettings,
+    _retirementSettingsTs: retirementSettingsTs,
   };
   recalcBalances(merged, merged.expenses);
   recalcMonthlyAgg(merged, merged.expenses);

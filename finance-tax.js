@@ -862,6 +862,7 @@ function deleteTaxRecord() {
 // ── Retirement Planning ───────────────────────────────────────────────────────
 function saveRetirementSettings(field, value) {
   data.retirementSettings[field] = parseFloat(value);
+  data._retirementSettingsTs = Date.now();
   saveData(data);
   renderRetirement();
 }
@@ -958,6 +959,7 @@ function calcRetirementPlan() {
 
 function renderRetirement() {
   const el = document.getElementById('retirementContent');
+  if (!data.retirementSettings) data.retirementSettings = { inflationRate: 2.5, investmentRate: 5.0, retirementAge: 62, deathAge: 85, monthlyExpenses: 3000, annualSavings: 150000, safeWithdrawalRate: 4.0 };
   const s = data.retirementSettings;
   const cpfSet = data.cpfSettings;
 
