@@ -213,6 +213,7 @@ function setEventView(mode) {
   }
   if (mode === 'busmap') {
     loadLeaflet(function() {
+      if (eventViewMode !== 'busmap') return;
       renderBusMapPanel();
       busMapPollingInterval = setInterval(refreshBusMapMarkers, 30000);
     });
@@ -233,13 +234,20 @@ function busTimeLabel(mins) {
   return mins + ' min';
 }
 
+function busProxyFetch(target, apiKey, opts = {}) {
+  const local = localStorage.getItem(BUS_PROXY_URL_STORAGE);
+  const url = local
+    ? `${local.replace(/\/$/, '')}/proxy?url=${encodeURIComponent(target)}`
+    : `https://corsproxy.io/?${encodeURIComponent(target)}`;
+  return fetch(url, {
+    ...opts,
+    headers: { AccountKey: apiKey, accept: 'application/json', ...opts.headers }
+  });
+}
+
 async function fetchBusStop(stopCode, apiKey) {
   const target = `${BUS_API_URL}?BusStopCode=${stopCode}&_t=${Date.now()}`;
-  const url = `https://corsproxy.io/?${encodeURIComponent(target)}`;
-  const resp = await fetch(url, {
-    cache: 'no-store',
-    headers: { AccountKey: apiKey, accept: 'application/json', 'Cache-Control': 'no-cache' }
-  });
+  const resp = await busProxyFetch(target, apiKey, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
   if (!resp.ok) throw new Error(resp.status);
   return resp.json();
 }
@@ -254,8 +262,12 @@ async function renderBusPanel() {
       <div style="font-weight:600;margin-bottom:4px">LTA DataMall API Key</div>
       <div style="font-size:.82rem;color:var(--muted);margin-bottom:4px">Enter your API key to fetch live bus timings.</div>
       <input type="text" id="busApiKeyInput" placeholder="Paste API key here…" />
+      <div style="font-size:.78rem;color:var(--muted);margin-top:8px;margin-bottom:2px">Local proxy URL <span style="opacity:.6">(optional — prevents key exposure to corsproxy.io)</span></div>
+      <input type="text" id="busProxyUrlInput" placeholder="http://localhost:8765" value="${esc(localStorage.getItem(BUS_PROXY_URL_STORAGE) || '')}" />
       <button class="btn btn-primary btn-block" style="margin-top:4px" onclick="
         const k=document.getElementById('busApiKeyInput').value;
+        const p=document.getElementById('busProxyUrlInput').value;
+        localStorage.setItem(BUS_PROXY_URL_STORAGE,p.trim());
         if(k.trim()){saveBusApiKey(k);renderBusPanel();}
       ">Save &amp; Load</button>
     </div>`;
@@ -352,10 +364,8 @@ async function fetchBusStopCoords(apiKey) {
   const found = new Set();
   while (found.size < missing.length && skip <= 10000) {
     try {
-      const res = await fetch(
-        `https://datamall2.mytransport.sg/ltaodataservice/BusStops?$skip=${skip}`,
-        { headers: { AccountKey: apiKey } }
-      );
+      const target = `https://datamall2.mytransport.sg/ltaodataservice/BusStops?$skip=${skip}`;
+      const res = await busProxyFetch(target, apiKey);
       const json = await res.json();
       if (!json.value?.length) break;
       json.value.forEach(s => {
@@ -390,7 +400,7 @@ function startLocationTracking() {
   stopLocationTracking();
   busMapLocationWatcher = navigator.geolocation.watchPosition(
     pos => placeLocationMarker(pos.coords.latitude, pos.coords.longitude),
-    null, { enableHighAccuracy: true, maximumAge: 10000 }
+    () => {}, { enableHighAccuracy: true, maximumAge: 10000 }
   );
 }
 
@@ -454,8 +464,12 @@ function renderBusMapPanel() {
       <div style="font-weight:600;margin-bottom:4px">LTA DataMall API Key</div>
       <div style="font-size:.82rem;color:var(--muted);margin-bottom:4px">Enter your API key to view the live bus map.</div>
       <input type="text" id="busMapApiKeyInput" placeholder="Paste API key here…" />
+      <div style="font-size:.78rem;color:var(--muted);margin-top:8px;margin-bottom:2px">Local proxy URL <span style="opacity:.6">(optional — prevents key exposure to corsproxy.io)</span></div>
+      <input type="text" id="busMapProxyUrlInput" placeholder="http://localhost:8765" value="${esc(localStorage.getItem(BUS_PROXY_URL_STORAGE) || '')}" />
       <button class="btn btn-primary btn-block" style="margin-top:4px" onclick="
         const k=document.getElementById('busMapApiKeyInput').value;
+        const p=document.getElementById('busMapProxyUrlInput').value;
+        localStorage.setItem(BUS_PROXY_URL_STORAGE,p.trim());
         if(k.trim()){saveBusApiKey(k);renderBusMapPanel();}
       ">Save &amp; Load</button>
     </div>`;
