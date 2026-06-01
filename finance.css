@@ -204,7 +204,8 @@
   .medical-card:active { background: var(--bg); }
   .med-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
   .med-title { font-size: 1rem; font-weight: 700; }
-  .med-date { font-size: .78rem; color: var(--muted); white-space: nowrap; }
+  .med-date { font-size: .78rem; color: var(--muted); text-align: right; }
+  .med-ago { font-size: .72rem; color: var(--primary); }
   .med-meta { font-size: .82rem; color: var(--muted); margin-top: 6px; display: flex; flex-direction: column; gap: 3px; }
   .med-meta span { display: flex; gap: 6px; }
   .med-meta .label { font-weight: 700; min-width: 70px; }
