@@ -1,4 +1,27 @@
 // ── Import / Export ───────────────────────────────────────────────────────────
+// Quote-aware CSV line parser: handles fields wrapped in double quotes that may
+// contain commas or escaped ("") quotes. A plain split(',') corrupts any row
+// whose description contains a comma.
+function parseCsvLine(line) {
+  const out = [];
+  let field = '', inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (line[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ',') {
+      out.push(field); field = '';
+    } else field += c;
+  }
+  out.push(field);
+  return out;
+}
+
 function triggerImportExpenses() {
   document.getElementById('mainMenu').classList.remove('open');
   document.getElementById('importExpensesFile').click();
@@ -12,7 +35,7 @@ document.getElementById('importExpensesFile').addEventListener('change', e => {
     try {
       const lines = ev.target.result.trim().split('\n');
       if (lines.length < 2) { showToast('CSV is empty'); return; }
-      const headers = lines[0].split(',').map(h => h.trim());
+      const headers = parseCsvLine(lines[0]).map(h => h.trim());
       const required = ['id', 'date', 'desc', 'amount', 'cat', 'ac'];
       if (!required.every(f => headers.includes(f))) {
         showToast('CSV missing required columns'); return;
@@ -21,7 +44,7 @@ document.getElementById('importExpensesFile').addEventListener('change', e => {
       let added = 0, updated = 0;
       lines.slice(1).forEach(line => {
         if (!line.trim()) return;
-        const vals = line.split(',');
+        const vals = parseCsvLine(line);
         const row = {};
         headers.forEach((h, i) => row[h] = (vals[i] || '').trim());
         if (!row.id || !row.date || !row.desc || !row.amount || !row.cat || !row.ac) return;
@@ -561,7 +584,9 @@ async function driveSync() {
       mergedHistory = mergeHistoryData(historyData, remoteHistory);
       uploadHistory = true;
     } else if (!historyFileId && remoteHistTs > localHistTs) {
-      // Remote is newer but no history file linked — can't merge, keep local as-is
+      // Remote is newer but no history file linked — can't merge, keep local as-is.
+      // Do NOT adopt remoteHistTs below: claiming a timestamp we never pulled makes
+      // the next sync see equal timestamps and silently skip the remote forever.
     } else if (!historyFileId && (localHistTs > remoteHistTs || remoteHistFromMain.length)) {
       // No history file yet: create one from local (+ any old-format entries)
       if (remoteHistFromMain.length) mergedHistory = mergeHistoryData(historyData, { expenses: remoteHistFromMain });
@@ -583,7 +608,9 @@ async function driveSync() {
       merged.historyUpdatedAt = mergedHistory._updatedAt;
       await uploadHistoryToDrive(token, historyFileId || null, mergedHistory);
     } else {
-      merged.historyUpdatedAt = remoteHistTs || localHistTs;
+      // Nothing uploaded: keep our own local history timestamp. Adopting a remote
+      // timestamp we never pulled would permanently mask the remote history.
+      merged.historyUpdatedAt = localHistTs;
     }
     await uploadToDrive(token, fileId, merged);
 
@@ -594,6 +621,10 @@ async function driveSync() {
     historyData = mergedHistory;
     recalcBalances(data, allExpenses());
     recalcMonthlyAgg(data, allExpenses());
+    // historyData._updatedAt and data.historyUpdatedAt are already equal here (both
+    // paths set merged.historyUpdatedAt to historyData._updatedAt), so persist the
+    // history blob directly without bumping its timestamp via saveHistory().
+    historyData._updatedAt = merged.historyUpdatedAt;
     saveData(data);
     localStorage.setItem(HISTORY_KEY, JSON.stringify(historyData));
     renderAll();

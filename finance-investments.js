@@ -534,8 +534,10 @@ document.getElementById('assetForm').addEventListener('submit', e => {
   const name = document.getElementById('assetName').value.trim();
   const cls = document.getElementById('assetClass').value || 'Other';
   const value = parseFloat(document.getElementById('assetValue').value);
+  if (!Number.isFinite(value)) { showToast('Enter a valid value'); return; }
   const unitsRaw = document.getElementById('assetUnits').value;
   const units = unitsRaw !== '' ? parseFloat(unitsRaw) : 1;
+  if (!Number.isFinite(units)) { showToast('Enter valid units'); return; }
   const date = document.getElementById('assetDate').value;
 
   if (id) {

@@ -367,7 +367,7 @@ function deleteOngoing() {
 function getOngoingDueInfo(o, refDate) {
   if (!o.startDate) return null;
   const today = refDate || new Date();
-  const todayStr = today.toISOString().slice(0, 10);
+  const todayStr = localDateStr(today);
   const start = new Date(o.startDate + 'T00:00:00');
   const startYear = start.getFullYear();
   const startMonth = start.getMonth();
@@ -419,7 +419,7 @@ function getOngoingNextDue(o) {
 
   if (o.frequency === 'monthly') {
     const thisMonth = nextCandidate(y, m);
-    if (thisMonth > now.toISOString().slice(0, 10)) return thisMonth;
+    if (thisMonth > localDateStr(now)) return thisMonth;
     const nm = m === 11 ? 0 : m + 1;
     const ny = m === 11 ? y + 1 : y;
     return nextCandidate(ny, nm);
@@ -435,7 +435,7 @@ function getOngoingNextDue(o) {
   if (o.frequency === 'annual') {
     const startM = start.getMonth();
     const cand = nextCandidate(y, startM);
-    if (cand > now.toISOString().slice(0, 10)) return cand;
+    if (cand > localDateStr(now)) return cand;
     return nextCandidate(y + 1, startM);
   }
   return null;

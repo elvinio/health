@@ -145,7 +145,23 @@ function simulateSAOAtoRetire(oa55, sa55, ma55, raTarget, retireAge, annualSalar
   return { oa: Math.round(oa), raFromSA: Math.round(raFromSA), raFromOA: Math.round(raFromOA) };
 }
 
+// Memoized: renderCpf, calcRetirementPlan and the AI summary each call this within
+// a single render pass, and it runs a year-by-year loop plus two simulateSAOAtoRetire
+// passes. Cache on a signature of its only inputs (cpf settings/records, salary source,
+// current year); recomputing the signature is far cheaper than the projection itself.
+let _cpfProjCache = null, _cpfProjKey = null;
 function calcCpfProjection() {
+  const key = JSON.stringify([
+    data.cpfSettings, data.cpfRecords, data.taxRecords, new Date().getFullYear()
+  ]);
+  if (key === _cpfProjKey) return _cpfProjCache;
+  const result = _calcCpfProjection();
+  _cpfProjKey = key;
+  _cpfProjCache = result;
+  return result;
+}
+
+function _calcCpfProjection() {
   const s = data.cpfSettings || {};
   if (!s.dateOfBirth) return null;
   const dobYear = parseInt(s.dateOfBirth.slice(0, 4));
@@ -906,7 +922,14 @@ function calcRetirementPlan() {
   const retirementPortfolio = assets;
 
   const swr = (s.safeWithdrawalRate != null ? s.safeWithdrawalRate : 4.0) / 100;
-  const W_real = retirementPortfolio > 0 ? retirementPortfolio * swr : 0;
+  // SWR amount is nominal at the retirement date (swr × the nominal portfolio).
+  // Deflate it back to today's dollars so W_real is genuinely "today's $": the
+  // drawdown loop below re-inflates it from today via (1+g)^(age-currentAge), so
+  // at the first retirement year withdrawalNom === retirementPortfolio × swr.
+  const yearsToRetire = Math.max(0, retireAge - currentAge);
+  const W_real = retirementPortfolio > 0
+    ? (retirementPortfolio * swr) / Math.pow(1 + g, yearsToRetire)
+    : 0;
 
   for (let age = retireAge; age < deathAge; age++) {
     const yearsFromNow = age - currentAge;
