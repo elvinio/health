@@ -19,32 +19,32 @@
 <!-- Header -->
 <!-- Tabs -->
 <div class="tabs">
-  <button class="tab active" data-tab="events"><span class="material-symbols-outlined">event</span></button>
-  <button class="tab" data-tab="expenses"><span class="material-symbols-outlined">credit_card</span></button>
-  <button class="tab" data-tab="analysis"><span class="material-symbols-outlined">bar_chart</span></button>
-  <button class="tab" data-tab="insurance"><span class="material-symbols-outlined">shield</span></button>
-  <button class="tab" data-tab="tax"><span class="material-symbols-outlined">receipt_long</span></button>
+  <button class="tab active" data-tab="events" aria-label="Events"><span class="material-symbols-outlined" aria-hidden="true">event</span></button>
+  <button class="tab" data-tab="expenses" aria-label="Expenses"><span class="material-symbols-outlined" aria-hidden="true">credit_card</span></button>
+  <button class="tab" data-tab="analysis" aria-label="Analysis"><span class="material-symbols-outlined" aria-hidden="true">bar_chart</span></button>
+  <button class="tab" data-tab="insurance" aria-label="Insurance"><span class="material-symbols-outlined" aria-hidden="true">shield</span></button>
+  <button class="tab" data-tab="tax" aria-label="Tax"><span class="material-symbols-outlined" aria-hidden="true">receipt_long</span></button>
   <div class="menu-wrap" style="display:flex;align-items:center;padding-right:4px">
     <button class="iconbtn" id="menuBtn" title="More options" aria-label="More options">⋯</button>
     <div class="dropdown" id="mainMenu">
       <button class="dropdown-item" onclick="openAccountSettings()">⚙️ Account Settings</button>
       <button class="dropdown-item" onclick="openExpenseBudget()">💰 Expense Budget</button>
-      <button class="dropdown-item" id="balanceToggleBtn" onclick="toggleBalanceVisibility()"><span class="material-symbols-outlined">visibility_off</span> Hide Balances</button>
+      <button class="dropdown-item" id="balanceToggleBtn" onclick="toggleBalanceVisibility()"><span class="material-symbols-outlined" aria-hidden="true">visibility_off</span> Hide Balances</button>
       <div class="dropdown-sep"></div>
-      <button class="dropdown-item" id="quickSyncMenuItem" onclick="driveSyncHeader()" style="display:none"><span class="material-symbols-outlined">sync</span> Quick Sync</button>
+      <button class="dropdown-item" id="quickSyncMenuItem" onclick="driveSyncHeader()" style="display:none"><span class="material-symbols-outlined" aria-hidden="true">sync</span> Quick Sync</button>
       <button class="dropdown-item" onclick="triggerImportEvents()">📅 Import Events</button>
       <button class="dropdown-item" onclick="triggerImportExpenses()">💰 Import Expenses</button>
       <button class="dropdown-item" onclick="pullHistory()">📥 Pull History</button>
-      <button class="dropdown-item" onclick="recalcAll()"><span class="material-symbols-outlined">calculate</span> Recalculate</button>
+      <button class="dropdown-item" onclick="recalcAll()"><span class="material-symbols-outlined" aria-hidden="true">calculate</span> Recalculate</button>
       <div class="dropdown-sep"></div>
       <button class="dropdown-item" onclick="openDriveMenu()">☁ Google Drive</button>
       <div class="dropdown-sep"></div>
       <button class="dropdown-item" onclick="openAllocationRatioSheet()">📊 Allocation Ratios</button>
       <div class="dropdown-sep"></div>
-      <button class="dropdown-item" onclick="openThemePicker()"><span class="material-symbols-outlined">palette</span> Theme</button>
+      <button class="dropdown-item" onclick="openThemePicker()"><span class="material-symbols-outlined" aria-hidden="true">palette</span> Theme</button>
       <div class="dropdown-sep"></div>
-      <button class="dropdown-item" onclick="refreshPwaCache()"><span class="material-symbols-outlined">refresh</span> Refresh Cache</button>
-      <button class="dropdown-item danger" onclick="confirmClearData()"><span class="material-symbols-outlined">delete</span> Clear all data</button>
+      <button class="dropdown-item" onclick="refreshPwaCache()"><span class="material-symbols-outlined" aria-hidden="true">refresh</span> Refresh Cache</button>
+      <button class="dropdown-item danger" onclick="confirmClearData()"><span class="material-symbols-outlined" aria-hidden="true">delete</span> Clear all data</button>
       <div class="dropdown-sep"></div>
       <div id="swVersionLabel" style="padding:6px 16px;font-size:.72rem;color:var(--muted);pointer-events:none;user-select:none"></div>
     </div>
@@ -58,10 +58,10 @@
     <div class="filter-pills" id="eventTagFilterPills"></div>
   </div>
   <div class="event-view-row">
-    <button class="event-view-btn active" id="evViewList" onclick="setEventView('list')"><span class="material-symbols-outlined" style="font-size:1.1rem">list</span></button>
-    <button class="event-view-btn" id="evViewCal" onclick="setEventView('calendar')"><span class="material-symbols-outlined" style="font-size:1.1rem">calendar_month</span></button>
-    <button class="event-view-btn" id="evViewBus" onclick="setEventView('bus')"><span class="material-symbols-outlined" style="font-size:1.1rem">directions_bus</span></button>
-    <button class="event-view-btn" id="evViewBusMap" onclick="setEventView('busmap')"><span class="material-symbols-outlined" style="font-size:1.1rem">map</span></button>
+    <button class="event-view-btn active" id="evViewList" aria-label="List view" onclick="setEventView('list')"><span class="material-symbols-outlined" aria-hidden="true" style="font-size:1.1rem">list</span></button>
+    <button class="event-view-btn" id="evViewCal" aria-label="Calendar view" onclick="setEventView('calendar')"><span class="material-symbols-outlined" aria-hidden="true" style="font-size:1.1rem">calendar_month</span></button>
+    <button class="event-view-btn" id="evViewBus" aria-label="Bus arrivals" onclick="setEventView('bus')"><span class="material-symbols-outlined" aria-hidden="true" style="font-size:1.1rem">directions_bus</span></button>
+    <button class="event-view-btn" id="evViewBusMap" aria-label="Bus map" onclick="setEventView('busmap')"><span class="material-symbols-outlined" aria-hidden="true" style="font-size:1.1rem">map</span></button>
   </div>
   <div id="eventList"></div>
   <div id="eventCalendar" style="display:none"></div>
@@ -73,16 +73,16 @@
 <div class="page" id="page-expenses">
   <div class="exp-sub-tabs">
     <button class="exp-sub-tab active" id="expSubTab-expenses" onclick="switchExpSubTab('expenses')">
-      <span class="material-symbols-outlined">list</span>Expenses
+      <span class="material-symbols-outlined" aria-hidden="true">list</span>Expenses
     </button>
     <button class="exp-sub-tab" id="expSubTab-recurring" onclick="switchExpSubTab('recurring')">
-      <span class="material-symbols-outlined">repeat</span>Recur
+      <span class="material-symbols-outlined" aria-hidden="true">repeat</span>Recur
     </button>
     <button class="exp-sub-tab" id="expSubTab-mortgage" onclick="switchExpSubTab('mortgage')">
-      <span class="material-symbols-outlined">home_work</span>Mortgage
+      <span class="material-symbols-outlined" aria-hidden="true">home_work</span>Mortgage
     </button>
     <button class="exp-sub-tab" id="expSubTab-emailrules" onclick="switchExpSubTab('emailrules')">
-      <span class="material-symbols-outlined">mail</span>Rules
+      <span class="material-symbols-outlined" aria-hidden="true">mail</span>Rules
     </button>
   </div>
   <div id="expSubContent-expenses">
@@ -114,8 +114,8 @@
 <div class="page" id="page-analysis">
   <div class="analysis-sub-tabs">
     <button class="analysis-sub-tab active" id="analysisSubTab-ai" onclick="switchAnalysisSubTab('ai')">🤖 AI Analysis</button>
-    <button class="analysis-sub-tab" id="analysisSubTab-expense" onclick="switchAnalysisSubTab('expense')"><span class="material-symbols-outlined">bar_chart</span>Expenses</button>
-    <button class="analysis-sub-tab" id="analysisSubTab-power" onclick="switchAnalysisSubTab('power')"><span class="material-symbols-outlined">bolt</span>Power</button>
+    <button class="analysis-sub-tab" id="analysisSubTab-expense" onclick="switchAnalysisSubTab('expense')"><span class="material-symbols-outlined" aria-hidden="true">bar_chart</span>Expenses</button>
+    <button class="analysis-sub-tab" id="analysisSubTab-power" onclick="switchAnalysisSubTab('power')"><span class="material-symbols-outlined" aria-hidden="true">bolt</span>Power</button>
   </div>
   <div id="analysisSubContent-ai">
     <div id="aiAnalysisList"></div>
@@ -132,10 +132,10 @@
 <div class="page" id="page-insurance">
   <div class="ins-sub-tabs">
     <button class="ins-sub-tab active" id="insSubTab-policy" onclick="switchInsSubTab('policy')">
-      <span class="material-symbols-outlined">shield</span>Policy
+      <span class="material-symbols-outlined" aria-hidden="true">shield</span>Policy
     </button>
     <button class="ins-sub-tab" id="insSubTab-medical" onclick="switchInsSubTab('medical')">
-      <span class="material-symbols-outlined">history</span>Medical
+      <span class="material-symbols-outlined" aria-hidden="true">history</span>Medical
     </button>
   </div>
   <div id="insSubContent-policy">
@@ -156,16 +156,16 @@
 <div class="page" id="page-tax">
   <div class="tax-sub-tabs">
     <button class="tax-sub-tab active" id="taxSubTab-incometax" onclick="switchTaxSubTab('incometax')">
-      <span class="material-symbols-outlined">receipt_long</span>Income
+      <span class="material-symbols-outlined" aria-hidden="true">receipt_long</span>Income
     </button>
     <button class="tax-sub-tab" id="taxSubTab-cpf" onclick="switchTaxSubTab('cpf')">
-      <span class="material-symbols-outlined">savings</span>CPF
+      <span class="material-symbols-outlined" aria-hidden="true">savings</span>CPF
     </button>
     <button class="tax-sub-tab" id="taxSubTab-assets" onclick="switchTaxSubTab('assets')">
-      <span class="material-symbols-outlined">account_balance</span>Assets
+      <span class="material-symbols-outlined" aria-hidden="true">account_balance</span>Assets
     </button>
     <button class="tax-sub-tab" id="taxSubTab-retirement" onclick="switchTaxSubTab('retirement')">
-      <span class="material-symbols-outlined">elderly</span>Retirement
+      <span class="material-symbols-outlined" aria-hidden="true">elderly</span>Retirement
     </button>
   </div>
   <div id="taxSubContent-incometax">
@@ -206,7 +206,7 @@
       <button onclick="taxPinKey('9')">9</button>
       <button class="pin-empty" disabled></button>
       <button onclick="taxPinKey('0')">0</button>
-      <button onclick="taxPinKey('back')"><span class="material-symbols-outlined" style="font-size:1.3rem">backspace</span></button>
+      <button onclick="taxPinKey('back')" aria-label="Backspace"><span class="material-symbols-outlined" aria-hidden="true" style="font-size:1.3rem">backspace</span></button>
     </div>
   </div>
 </div>
@@ -215,18 +215,18 @@
 <div class="backdrop" id="backdrop"></div>
 
 <!-- Theme Picker Sheet -->
-<div class="sheet" id="themeSheet">
+<div class="sheet" id="themeSheet" role="dialog" aria-modal="true" aria-labelledby="themeSheet-title">
   <div class="sheet-handle"></div>
-  <div class="sheet-title">Theme</div>
+  <div class="sheet-title" id="themeSheet-title">Theme</div>
   <div id="themeList"></div>
 </div>
 
 <!-- AI Report Sheet -->
-<div class="sheet" id="aiReportSheet">
+<div class="sheet" id="aiReportSheet" role="dialog" aria-modal="true" aria-labelledby="aiReportSheet-title">
   <div class="sheet-handle"></div>
-  <div class="sheet-title">Paste AI Report</div>
+  <div class="sheet-title" id="aiReportSheet-title">Paste AI Report</div>
   <div class="field">
-    <label>Markdown report from Claude</label>
+    <label for="aiReportText">Markdown report from Claude</label>
     <textarea id="aiReportText" rows="12" placeholder="Paste the Markdown report Claude returned…" style="width:100%;font-family:inherit;font-size:.9rem;line-height:1.4;resize:vertical"></textarea>
   </div>
   <div class="btn-row">
@@ -235,11 +235,11 @@
 </div>
 
 <!-- Custom AI Prompt Sheet -->
-<div class="sheet" id="customPromptSheet">
+<div class="sheet" id="customPromptSheet" role="dialog" aria-modal="true" aria-labelledby="customPromptSheet-title">
   <div class="sheet-handle"></div>
-  <div class="sheet-title">Customize AI Prompt</div>
+  <div class="sheet-title" id="customPromptSheet-title">Customize AI Prompt</div>
   <div class="field">
-    <label>Prompt template — use <code>{period}</code> where you want the current quarter inserted. Your financial data JSON is always appended automatically.</label>
+    <label for="customPromptText">Prompt template — use <code>{period}</code> where you want the current quarter inserted. Your financial data JSON is always appended automatically.</label>
     <textarea id="customPromptText" rows="16" style="width:100%;font-family:inherit;font-size:.85rem;line-height:1.5;resize:vertical"></textarea>
   </div>
   <div class="btn-row">
@@ -249,18 +249,18 @@
 </div>
 
 <!-- Power Sheet -->
-<div class="sheet" id="powerSheet">
+<div class="sheet" id="powerSheet" role="dialog" aria-modal="true" aria-labelledby="powerSheetTitle">
   <div class="sheet-handle"></div>
   <div class="sheet-title" id="powerSheetTitle">Add Power Record</div>
   <form id="powerForm">
     <input type="hidden" id="powerId">
     <div class="field-row">
       <div class="field">
-        <label>Year</label>
+        <label for="powerYear">Year</label>
         <input type="number" id="powerYear" min="2000" max="2100" step="1" required inputmode="numeric">
       </div>
       <div class="field">
-        <label>Month</label>
+        <label for="powerMonth">Month</label>
         <select id="powerMonth" required>
           <option value="1">January</option>
           <option value="2">February</option>
@@ -280,22 +280,22 @@
     <div class="section-heading" style="margin-top:4px">Electricity</div>
     <div class="field-row">
       <div class="field">
-        <label>Usage (kWh)</label>
+        <label for="powerElecUsage">Usage (kWh)</label>
         <input type="number" id="powerElecUsage" min="0" step="0.1" placeholder="0" inputmode="decimal">
       </div>
       <div class="field">
-        <label>Unit Cost ($/kWh)</label>
+        <label for="powerElecUnitCost">Unit Cost ($/kWh)</label>
         <input type="number" id="powerElecUnitCost" min="0" step="0.0001" placeholder="0.2916" inputmode="decimal">
       </div>
     </div>
     <div class="section-heading" style="margin-top:4px">Water</div>
     <div class="field-row">
       <div class="field">
-        <label>Usage (m³)</label>
+        <label for="powerWaterUsage">Usage (m³)</label>
         <input type="number" id="powerWaterUsage" min="0" step="0.1" placeholder="0" inputmode="decimal">
       </div>
       <div class="field">
-        <label>Unit Cost ($/m³)</label>
+        <label for="powerWaterUnitCost">Unit Cost ($/m³)</label>
         <input type="number" id="powerWaterUnitCost" min="0" step="0.0001" placeholder="1.21" inputmode="decimal">
       </div>
     </div>
@@ -308,33 +308,33 @@
 </div>
 
 <!-- Expense Sheet -->
-<div class="sheet" id="expenseSheet">
+<div class="sheet" id="expenseSheet" role="dialog" aria-modal="true" aria-labelledby="expenseSheetTitle">
   <div class="sheet-handle"></div>
   <div class="sheet-title" id="expenseSheetTitle">Add Expense</div>
   <form id="expenseForm">
     <input type="hidden" id="expenseId">
     <div class="field-row">
       <div class="field">
-        <label>Account</label>
+        <label for="expAcct">Account</label>
         <select id="expAcct"></select>
       </div>
       <div class="field">
-        <label>Category</label>
+        <label for="expCat">Category</label>
         <select id="expCat"></select>
       </div>
     </div>
     <div class="field-row">
       <div class="field">
-        <label>Date</label>
+        <label for="expDate">Date</label>
         <input type="date" id="expDate" required>
       </div>
       <div class="field">
-        <label>Amount</label>
+        <label for="expAmount">Amount</label>
         <input type="number" id="expAmount" min="0" step="0.01" placeholder="0.00" inputmode="decimal" required>
       </div>
     </div>
     <div class="field">
-      <label>Description</label>
+      <label for="expDesc">Description</label>
       <input type="text" id="expDesc" placeholder="What was this for?" required>
     </div>
     <div class="btn-row">
@@ -345,36 +345,36 @@
 </div>
 
 <!-- Event Sheet -->
-<div class="sheet" id="eventSheet">
+<div class="sheet" id="eventSheet" role="dialog" aria-modal="true" aria-labelledby="eventSheetTitle">
   <div class="sheet-handle"></div>
   <div class="sheet-title" id="eventSheetTitle">Add Event</div>
   <form id="eventForm">
     <input type="hidden" id="eventId">
     <div class="field">
-      <label>Title</label>
+      <label for="evTitle">Title</label>
       <input type="text" id="evTitle" placeholder="Event name" required>
     </div>
     <div class="field">
-      <label>Description</label>
+      <label for="evDesc">Description</label>
       <textarea id="evDesc" rows="2" placeholder="Optional details…"></textarea>
     </div>
     <div class="field-row">
       <div class="field">
-        <label>Start Date</label>
+        <label for="evDate">Start Date</label>
         <input type="date" id="evDate" required oninput="syncEndDate()">
       </div>
       <div class="field">
-        <label>Start Time</label>
+        <label for="evTime">Start Time</label>
         <input type="time" id="evTime">
       </div>
     </div>
     <div class="field-row">
       <div class="field">
-        <label>End Date</label>
+        <label for="evEndDate">End Date</label>
         <input type="date" id="evEndDate">
       </div>
       <div class="field">
-        <label>End Time</label>
+        <label for="evEndTime">End Time</label>
         <input type="time" id="evEndTime">
       </div>
     </div>
@@ -383,7 +383,7 @@
       <div id="evTagPills"></div>
     </div>
     <div class="field">
-      <label>Reminder (hours before start)</label>
+      <label for="evReminder">Reminder (hours before start)</label>
       <input type="number" id="evReminder" min="0" step="1" value="0" placeholder="0 = no reminder">
     </div>
     <div class="btn-row">
@@ -394,31 +394,31 @@
 </div>
 
 <!-- Asset Sheet -->
-<div class="sheet" id="assetSheet">
+<div class="sheet" id="assetSheet" role="dialog" aria-modal="true" aria-labelledby="assetSheetTitle">
   <div class="sheet-handle"></div>
   <div class="sheet-title" id="assetSheetTitle">Add Asset</div>
   <form id="assetForm">
     <input type="hidden" id="assetId">
     <div class="field">
-      <label>Asset Name</label>
+      <label for="assetName">Asset Name</label>
       <input type="text" id="assetName" placeholder="e.g. AAPL, Bitcoin, Property" required>
     </div>
     <div class="field">
-      <label>Asset Class</label>
+      <label for="assetClass">Asset Class</label>
       <select id="assetClass"></select>
     </div>
     <div class="field-row">
       <div class="field">
-        <label>Units</label>
+        <label for="assetUnits">Units</label>
         <input type="number" id="assetUnits" min="0" step="any" placeholder="1">
       </div>
       <div class="field">
-        <label>Price</label>
+        <label for="assetValue">Price</label>
         <input type="number" id="assetValue" min="0" step="0.01" placeholder="0.00" inputmode="decimal" required>
       </div>
     </div>
     <div class="field">
-      <label>Date</label>
+      <label for="assetDate">Date</label>
       <input type="date" id="assetDate" required>
     </div>
     <div class="btn-row">
@@ -429,42 +429,42 @@
 </div>
 
 <!-- Insurance Sheet -->
-<div class="sheet" id="insuranceSheet">
+<div class="sheet" id="insuranceSheet" role="dialog" aria-modal="true" aria-labelledby="insuranceSheetTitle">
   <div class="sheet-handle"></div>
   <div class="sheet-title" id="insuranceSheetTitle">Add Insurance</div>
   <form id="insuranceForm">
     <input type="hidden" id="insuranceId">
     <div class="field">
-      <label>Policy Name</label>
+      <label for="insName">Policy Name</label>
       <input type="text" id="insName" placeholder="e.g. AIA Life Plan, Shield Rider" required>
     </div>
     <div class="field">
-      <label>Category</label>
+      <label for="insCategory">Category</label>
       <select id="insCategory"></select>
     </div>
     <div class="field">
-      <label>Person Insured</label>
+      <label for="insPersonInsured">Person Insured</label>
       <input type="text" id="insPersonInsured" placeholder="Full name" required>
     </div>
     <div class="field">
-      <label>Start Date</label>
+      <label for="insStartDate">Start Date</label>
       <input type="date" id="insStartDate" required>
     </div>
     <div class="field">
-      <label>Policy ID</label>
+      <label for="insContractId">Policy ID</label>
       <input type="text" id="insContractId" placeholder="Policy / contract number">
     </div>
     <div class="field">
-      <label>Insurance Details</label>
+      <label for="insDetails">Insurance Details</label>
       <textarea id="insDetails" rows="3" placeholder="Coverage, terms, notes…"></textarea>
     </div>
     <div class="field-row">
       <div class="field">
-        <label>Payment Amount</label>
+        <label for="insPaymentAmount">Payment Amount</label>
         <input type="number" id="insPaymentAmount" min="0" step="0.01" placeholder="0.00" inputmode="decimal" required>
       </div>
       <div class="field">
-        <label>Frequency</label>
+        <label for="insPaymentFrequency">Frequency</label>
         <select id="insPaymentFrequency">
           <option value="monthly">Monthly</option>
           <option value="annual">Annual</option>
@@ -472,7 +472,7 @@
       </div>
     </div>
     <div class="field">
-      <label>Agent Contacts</label>
+      <label for="insAgentContacts">Agent Contacts</label>
       <textarea id="insAgentContacts" rows="2" placeholder="Name, phone, email…"></textarea>
     </div>
     <div class="btn-row">
@@ -483,35 +483,35 @@
 </div>
 
 <!-- Medical Visit Sheet -->
-<div class="sheet" id="medicalSheet">
+<div class="sheet" id="medicalSheet" role="dialog" aria-modal="true" aria-labelledby="medicalSheetTitle">
   <div class="sheet-handle"></div>
   <div class="sheet-title" id="medicalSheetTitle">Add Visit</div>
   <form id="medicalForm">
     <input type="hidden" id="medicalId">
     <div class="field">
-      <label>Title</label>
+      <label for="medTitle">Title</label>
       <input type="text" id="medTitle" placeholder="e.g. Annual checkup, Dental cleaning" required>
     </div>
     <div class="field">
-      <label>Person</label>
+      <label for="medPerson">Person</label>
       <input type="text" id="medPerson" placeholder="Full name" required>
     </div>
     <div class="field-row">
       <div class="field">
-        <label>Date</label>
+        <label for="medDate">Date</label>
         <input type="date" id="medDate" required>
       </div>
       <div class="field">
-        <label>Amount ($)</label>
+        <label for="medAmount">Amount ($)</label>
         <input type="number" id="medAmount" min="0" step="0.01" placeholder="0.00" inputmode="decimal">
       </div>
     </div>
     <div class="field">
-      <label>Payment Type</label>
+      <label for="medPaymentType">Payment Type</label>
       <input type="text" id="medPaymentType" placeholder="e.g. MediSave, Cash, Insurance, CHAS">
     </div>
     <div class="field">
-      <label>Description</label>
+      <label for="medDescription">Description</label>
       <textarea id="medDescription" rows="3" placeholder="Notes, diagnosis, medication…"></textarea>
     </div>
     <div class="btn-row">
@@ -522,14 +522,14 @@
 </div>
 
 <!-- Tax Sheet -->
-<div class="sheet" id="taxSheet">
+<div class="sheet" id="taxSheet" role="dialog" aria-modal="true" aria-labelledby="taxSheetTitle">
   <div class="sheet-handle"></div>
   <div class="sheet-title" id="taxSheetTitle">Add Year</div>
   <form id="taxForm">
     <input type="hidden" id="taxId">
 
     <div class="field">
-      <label>Income Year</label>
+      <label for="taxYear">Income Year</label>
       <input type="number" id="taxYear" min="2000" max="2100" step="1" placeholder="e.g. 2025" required>
     </div>
 
@@ -541,19 +541,19 @@
     <!-- Estimate mode -->
     <div id="taxEstimateSection">
       <div class="field">
-        <label>Basic Salary (Annual)</label>
+        <label for="taxBasicSalary">Basic Salary (Annual)</label>
         <input type="number" id="taxBasicSalary" min="0" step="0.01" placeholder="0.00" oninput="updateTaxPreview()">
       </div>
       <div class="field">
-        <label>Bonus (Annual)</label>
+        <label for="taxBonus">Bonus (Annual)</label>
         <input type="number" id="taxBonus" min="0" step="0.01" placeholder="0.00" oninput="updateTaxPreview()">
       </div>
       <div class="field">
-        <label>Other Income</label>
+        <label for="taxOtherIncome">Other Income</label>
         <input type="number" id="taxOtherIncome" min="0" step="0.01" placeholder="0.00" oninput="updateTaxPreview()">
       </div>
       <div class="field">
-        <label>CPF Employee Contribution</label>
+        <label for="taxCpfEmployee">CPF Employee Contribution</label>
         <input type="number" id="taxCpfEmployee" min="0" step="0.01" placeholder="0.00" oninput="updateTaxPreview()">
         <div class="field-hint">Your employee CPF contribution is tax-deductible</div>
       </div>
@@ -563,7 +563,7 @@
         <button type="button" class="btn btn-secondary" style="font-size:.82rem;padding:8px 14px;margin-top:4px" onclick="addTaxReliefRow('','')">+ Add Relief</button>
       </div>
       <div class="field">
-        <label>Tax Rebate</label>
+        <label for="taxRebate">Tax Rebate</label>
         <input type="number" id="taxRebate" min="0" step="0.01" placeholder="0.00" oninput="updateTaxPreview()">
       </div>
       <div class="tax-preview" id="taxPreview" style="display:none">
@@ -581,19 +581,19 @@
     <!-- Historical mode -->
     <div id="taxHistoricalSection" style="display:none">
       <div class="field">
-        <label>Total Assessable Income</label>
+        <label for="taxTotalIncome">Total Assessable Income</label>
         <input type="number" id="taxTotalIncome" min="0" step="0.01" placeholder="0.00">
       </div>
       <div class="field">
-        <label>Total Relief Claimed</label>
+        <label for="taxTotalRelief">Total Relief Claimed</label>
         <input type="number" id="taxTotalRelief" min="0" step="0.01" placeholder="0.00">
       </div>
       <div class="field">
-        <label>Tax Rebate</label>
+        <label for="taxRebateHistorical">Tax Rebate</label>
         <input type="number" id="taxRebateHistorical" min="0" step="0.01" placeholder="0.00">
       </div>
       <div class="field">
-        <label>Actual Tax Paid</label>
+        <label for="taxPaid">Actual Tax Paid</label>
         <input type="number" id="taxPaid" min="0" step="0.01" placeholder="0.00">
       </div>
     </div>
@@ -606,57 +606,57 @@
 </div>
 
 <!-- Expense Budget Sheet -->
-<div class="sheet" id="expenseBudgetSheet">
+<div class="sheet" id="expenseBudgetSheet" role="dialog" aria-modal="true" aria-labelledby="expenseBudgetSheet-title">
   <div class="sheet-handle"></div>
-  <div class="sheet-title">Expense Budget</div>
+  <div class="sheet-title" id="expenseBudgetSheet-title">Expense Budget</div>
   <div id="expenseBudgetBody"></div>
   <button class="btn btn-primary btn-block" style="margin-top:8px" onclick="saveExpenseBudget()">Save</button>
 </div>
 
 <!-- Account Settings Sheet -->
-<div class="sheet" id="settingsSheet">
+<div class="sheet" id="settingsSheet" role="dialog" aria-modal="true" aria-labelledby="settingsSheet-title">
   <div class="sheet-handle"></div>
-  <div class="sheet-title">Account Settings</div>
+  <div class="sheet-title" id="settingsSheet-title">Account Settings</div>
   <div id="accountSettingsBody"></div>
   <button class="btn btn-primary btn-block" style="margin-top:8px" onclick="saveAccountSettings()">Save Accounts</button>
 </div>
 
 <!-- CPF Entry Sheet -->
-<div class="sheet" id="cpfEntrySheet">
+<div class="sheet" id="cpfEntrySheet" role="dialog" aria-modal="true" aria-labelledby="cpfEntrySheetTitle">
   <div class="sheet-handle"></div>
   <div class="sheet-title" id="cpfEntrySheetTitle">Add CPF Record</div>
   <form id="cpfEntryForm">
     <input type="hidden" id="cpfEntryId">
     <div class="field">
-      <label>Year (income year, e.g. 2024)</label>
+      <label for="cpfEntryYear">Year (income year, e.g. 2024)</label>
       <input type="number" id="cpfEntryYear" min="2000" max="2100" step="1" required>
     </div>
     <div class="section-heading" style="margin-top:4px">Balances at Year End</div>
     <div class="field">
-      <label>OA Balance ($)</label>
+      <label for="cpfOA">OA Balance ($)</label>
       <input type="number" id="cpfOA" min="0" step="0.01" placeholder="0.00" inputmode="decimal">
     </div>
     <div class="field">
-      <label>SA Balance ($)</label>
+      <label for="cpfSA">SA Balance ($)</label>
       <input type="number" id="cpfSA" min="0" step="0.01" placeholder="0.00" inputmode="decimal">
     </div>
     <div class="field">
-      <label>MA Balance ($)</label>
+      <label for="cpfMA">MA Balance ($)</label>
       <input type="number" id="cpfMA" min="0" step="0.01" placeholder="0.00" inputmode="decimal">
     </div>
     <div class="section-heading" style="margin-top:4px">Interest Earned This Year</div>
     <div class="field-row">
       <div class="field">
-        <label>OA Interest ($)</label>
+        <label for="cpfOAInt">OA Interest ($)</label>
         <input type="number" id="cpfOAInt" min="0" step="0.01" placeholder="0.00" inputmode="decimal">
       </div>
       <div class="field">
-        <label>SA Interest ($)</label>
+        <label for="cpfSAInt">SA Interest ($)</label>
         <input type="number" id="cpfSAInt" min="0" step="0.01" placeholder="0.00" inputmode="decimal">
       </div>
     </div>
     <div class="field">
-      <label>MA Interest ($)</label>
+      <label for="cpfMAInt">MA Interest ($)</label>
       <input type="number" id="cpfMAInt" min="0" step="0.01" placeholder="0.00" inputmode="decimal">
     </div>
     <div class="btn-row">
@@ -669,9 +669,9 @@
 
 <!-- Asset History Modal -->
 <!-- Ongoing List Sheet -->
-<div class="sheet" id="ongoingListSheet">
+<div class="sheet" id="ongoingListSheet" role="dialog" aria-modal="true" aria-labelledby="ongoingListSheet-title">
   <div class="sheet-handle"></div>
-  <div class="sheet-title" style="display:flex;justify-content:space-between;align-items:center">
+  <div class="sheet-title" id="ongoingListSheet-title" style="display:flex;justify-content:space-between;align-items:center">
     <span>Ongoing Expenses</span>
     <button class="btn btn-primary" style="font-size:.82rem;padding:7px 14px" onclick="openOngoingFormSheet()">+ Add</button>
   </div>
@@ -679,22 +679,22 @@
 </div>
 
 <!-- Ongoing Expense Form Sheet -->
-<div class="sheet" id="ongoingFormSheet">
+<div class="sheet" id="ongoingFormSheet" role="dialog" aria-modal="true" aria-labelledby="ongoingFormTitle">
   <div class="sheet-handle"></div>
   <div class="sheet-title" id="ongoingFormTitle">Add Ongoing Expense</div>
   <form id="ongoingForm">
     <input type="hidden" id="ongoingId">
     <div class="field">
-      <label>Name</label>
+      <label for="ongoingName">Name</label>
       <input type="text" id="ongoingName" placeholder="e.g. Netflix, Gym membership" required>
     </div>
     <div class="field-row">
       <div class="field">
-        <label>Amount</label>
+        <label for="ongoingAmount">Amount</label>
         <input type="number" id="ongoingAmount" min="0" step="0.01" placeholder="0.00" inputmode="decimal" required>
       </div>
       <div class="field">
-        <label>Frequency</label>
+        <label for="ongoingFrequency">Frequency</label>
         <select id="ongoingFrequency">
           <option value="monthly">Monthly</option>
           <option value="quarterly">Quarterly</option>
@@ -703,21 +703,21 @@
       </div>
     </div>
     <div class="field">
-      <label>Start Date</label>
+      <label for="ongoingStartDate">Start Date</label>
       <input type="date" id="ongoingStartDate" required>
     </div>
     <div class="field-row">
       <div class="field">
-        <label>Category</label>
+        <label for="ongoingCategory">Category</label>
         <select id="ongoingCategory"></select>
       </div>
       <div class="field">
-        <label>Account</label>
+        <label for="ongoingAccount">Account</label>
         <select id="ongoingAccount"></select>
       </div>
     </div>
     <div class="field">
-      <label>Note</label>
+      <label for="ongoingNote">Note</label>
       <input type="text" id="ongoingNote" placeholder="Optional note">
     </div>
     <div class="btn-row">
@@ -728,9 +728,9 @@
 </div>
 
 <!-- Mortgage List Sheet -->
-<div class="sheet" id="mortgageListSheet">
+<div class="sheet" id="mortgageListSheet" role="dialog" aria-modal="true" aria-labelledby="mortgageListSheet-title">
   <div class="sheet-handle"></div>
-  <div class="sheet-title" style="display:flex;justify-content:space-between;align-items:center">
+  <div class="sheet-title" id="mortgageListSheet-title" style="display:flex;justify-content:space-between;align-items:center">
     <span>Mortgage Debt</span>
     <button class="btn btn-primary" style="font-size:.82rem;padding:7px 14px" onclick="openMortgageFormSheet()">+ Add</button>
   </div>
@@ -738,32 +738,32 @@
 </div>
 
 <!-- Mortgage Form Sheet -->
-<div class="sheet" id="mortgageFormSheet">
+<div class="sheet" id="mortgageFormSheet" role="dialog" aria-modal="true" aria-labelledby="mortgageFormTitle">
   <div class="sheet-handle"></div>
   <div class="sheet-title" id="mortgageFormTitle">Add Mortgage</div>
   <form id="mortgageForm">
     <input type="hidden" id="mortgageId">
     <div class="field">
-      <label>Mortgage Name</label>
+      <label for="mortgageName">Mortgage Name</label>
       <input type="text" id="mortgageName" placeholder="e.g. DBS Home Loan" required>
     </div>
     <div class="field-row">
       <div class="field">
-        <label>Original Principal ($)</label>
+        <label for="mortgagePrincipal">Original Principal ($)</label>
         <input type="number" id="mortgagePrincipal" min="0" step="0.01" placeholder="0.00" inputmode="decimal" required>
       </div>
       <div class="field">
-        <label>Start Date</label>
+        <label for="mortgageStartDate">Start Date</label>
         <input type="date" id="mortgageStartDate" required>
       </div>
     </div>
     <div class="field-row">
       <div class="field">
-        <label>Interest Rate (% p.a.)</label>
+        <label for="mortgageRate">Interest Rate (% p.a.)</label>
         <input type="number" id="mortgageRate" min="0" step="0.001" placeholder="e.g. 3.75" inputmode="decimal" required>
       </div>
       <div class="field">
-        <label>Tenor (years)</label>
+        <label for="mortgageTenor">Tenor (years)</label>
         <input type="number" id="mortgageTenor" min="1" step="1" placeholder="e.g. 25" required>
       </div>
     </div>
@@ -776,26 +776,26 @@
 
 <!-- Mortgage Detail Overlay -->
 <div class="modal-overlay" id="mortgageOverlay">
-  <div class="modal">
-    <button class="modal-close" onclick="closeMortgageOverlay()">✕</button>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mortgageOverlayTitle">
+    <button class="modal-close" aria-label="Close" onclick="closeMortgageOverlay()">✕</button>
     <div class="modal-title" id="mortgageOverlayTitle">Mortgage</div>
     <div id="mortgageOverlayBody"></div>
   </div>
 </div>
 
 <!-- Mortgage Entry Sheet -->
-<div class="sheet" id="mortgageEntrySheet">
+<div class="sheet" id="mortgageEntrySheet" role="dialog" aria-modal="true" aria-labelledby="mortgageEntryTitle">
   <div class="sheet-handle"></div>
   <div class="sheet-title" id="mortgageEntryTitle">Add Entry</div>
   <form id="mortgageEntryForm">
     <input type="hidden" id="mortgageEntryMortgageId">
     <input type="hidden" id="mortgageEntryId">
     <div class="field">
-      <label>Date</label>
+      <label for="mortgageEntryDate">Date</label>
       <input type="date" id="mortgageEntryDate" required>
     </div>
     <div class="field">
-      <label>Type</label>
+      <label for="mortgageEntryType">Type</label>
       <select id="mortgageEntryType">
         <option value="balance">Balance Update</option>
         <option value="interest">Interest Charged</option>
@@ -803,11 +803,11 @@
       </select>
     </div>
     <div class="field">
-      <label>Amount ($)</label>
+      <label for="mortgageEntryAmount">Amount ($)</label>
       <input type="number" id="mortgageEntryAmount" min="0" step="0.01" placeholder="0.00" inputmode="decimal" required>
     </div>
     <div class="field">
-      <label>Note</label>
+      <label for="mortgageEntryNote">Note</label>
       <input type="text" id="mortgageEntryNote" placeholder="Optional note">
     </div>
     <div class="btn-row">
@@ -817,8 +817,8 @@
 </div>
 
 <div class="modal-overlay" id="historyOverlay">
-  <div class="modal">
-    <button class="modal-close" onclick="closeHistory()">✕</button>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="historyTitle">
+    <button class="modal-close" aria-label="Close" onclick="closeHistory()">✕</button>
     <div class="modal-title" id="historyTitle">History</div>
     <div id="historyBody"></div>
   </div>
@@ -826,12 +826,12 @@
 
 <!-- Drive Modal -->
 <div class="modal-overlay" id="driveOverlay">
-  <div class="modal">
-    <button class="modal-close" onclick="closeDriveModal()">✕</button>
-    <div class="modal-title">Google Drive Sync</div>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="driveOverlay-title">
+    <button class="modal-close" aria-label="Close" onclick="closeDriveModal()">✕</button>
+    <div class="modal-title" id="driveOverlay-title">Google Drive Sync</div>
 
     <div class="field" style="margin-bottom:14px">
-      <label>Google Account Email</label>
+      <label for="driveLoginHint">Google Account Email</label>
       <input type="email" id="driveLoginHint" placeholder="you@gmail.com" style="font-size:.9rem" oninput="localStorage.setItem('finance:googleLoginHint',this.value.trim())">
       <div style="font-size:.75rem;color:var(--muted);margin-top:4px">Skips account picker on every Google sign-in.</div>
     </div>
@@ -854,7 +854,7 @@
         <div style="flex:1;height:1px;background:var(--border)"></div>
       </div>
       <div class="field">
-        <label>Google Client ID</label>
+        <label for="driveClientId">Google Client ID</label>
         <input type="text" id="driveClientId" placeholder="xxxxxxxx.apps.googleusercontent.com">
       </div>
       <button class="btn btn-primary btn-block" onclick="driveFirstSave()">Create & Save to Drive</button>
@@ -885,48 +885,48 @@
 </div>
 
 <!-- Parser Editor Sheet -->
-<div class="sheet" id="parserEditorSheet">
+<div class="sheet" id="parserEditorSheet" role="dialog" aria-modal="true" aria-labelledby="parserEditorTitle">
   <div class="sheet-handle"></div>
   <div class="sheet-title" id="parserEditorTitle">Edit Parser</div>
   <div class="field">
-    <label>Parser Name</label>
+    <label for="parserName">Parser Name</label>
     <input type="text" id="parserName" placeholder="e.g. DBS Alert">
   </div>
   <div class="field">
-    <label>Subject Contains</label>
+    <label for="parserSubject">Subject Contains</label>
     <input type="text" id="parserSubject" placeholder="e.g. DBS Bank Transaction Alert">
     <div class="field-hint">Case-insensitive substring to match against email subject.</div>
   </div>
   <div class="section-heading" style="margin-top:8px">Amount</div>
   <div class="field-row">
     <div class="field" style="flex:3">
-      <label>Regex</label>
+      <label for="parserAmountRegex">Regex</label>
       <input type="text" id="parserAmountRegex" placeholder="SGD\s+([\d,]+\.\d{2})" style="font-family:monospace;font-size:.82rem">
     </div>
     <div class="field" style="flex:1">
-      <label>Group</label>
+      <label for="parserAmountGroup">Group</label>
       <input type="number" id="parserAmountGroup" value="1" min="1">
     </div>
   </div>
   <div class="section-heading" style="margin-top:8px">Date</div>
   <div class="field-row">
     <div class="field" style="flex:3">
-      <label>Regex</label>
+      <label for="parserDateRegex">Regex</label>
       <input type="text" id="parserDateRegex" placeholder="(\d{2}/\d{2}/\d{2})" style="font-family:monospace;font-size:.82rem">
     </div>
     <div class="field" style="flex:1">
-      <label>Format</label>
+      <label for="parserDateFormat">Format</label>
       <input type="text" id="parserDateFormat" placeholder="DD/MM/YY">
     </div>
   </div>
   <div class="section-heading" style="margin-top:8px">Description</div>
   <div class="field-row">
     <div class="field" style="flex:3">
-      <label>Regex</label>
+      <label for="parserDescRegex">Regex</label>
       <input type="text" id="parserDescRegex" placeholder="at (.+?) on" style="font-family:monospace;font-size:.82rem">
     </div>
     <div class="field" style="flex:1">
-      <label>Group</label>
+      <label for="parserDescGroup">Group</label>
       <input type="number" id="parserDescGroup" value="1" min="1">
     </div>
   </div>
@@ -934,66 +934,66 @@
 </div>
 
 <!-- Event Parser Editor Sheet -->
-<div class="sheet" id="evParserEditorSheet">
+<div class="sheet" id="evParserEditorSheet" role="dialog" aria-modal="true" aria-labelledby="evParserEditorTitle">
   <div class="sheet-handle"></div>
   <div class="sheet-title" id="evParserEditorTitle">Edit Event Parser</div>
   <div class="field">
-    <label>Parser Name</label>
+    <label for="evParserName">Parser Name</label>
     <input type="text" id="evParserName" placeholder="e.g. RedMart Delivery">
   </div>
   <div class="field">
-    <label>Subject Contains</label>
+    <label for="evParserSubject">Subject Contains</label>
     <input type="text" id="evParserSubject" placeholder="e.g. Your delivery confirmation">
     <div class="field-hint">Case-insensitive substring matched against the email subject.</div>
   </div>
   <div class="section-heading" style="margin-top:8px">Title</div>
   <div class="field-row">
     <div class="field" style="flex:3">
-      <label>Regex</label>
+      <label for="evParserTitleRegex">Regex</label>
       <input type="text" id="evParserTitleRegex" placeholder="Sold by: ([^\r\n]+)" style="font-family:monospace;font-size:.82rem">
     </div>
     <div class="field" style="flex:1">
-      <label>Group</label>
+      <label for="evParserTitleGroup">Group</label>
       <input type="number" id="evParserTitleGroup" value="1" min="1">
     </div>
   </div>
   <div class="section-heading" style="margin-top:8px">Datetime <span style="font-weight:400;font-size:.8rem;color:var(--muted)">— one regex, multiple groups</span></div>
   <div class="field">
-    <label>Regex</label>
+    <label for="evParserDtRegex">Regex</label>
     <input type="text" id="evParserDtRegex" placeholder="Delivery Dates: (\d{1,2} \w+ \d{4}) at (\d{2}:\d{2}) - (\d{2}:\d{2})" style="font-family:monospace;font-size:.82rem">
     <div class="field-hint">One regex that captures date, start time, and end time in separate groups.</div>
   </div>
   <div class="field-row" style="margin-top:4px">
     <div class="field" style="flex:2">
-      <label>Date format</label>
+      <label for="evParserDtDateFormat">Date format</label>
       <input type="text" id="evParserDtDateFormat" placeholder="D Mon YYYY">
     </div>
     <div class="field" style="flex:1">
-      <label>Date gr</label>
+      <label for="evParserDtDateGroup">Date gr</label>
       <input type="number" id="evParserDtDateGroup" value="1" min="1">
     </div>
     <div class="field" style="flex:1">
-      <label>Start gr</label>
+      <label for="evParserDtStartGroup">Start gr</label>
       <input type="number" id="evParserDtStartGroup" value="2" min="1">
     </div>
     <div class="field" style="flex:1">
-      <label>End gr</label>
+      <label for="evParserDtEndGroup">End gr</label>
       <input type="number" id="evParserDtEndGroup" value="3" min="1">
     </div>
   </div>
   <div class="section-heading" style="margin-top:8px">Description Items <span style="font-weight:400;font-size:.8rem;color:var(--muted)">(optional — repeated match)</span></div>
   <div class="field">
-    <label>Regex</label>
+    <label for="evParserDiRegex">Regex</label>
     <input type="text" id="evParserDiRegex" placeholder="([^\[\r\n][^\r\n<]*?)<[^\r\n]*>\r?\nSGD\s*[\d.]+\r?\nQuantity:\s*(\d+)" style="font-family:monospace;font-size:.78rem">
     <div class="field-hint">Run with global flag — each match becomes one line in the event description. Leave blank to skip.</div>
   </div>
   <div class="field-row" style="margin-top:4px">
     <div class="field" style="flex:1">
-      <label>Name group</label>
+      <label for="evParserDiNameGroup">Name group</label>
       <input type="number" id="evParserDiNameGroup" value="1" min="1">
     </div>
     <div class="field" style="flex:1">
-      <label>Qty group</label>
+      <label for="evParserDiQtyGroup">Qty group</label>
       <input type="number" id="evParserDiQtyGroup" value="2" min="0">
       <div class="field-hint">0 = no qty</div>
     </div>
@@ -1002,9 +1002,9 @@
 </div>
 
 <!-- Allocation Ratio Sheet -->
-<div class="sheet" id="allocationRatioSheet">
+<div class="sheet" id="allocationRatioSheet" role="dialog" aria-modal="true" aria-labelledby="allocationRatioSheet-title">
   <div class="sheet-handle"></div>
-  <div class="sheet-title">Target Allocation</div>
+  <div class="sheet-title" id="allocationRatioSheet-title">Target Allocation</div>
   <p style="font-size:.85rem;color:var(--muted);margin-bottom:4px">Set target allocation percentages. Must sum to 100%.</p>
   <div id="allocationRatioFields"></div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0 16px;padding:8px 0;border-top:1px solid var(--border)">

@@ -139,12 +139,14 @@ function openExpenseSheet(id, preAcct) {
 document.getElementById('expenseForm').addEventListener('submit', e => {
   e.preventDefault();
   const id = document.getElementById('expenseId').value;
+  const amount = parseFloat(document.getElementById('expAmount').value);
+  if (!Number.isFinite(amount)) { showToast('Enter a valid amount'); return; }
   const entry = {
     id: id || uid(),
     ac: document.getElementById('expAcct').value,
     date: document.getElementById('expDate').value,
     desc: document.getElementById('expDesc').value.trim(),
-    amount: parseFloat(document.getElementById('expAmount').value),
+    amount,
     cat: document.getElementById('expCat').value,
     _ts: Date.now()
   };

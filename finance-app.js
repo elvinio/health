@@ -251,7 +251,7 @@ function renderAssetMortgageChart() {
   if (!assets.length && !mortgages.length) return '';
 
   const monthSet = new Set();
-  assets.forEach(a => a.history.forEach(h => monthSet.add(h.date.slice(0, 7))));
+  assets.forEach(a => (a.history || []).forEach(h => monthSet.add(h.date.slice(0, 7))));
   mortgages.forEach(m => {
     if (m.startDate) monthSet.add(m.startDate.slice(0, 7));
     (m.entries || []).filter(e => e.type === 'balance').forEach(e => monthSet.add(e.date.slice(0, 7)));
@@ -264,7 +264,7 @@ function renderAssetMortgageChart() {
     const cutoff = month + '-31';
     return assets.reduce((sum, a) => {
       const units = a.units != null ? a.units : 1;
-      const relevant = a.history.filter(h => h.date <= cutoff).sort((x, y) => y.date.localeCompare(x.date));
+      const relevant = (a.history || []).filter(h => h.date <= cutoff).sort((x, y) => y.date.localeCompare(x.date));
       return sum + (relevant.length ? relevant[0].value * units : 0);
     }, 0);
   });

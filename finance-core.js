@@ -243,8 +243,18 @@ function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
+// Local YYYY-MM-DD for a Date (avoids the UTC shift that toISOString() introduces,
+// which can mis-bucket entries by a day near midnight in timezones like SGT/UTC+8).
+function localDateStr(d) {
+  const dt = d || new Date();
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const day = String(dt.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function today() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateStr();
 }
 
 function fmt(n) {
@@ -271,10 +281,13 @@ function showToast(msg, dur = 2500) {
 // ── Singapore Income Tax ──────────────────────────────────────────────────────
 function calcSGTax(chargeableIncome) {
   if (chargeableIncome <= 0) return 0;
+  // IRAS resident rates, YA 2024 onwards. Bands: [width, marginalRate].
+  // First $320k taper, then $320k–$500k @ 22%, $500k–$1M @ 23%, >$1M @ 24%.
   const brackets = [
     [20000, 0], [10000, 0.02], [10000, 0.035], [40000, 0.07],
     [40000, 0.115], [40000, 0.15], [40000, 0.18], [40000, 0.19],
-    [40000, 0.195], [40000, 0.20], [Infinity, 0.22]
+    [40000, 0.195], [40000, 0.20], [180000, 0.22], [500000, 0.23],
+    [Infinity, 0.24]
   ];
   let remaining = chargeableIncome, tax = 0;
   for (const [band, rate] of brackets) {
