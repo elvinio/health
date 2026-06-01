@@ -3,6 +3,7 @@ const INSURANCE_CATEGORIES = ['Life', 'Hospitalisation', 'Critical Illness', 'Di
 
 let currentInsSubTab = 'policy';
 let insuranceFilterSearch = '';
+let medicalFilterSearch = '';
 
 function switchInsSubTab(tab) {
   currentInsSubTab = tab;
@@ -136,20 +137,47 @@ function deleteInsurance() {
 }
 
 // ── Medical Visits ────────────────────────────────────────────────────────────
+function onMedicalSearchInput() {
+  medicalFilterSearch = document.getElementById('medicalSearch').value.toLowerCase();
+  renderMedical();
+}
+
+function medAgo(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  const now = new Date();
+  const months = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+  if (months < 1) return 'this month';
+  if (months < 12) return `${months}mo ago`;
+  const years = Math.floor(months / 12);
+  const rem = months % 12;
+  return rem ? `${years}yr ${rem}mo ago` : `${years}yr ago`;
+}
+
 function renderMedical() {
   const el = document.getElementById('medicalList');
   if (!el) return;
-  const list = [...(data.medicalVisits || [])].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  let list = [...(data.medicalVisits || [])].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  if (medicalFilterSearch) {
+    list = list.filter(v =>
+      (v.title || '').toLowerCase().includes(medicalFilterSearch) ||
+      (v.description || '').toLowerCase().includes(medicalFilterSearch)
+    );
+  }
   if (!list.length) {
-    el.innerHTML = '<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">history</span></div>No medical visits yet.<br>Tap + to add one.</div>';
+    const isEmpty = !(data.medicalVisits || []).length;
+    el.innerHTML = isEmpty
+      ? '<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">history</span></div>No medical visits yet.<br>Tap + to add one.</div>'
+      : '<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">search</span></div>No visits match your search.</div>';
     return;
   }
   el.innerHTML = list.map(v => {
     const amt = v.amount != null && v.amount !== '' ? fmtCurrency(parseFloat(v.amount) || 0) : '—';
+    const ago = medAgo(v.date);
     return `<div class="medical-card" onclick="openMedicalSheet('${esc(v.id)}')">
       <div class="med-header">
         <div class="med-title">${esc(v.title)}</div>
-        <div class="med-date">${esc(v.date || '—')}</div>
+        <div class="med-date">${esc(v.date || '—')}${ago ? `<br><span class="med-ago">(${ago})</span>` : ''}</div>
       </div>
       <div class="med-meta">
         <span><span class="label">Person:</span>${esc(v.person || '—')}</span>
