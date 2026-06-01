@@ -439,6 +439,10 @@
   }
   .ai-report hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
   .ai-report > *:first-child { margin-top: 0; }
+  .ai-report table { width: 100%; border-collapse: collapse; font-size: .83rem; margin: 8px 0; overflow-x: auto; display: block; }
+  .ai-report th { text-align: left; padding: 5px 8px; color: var(--muted); font-weight: 700; border-bottom: 1.5px solid var(--border); font-size: .75rem; text-transform: uppercase; white-space: nowrap; }
+  .ai-report td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  .ai-report tr:last-child td { border-bottom: none; }
 
   /* ── Asset allocation ── */
   .alloc-bar {
