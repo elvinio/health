@@ -419,33 +419,52 @@ function renderMarkdownLite(md) {
     .replace(/\*([^*]+)\*/g, '<em>$1</em>')
     .replace(/`([^`]+)`/g, '<code>$1</code>');
   const lines = String(md).replace(/\r/g, '').split('\n');
-  let html = '', list = null, para = [];
+  let html = '', list = null, para = [], tableRows = [];
   const flushPara = () => { if (para.length) { html += `<p>${inline(para.join(' '))}</p>`; para = []; } };
   const flushList = () => { if (list) { html += `</${list}>`; list = null; } };
+  const isTableRow = l => /^\|.+\|$/.test(l);
+  const isSepRow = l => l.replace(/^\||\|$/g, '').split('|').every(c => /^[\s:|-]+$/.test(c) && /[-]/.test(c));
+  const parseCells = l => l.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+  const flushTable = () => {
+    if (!tableRows.length) return;
+    const sepIdx = tableRows.findIndex(r => isSepRow(r));
+    const headRows = sepIdx > 0 ? tableRows.slice(0, sepIdx) : [];
+    const bodyRows = sepIdx >= 0 ? tableRows.slice(sepIdx + 1) : tableRows;
+    let t = '<table><thead>';
+    headRows.forEach(r => { t += '<tr>' + parseCells(r).map(c => `<th>${inline(c)}</th>`).join('') + '</tr>'; });
+    t += '</thead><tbody>';
+    bodyRows.forEach(r => { t += '<tr>' + parseCells(r).map(c => `<td>${inline(c)}</td>`).join('') + '</tr>'; });
+    t += '</tbody></table>';
+    html += t;
+    tableRows = [];
+  };
   lines.forEach(raw => {
     const line = raw.trim();
-    if (!line) { flushPara(); flushList(); return; }
+    if (!line) { flushPara(); flushList(); flushTable(); return; }
     let m;
-    if ((m = line.match(/^(#{1,6})\s+(.*)$/))) {
+    if (isTableRow(line)) {
       flushPara(); flushList();
+      tableRows.push(line);
+    } else if ((m = line.match(/^(#{1,6})\s+(.*)$/))) {
+      flushPara(); flushList(); flushTable();
       const lvl = Math.min(6, m[1].length);
       html += `<h${lvl}>${inline(m[2])}</h${lvl}>`;
     } else if (/^(-{3,}|\*{3,}|_{3,})$/.test(line)) {
-      flushPara(); flushList(); html += '<hr>';
+      flushPara(); flushList(); flushTable(); html += '<hr>';
     } else if ((m = line.match(/^[-*]\s+(.*)$/))) {
-      flushPara();
+      flushPara(); flushTable();
       if (list !== 'ul') { flushList(); html += '<ul>'; list = 'ul'; }
       html += `<li>${inline(m[1])}</li>`;
     } else if ((m = line.match(/^\d+\.\s+(.*)$/))) {
-      flushPara();
+      flushPara(); flushTable();
       if (list !== 'ol') { flushList(); html += '<ol>'; list = 'ol'; }
       html += `<li>${inline(m[1])}</li>`;
     } else {
-      flushList();
+      flushList(); flushTable();
       para.push(line);
     }
   });
-  flushPara(); flushList();
+  flushPara(); flushList(); flushTable();
   return html;
 }
 
