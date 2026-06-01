@@ -181,32 +181,30 @@ function buildAiSummary() {
     tenorYears: m.tenorYears || null
   }));
 
-  // CPF projection highlights.
-  let cpf = null;
-  try {
-    const p = calcCpfProjection();
-    if (p) cpf = {
-      retireAge: p.retireAge,
-      ra65: p.ra65,
-      monthlyLifePayout: p.lifePayout,
-      frsRefMonthlyPayout: p.frsRefPayout,
-      ersRefMonthlyPayout: p.ersRefPayout,
-      projFRS: p.projFRS,
-      projERS: p.projERS,
-      yearsToPayout: p.yearsToRetire
-    };
-  } catch (e) { /* no DOB set */ }
-
-  // Latest income-tax estimate — including gross annual income.
+  // Latest income-tax estimate — including gross annual income and relief items.
   let tax = null;
   const taxRecs = (data.taxRecords || []).slice().sort((a, b) => b.year - a.year);
+  const currentEstimateRec = taxRecs.find(r => !r.isHistorical);
   if (taxRecs.length && typeof calcEffectiveTax === 'function') {
     const r = taxRecs[0];
     try {
       const annualIncome = r.isHistorical
         ? (r.totalIncome || 0)
         : (r.basicSalary || 0) + (r.bonus || 0) + (r.otherIncome || 0);
-      tax = { year: r.year, annualIncome: Math.round(annualIncome), estimatedTaxPayable: Math.round(calcEffectiveTax(r)) };
+      const reliefItems = [];
+      if (!r.isHistorical) {
+        if (r.cpfEmployee) reliefItems.push({ name: 'CPF Employee Contribution', amount: Math.round(r.cpfEmployee) });
+        (r.reliefs || []).forEach(rel => { if (rel.name || rel.amount) reliefItems.push({ name: rel.name || '', amount: Math.round(rel.amount || 0) }); });
+      }
+      const totalRelief = reliefItems.reduce((s, x) => s + x.amount, 0);
+      tax = {
+        year: r.year,
+        annualIncome: Math.round(annualIncome),
+        totalRelief: totalRelief || undefined,
+        reliefItems: reliefItems.length ? reliefItems : undefined,
+        taxRebate: r.taxRebate || undefined,
+        estimatedTaxPayable: Math.round(calcEffectiveTax(r))
+      };
     } catch (e) { /* ignore */ }
   }
 
@@ -256,7 +254,6 @@ function buildAiSummary() {
     generatedAt: new Date().toISOString(),
     period: period.key,
     cashflow: computeCashflow(),
-    annualRecurringExpenses: Math.round(annualRecurring()),
     insurance: {
       totalAnnualPremium: Math.round(insAnnual),
       byCategory: insByCategory,
@@ -271,7 +268,6 @@ function buildAiSummary() {
     household,
     assets: { total: Math.round(assetSum), investable: Math.round(investableSum), byClass, allocationTargets: data.allocationRatios || {}, holdings: assets },
     mortgages,
-    cpf,
     tax,
     retirement
   };
