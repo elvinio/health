@@ -245,7 +245,7 @@ function buildAiSummary() {
     insAnnual += annual;
     const cat = i.category || 'Other';
     insByCategory[cat] = (insByCategory[cat] || 0) + annual;
-    return { name: i.name, category: cat, personInsured: i.personInsured || '', annualPremium: annual };
+    return { name: i.name, category: cat, personInsured: i.personInsured || '', annualPremium: annual, details: i.details || '' };
   });
 
   return {
