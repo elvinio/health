@@ -611,7 +611,7 @@
   }
   .bus-stop-icon {
     width: 26px; height: 26px;
-    background: var(--primary, #1b3a6b); border: 2px solid #fff;
+    background: #f57c00; border: 2px solid #fff;
     border-radius: 6px; display: flex; align-items: center; justify-content: center;
     box-shadow: 0 2px 5px rgba(0,0,0,.35); cursor: pointer; color: #fff;
   }
