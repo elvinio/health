@@ -198,14 +198,17 @@ function setEventView(mode) {
   document.getElementById('evViewCal').classList.toggle('active', mode === 'calendar');
   document.getElementById('evViewBus').classList.toggle('active', mode === 'bus');
   document.getElementById('evViewBusMap').classList.toggle('active', mode === 'busmap');
+  document.getElementById('evViewNotes').classList.toggle('active', mode === 'notes');
   document.getElementById('eventList').style.display = mode === 'list' ? '' : 'none';
   document.getElementById('eventCalendar').style.display = mode === 'calendar' ? '' : 'none';
   document.getElementById('busPanel').style.display = mode === 'bus' ? '' : 'none';
   document.getElementById('busMapPanel').style.display = mode === 'busmap' ? '' : 'none';
+  document.getElementById('notesPanel').style.display = mode === 'notes' ? '' : 'none';
   if (busPollingInterval) { clearInterval(busPollingInterval); busPollingInterval = null; }
   if (busMapPollingInterval) { clearInterval(busMapPollingInterval); busMapPollingInterval = null; }
   if (mode !== 'busmap') stopLocationTracking();
   renderEventTagFilterPills();
+  if (mode === 'notes') renderNotesList();
   if (mode === 'calendar') renderEventCalendar();
   if (mode === 'bus') {
     renderBusPanel();
@@ -846,5 +849,86 @@ function scheduleEventReminders() {
     }, delay);
     _reminderTimeouts.push(t);
   });
+}
+
+// ── Notes ─────────────────────────────────────────────────────────────────────
+function renderNotesList() {
+  const el = document.getElementById('notesPanel');
+  if (!el) return;
+  const notes = (data.notes || []).slice().sort((a, b) => (b._updatedAt || 0) - (a._updatedAt || 0));
+  if (!notes.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">description</span></div>No notes yet.<br>Tap + to add one.</div>`;
+    return;
+  }
+  el.innerHTML = notes.map(n => {
+    const ts = n._updatedAt ? new Date(n._updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+    const preview = (n.content || '').split('\n').find(l => l.trim()) || '';
+    return `<div class="note-item" onclick="openNoteSheet('${n.id}')">
+      <div class="note-item-header">
+        <div class="note-item-title">${esc(n.title)}</div>
+        <div class="note-item-date">${ts}</div>
+      </div>
+      ${preview ? `<div class="note-item-preview">${esc(preview)}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function openNoteSheet(id) {
+  document.getElementById('noteForm').reset();
+  document.getElementById('noteId').value = '';
+  document.getElementById('noteDeleteBtn').style.display = 'none';
+  document.getElementById('noteUpdatedAt').textContent = '';
+
+  if (id) {
+    const note = (data.notes || []).find(n => n.id === id);
+    if (!note) return;
+    document.getElementById('noteSheetTitle').textContent = 'Edit Note';
+    document.getElementById('noteId').value = id;
+    document.getElementById('noteTitle').value = note.title;
+    document.getElementById('noteContent').value = note.content || '';
+    if (note._updatedAt) {
+      document.getElementById('noteUpdatedAt').textContent =
+        'Updated ' + new Date(note._updatedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+    document.getElementById('noteDeleteBtn').style.display = '';
+  } else {
+    document.getElementById('noteSheetTitle').textContent = 'Add Note';
+  }
+  openSheet('noteSheet');
+  setTimeout(() => document.getElementById('noteTitle').focus(), 350);
+}
+
+document.getElementById('noteForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const id = document.getElementById('noteId').value;
+  const note = {
+    id: id || uid(),
+    title: document.getElementById('noteTitle').value.trim(),
+    content: document.getElementById('noteContent').value,
+    _updatedAt: Date.now()
+  };
+  if (!data.notes) data.notes = [];
+  if (id) {
+    const idx = data.notes.findIndex(n => n.id === id);
+    if (idx >= 0) data.notes[idx] = note; else data.notes.push(note);
+  } else {
+    data.notes.push(note);
+  }
+  saveData(data);
+  closeSheet();
+  renderNotesList();
+  showToast(id ? 'Note updated' : 'Note saved');
+});
+
+function deleteNote() {
+  const id = document.getElementById('noteId').value;
+  if (!id || !confirm('Delete this note?')) return;
+  if (!data._deletedIds) data._deletedIds = [];
+  data._deletedIds.push(id);
+  data.notes = (data.notes || []).filter(n => n.id !== id);
+  saveData(data);
+  closeSheet();
+  renderNotesList();
+  showToast('Note deleted');
 }
 

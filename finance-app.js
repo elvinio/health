@@ -586,7 +586,8 @@ function renderAll() {
     ((currentTab === 'analysis' && currentAnalysisSubTab !== 'power') || (currentTab === 'tax' && currentTaxSubTab === 'retirement')) ? 'none' : '';
 
   if (currentTab === 'events') {
-    renderEventList();
+    if (eventViewMode === 'notes') renderNotesList();
+    else renderEventList();
   } else if (currentTab === 'expenses') {
     renderAccountFilterPills();
     renderYearFilterPills();
