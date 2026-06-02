@@ -470,6 +470,14 @@ function mergeData(local, remote) {
     if (!ex || (v._ts || 0) > (ex._ts || 0)) medicalMap.set(v.id, v);
   });
 
+  // Notes: union by id, prefer higher _updatedAt, exclude deleted
+  const notesMap = new Map();
+  [...(remote.notes || []), ...(local.notes || [])].forEach(n => {
+    if (deletedIds.has(n.id)) return;
+    const ex = notesMap.get(n.id);
+    if (!ex || (n._updatedAt || 0) >= (ex._updatedAt || 0)) notesMap.set(n.id, n);
+  });
+
   // Custom AI prompt: last-writer-wins via _customAiPromptTs
   const customAiPrompt = (local._customAiPromptTs || 0) >= (remote._customAiPromptTs || 0)
     ? (local.customAiPrompt ?? remote.customAiPrompt ?? null)
@@ -517,6 +525,7 @@ function mergeData(local, remote) {
     allocationRatios,
     _allocationRatiosTs: allocationRatiosTs,
     medicalVisits: [...medicalMap.values()],
+    notes: [...notesMap.values()],
     customAiPrompt,
     _customAiPromptTs: customAiPromptTs,
     retirementSettings,

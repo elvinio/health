@@ -121,6 +121,7 @@ function defaultData() {
     dependents: [],        // [{ id, name, relationship, birthYear, sex, _ts }]
     allocationRatios: {},  // { Equities: 40, Bonds: 20, ... } target allocation %
     medicalVisits: [],     // [{ id, title, person, description, date, amount, paymentType, _ts }]
+    notes: [],             // [{ id, title, content, _updatedAt }]
   };
 }
 
@@ -162,6 +163,7 @@ function loadData() {
     if (!d.dependents) d.dependents = [];
     if (!d.allocationRatios) d.allocationRatios = {};
     if (!d.medicalVisits) d.medicalVisits = [];
+    if (!d.notes) d.notes = [];
     if (d.expenseCats) d.expenseCats = d.expenseCats.replace(/\bMisc\b/g, 'Income Tax');
     d.expenses.forEach(e => { if (e.cat === 'Misc') e.cat = 'Income Tax'; });
     if (d.budgets && d.budgets['Misc'] !== undefined) {
@@ -389,7 +391,10 @@ document.getElementById('backdrop').addEventListener('click', closeSheet);
 
 // ── FAB ──────────────────────────────────────────────────────────────────────
 document.getElementById('fabBtn').addEventListener('click', () => {
-  if (currentTab === 'events') openEventSheet(null);
+  if (currentTab === 'events') {
+    if (eventViewMode === 'notes') openNoteSheet(null);
+    else openEventSheet(null);
+  }
   else if (currentTab === 'expenses') openExpenseSheet(null);
   else if (currentTab === 'insurance') {
     if (currentInsSubTab === 'medical') openMedicalSheet(null);
