@@ -367,7 +367,7 @@ function renderSaProjectionTable(proj) {
   const s = data.cpfSettings || {};
   const ersGrowthRate = parseFloat(s.ersGrowthRate) || 3.5;
   const ERS_2026 = 440800;
-  const annualSalary = CPF_OW_CAP * 12;
+  const annualSalary = 102000; // annual cap (OW $8,000 + AW portion) × 0.37 × SA ratio
   const dobYear = proj.dobYear;
   const startYear = dobYear + 55 - proj.yearsTurn55;
 
@@ -415,7 +415,7 @@ function renderSaProjectionTable(proj) {
         </tr>
       </tfoot>
     </table>
-    <div style="font-size:.7rem;color:var(--muted);margin-top:6px">Max OW cap $${CPF_OW_CAP.toLocaleString()}/mo · SA interest 4% · ERS grows at ${ersGrowthRate}%/yr from $440,800 (2026 base)<br>SA allocation within 37% total: age 35–45 → 18.91% · age 46–50 → 21.62% · age 51–55 → 31.08%</div>
+    <div style="font-size:.7rem;color:var(--muted);margin-top:6px">Annual cap $102,000 · contribution = $102,000 × 37% × SA ratio · SA interest 4% · ERS grows at ${ersGrowthRate}%/yr from $440,800 (2026 base)<br>SA ratio within 37%: age 35–45 → 18.91% · age 46–50 → 21.62% · age 51–55 → 31.08%</div>
   </div>`;
 }
 
