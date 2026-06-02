@@ -289,7 +289,7 @@ function _calcCpfProjection() {
     ersRaFromSA = ersRes.raFromSA; ersRaFromOA = ersRes.raFromOA;
   }
 
-  return { points, lifePayout, frsRefPayout, ersRefPayout, projFRS, projERS, yearsToRetire, retireYear, retireAge, dobYear, ra65, frsOAretire, ersOAretire, frsRaFromSA, frsRaFromOA, ersRaFromSA, ersRaFromOA, oa55pre, sa55pre, frsAt55, ersAt55, yearsTurn55 };
+  return { points, lifePayout, frsRefPayout, ersRefPayout, projFRS, projERS, yearsToRetire, retireYear, retireAge, dobYear, ra65, frsOAretire, ersOAretire, frsRaFromSA, frsRaFromOA, ersRaFromSA, ersRaFromOA, oa55pre, sa55pre, frsAt55, ersAt55, yearsTurn55, saStart: lastRecord ? (lastRecord.saBalance || 0) : 0 };
 }
 
 function renderCpfChart(proj) {
@@ -360,6 +360,62 @@ function renderCpfChart(proj) {
     </div>
     ${legend}
     <div style="font-size:.72rem;color:var(--muted);margin-top:4px;padding:0 4px">Rates: OA 2.5% · SA/RA/MA 4% · No contribution after retirement age. BHS cap $${CPF_BHS.toLocaleString()} · FRS 2026: $${CPF_FRS.toLocaleString()} · ERS 2026: $${CPF_ERS.toLocaleString()} (projected to your age 55 using ERS growth rate).</div>
+  </div>`;
+}
+
+function renderSaProjectionTable(proj) {
+  const s = data.cpfSettings || {};
+  const ersGrowthRate = parseFloat(s.ersGrowthRate) || 3.5;
+  const ERS_2026 = 440800;
+  const annualSalary = CPF_OW_CAP * 12;
+  const dobYear = proj.dobYear;
+  const startYear = dobYear + 55 - proj.yearsTurn55;
+
+  let sa = proj.saStart;
+  const rows = [];
+  for (let year = startYear; year <= dobYear + 55; year++) {
+    const age = year - dobYear;
+    if (age > 55) break;
+    const alloc = cpfAlloc(age);
+    const saContrib = Math.round(annualSalary * alloc.sa);
+    sa = (sa + saContrib) * (1 + CPF_INT_SA);
+    const ersThisYear = Math.round(ERS_2026 * Math.pow(1 + ersGrowthRate / 100, year - 2026));
+    rows.push({ age, saContrib, sa: Math.round(sa), ers: ersThisYear });
+  }
+
+  if (!rows.length) return '';
+  const last = rows[rows.length - 1];
+  const leftover = last.sa - last.ers;
+  const leftoverColor = leftover >= 0 ? 'var(--green,#27ae60)' : 'var(--red,#e74c3c)';
+
+  return `<div style="background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;margin-bottom:12px;overflow-x:auto">
+    <div style="font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">SA Balance to Age 55 (max contribution)</div>
+    <table style="width:100%;border-collapse:collapse;font-size:.8rem">
+      <thead>
+        <tr style="border-bottom:1px solid var(--border)">
+          <th style="text-align:left;padding:4px 6px;color:var(--muted);font-weight:600">Age</th>
+          <th style="text-align:right;padding:4px 6px;color:var(--muted);font-weight:600">Contribution</th>
+          <th style="text-align:right;padding:4px 6px;color:var(--muted);font-weight:600">SA Balance</th>
+          <th style="text-align:right;padding:4px 6px;color:var(--muted);font-weight:600">ERS</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(r => `<tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 6px">${r.age}</td>
+          <td style="text-align:right;padding:4px 6px">${fmtDollar(r.saContrib)}</td>
+          <td style="text-align:right;padding:4px 6px;font-weight:600">${fmtDollar(r.sa)}</td>
+          <td style="text-align:right;padding:4px 6px;color:var(--muted)">${fmtDollar(r.ers)}</td>
+        </tr>`).join('')}
+      </tbody>
+      <tfoot>
+        <tr style="border-top:2px solid var(--border);font-weight:700">
+          <td colspan="2" style="padding:6px 6px;font-size:.78rem">SA at 55 − ERS at 55</td>
+          <td style="text-align:right;padding:6px 6px;color:${leftoverColor}">${fmtDollar(leftover)}</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+    <div style="font-size:.7rem;color:var(--muted);margin-top:6px">Max OW cap $${CPF_OW_CAP.toLocaleString()}/mo · SA interest 4% · ERS grows at ${ersGrowthRate}%/yr from $440,800 (2026 base)<br>SA allocation within 37% total: age 35–45 → 18.91% · age 46–50 → 21.62% · age 51–55 → 31.08%</div>
   </div>`;
 }
 
@@ -502,7 +558,7 @@ function renderCpf() {
           </div>` : ''}
       </div>
     </div>
-    ${assumptionsCard}${explanationCard}`;
+    ${assumptionsCard}${explanationCard}${renderSaProjectionTable(proj)}`;
   }
 
   let ra55Html = '';

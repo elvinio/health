@@ -313,20 +313,21 @@ const CPF_CONTRIB = [
 ];
 const CPF_ALLOC = [
   // [maxAge exclusive, OA% of salary, SA% of salary, MA% of salary]
-  [35,  0.23, 0.06,  0.08],
-  [45,  0.21, 0.07,  0.09],
-  [50,  0.19, 0.07,  0.11],
-  [55,  0.15, 0.095, 0.125],
-  [60,  0.14, 0,     0.14],   // SA contributions stop after 55
-  [65,  0.10, 0,     0.09],
-  [70,  0.01, 0,     0.13],
-  [999, 0.01, 0,     0.115],
+  // SA fractions within total 37%: age 35-45 → 0.1891, age 46-50 → 0.2162, age 51-55 → 0.3108
+  [35,  0.23,  0.06,  0.08 ],  // age < 35
+  [46,  0.21,  0.07,  0.09 ],  // age 35-45: SA 7%   (0.1891 × 37%)
+  [51,  0.19,  0.08,  0.10 ],  // age 46-50: SA 8%   (0.2162 × 37%)
+  [56,  0.15,  0.115, 0.105],  // age 51-55: SA 11.5% (0.3108 × 37%)
+  [60,  0.14,  0,     0.14 ],  // SA contributions stop after 55
+  [65,  0.10,  0,     0.09 ],
+  [70,  0.01,  0,     0.13 ],
+  [999, 0.01,  0,     0.115],
 ];
 const CPF_INT_OA = 0.025, CPF_INT_SA = 0.04, CPF_INT_RA = 0.04, CPF_INT_MA = 0.04;
 const CPF_BHS = 75500;    // Basic Healthcare Sum (MA cap)
 const CPF_FRS = 220400;   // Full Retirement Sum 2026
 const CPF_ERS = Math.round(CPF_FRS * 1.5); // Enhanced Retirement Sum = 1.5× FRS
-const CPF_OW_CAP = 6800;  // Ordinary Wage monthly ceiling
+const CPF_OW_CAP = 8000;  // Ordinary Wage monthly ceiling (2026)
 
 // CPF LIFE monthly payout factor per $1 of RA. Payout always starts at age 65.
 // Uses annuity formula (4% annual) with configurable life expectancy and mortality-credit multiplier.
