@@ -96,7 +96,10 @@
     <div id="expenseList"></div>
   </div>
   <div id="expSubContent-recurring" style="display:none">
-    <div style="display:flex;justify-content:flex-end;margin:8px 0 12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0 12px">
+      <button class="btn btn-secondary" style="font-size:.82rem;padding:7px 14px" onclick="manualGenOngoingExpenses()">
+        <span class="material-symbols-outlined" style="font-size:1rem;vertical-align:middle;margin-right:4px">play_arrow</span>Generate this month
+      </button>
       <button class="btn btn-primary" style="font-size:.82rem;padding:7px 14px" onclick="openOngoingFormSheet()">+ Add</button>
     </div>
     <div id="ongoingListInline"></div>

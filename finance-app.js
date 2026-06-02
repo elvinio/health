@@ -762,7 +762,6 @@ document.addEventListener('visibilitychange', () => {
 document.querySelectorAll('input[type="date"]').forEach(makeDmyWidget);
 renderAll();
 if (balanceHidden) document.getElementById('balanceToggleBtn').innerHTML = '<span class="material-symbols-outlined">visibility</span> Show Balances';
-autoGenOngoingExpenses();
 updateDriveSyncBtn();
 scheduleEventReminders();
 if (new URLSearchParams(location.search).get('add') === '1') {

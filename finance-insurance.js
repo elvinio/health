@@ -482,8 +482,54 @@ function autoGenOngoingExpenses() {
   if (anyAdded) {
     recalcBalances(data, allExpenses());
     saveData(data);
-    showToast('Recurring expenses auto-added');
     renderAll();
+  }
+}
+
+function manualGenOngoingExpenses() {
+  const list = data.ongoingExpenses || [];
+  if (!list.length) { showToast('No recurring expenses set up'); return; }
+  const today = new Date();
+  let added = 0, skipped = 0;
+
+  list.forEach(o => {
+    const info = getOngoingDueInfo(o, today);
+    if (!info) { skipped++; return; }
+    if (o.lastAutoGenPeriod === info.periodKey) { skipped++; return; }
+
+    const exp = {
+      id: uid(),
+      date: info.dueDate,
+      desc: o.name + (o.note ? ' · ' + o.note : ''),
+      amount: o.amount,
+      cat: o.category || 'Bills',
+      ac: o.accountId || (data.accounts[0] ? data.accounts[0].id : 'acc1'),
+      _ts: Date.now()
+    };
+
+    const expYear = info.dueDate.slice(0, 4);
+    if (expYear === String(today.getFullYear())) {
+      data.expenses.push(exp);
+    } else {
+      historyData.expenses.push(exp);
+      saveHistory(historyData);
+    }
+
+    const month = info.dueDate.slice(0, 7);
+    if (!data.monthlyAgg[month]) data.monthlyAgg[month] = {};
+    data.monthlyAgg[month][exp.cat] = (data.monthlyAgg[month][exp.cat] || 0) + exp.amount;
+
+    o.lastAutoGenPeriod = info.periodKey;
+    added++;
+  });
+
+  if (added > 0) {
+    recalcBalances(data, allExpenses());
+    saveData(data);
+    renderAll();
+    showToast(`Added ${added} recurring expense${added > 1 ? 's' : ''}`);
+  } else {
+    showToast('Already up to date for this period');
   }
 }
 

@@ -489,7 +489,6 @@ function renderAiKpis() {
   return `<div style="display:flex;flex-wrap:wrap;gap:14px 18px;margin-bottom:14px">
     ${kpi('Net Worth', fmtDollar(nw.net), deltaStr)}
     ${kpi('Savings Rate', fmtPct(cf.savingsRate), `<span style="color:var(--muted)">${fmtDollar(cf.avgMonthlyExpense)}/mo spend</span>`)}
-    ${kpi('Recurring', fmtDollar(annualRecurring()) + '/yr', `<span style="color:var(--muted)">${(data.ongoingExpenses || []).length} items</span>`)}
   </div>`;
 }
 
@@ -553,7 +552,7 @@ function renderAiReport() {
          <button class="btn-link" onclick="clearAiReport()" style="background:none;border:none;color:var(--muted);font-size:.78rem;cursor:pointer">Clear</button>
        </div>`
     : `<div style="font-size:.85rem;color:var(--muted);padding:4px 0 10px">
-         No AI report yet. Export the summary, get a report from Claude, then paste it back or fetch it from Drive.
+         No AI report yet. Copy the summary, get a report from Claude, then paste it back.
        </div>`;
   return `<div class="card" style="margin-bottom:16px">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
@@ -566,15 +565,9 @@ function renderAiReport() {
       <button class="btn btn-secondary" style="font-size:.78rem;padding:6px 12px" onclick="snapshotNetWorthNow()">📸 Snapshot now</button>
     </div>
     <div class="btn-row" style="flex-wrap:wrap">
-      <button class="btn btn-primary" style="flex:1" onclick="copyAiSummary()">📋 Copy summary</button>
-      <button class="btn btn-secondary" style="flex:1" onclick="openAiReportPaste()">✍️ Paste report</button>
-    </div>
-    <div class="btn-row" style="flex-wrap:wrap">
-      <button class="btn btn-secondary" style="flex:1" onclick="pushSummaryToDrive()">☁ Summary → Drive</button>
-      <button class="btn btn-secondary" style="flex:1" onclick="fetchAiReportFromDrive()">⬇ Fetch report</button>
-    </div>
-    <div class="btn-row" style="flex-wrap:wrap">
-      <button class="btn btn-secondary" style="flex:1;font-size:.78rem" onclick="openCustomPromptSheet()">✏️ Customize prompt</button>
+      <button class="btn btn-secondary" style="flex:1;font-size:.78rem" onclick="openCustomPromptSheet()">✏️ Prompt</button>
+      <button class="btn btn-primary" style="flex:1" onclick="copyAiSummary()">📋 Copy</button>
+      <button class="btn btn-secondary" style="flex:1" onclick="openAiReportPaste()">✍️ Paste</button>
     </div>
     ${reportHtml}
   </div>`;
