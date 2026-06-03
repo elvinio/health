@@ -12,17 +12,6 @@ Each item: `severity` · `file:line` · description · suggested fix.
 
 ## 🟠 High
 
-- [ ] **Recurring-expense generation can permanently skip periods** — `finance-insurance.js` (`autoGenOngoingExpenses` / `getOngoingDueInfo`).
-  A single `lastAutoGenPeriod` slot means if the app isn't opened during a due
-  month/quarter, that period is never back-filled. *Fix:* iterate from
-  `lastAutoGenPeriod` forward to the current period, generating every missed
-  occurrence, rather than only the current one.
-
-- [ ] **Bus polling + geolocation `watchPosition` leak when leaving Events via the main nav** — `finance-events.js` (`setEventView`, ~`:205-219`, `:466-471`).
-  Intervals/GPS watch are cleared by `setEventView` but not when switching to a
-  different top-level tab. *Fix:* stop bus polling and location tracking in the
-  main tab-switch handler (or on `page-events` losing `.active`).
-
 - [ ] **Cross-store expense move doesn't propagate via `_deletedIds`** — `finance-expenses.js:~152-172`.
   Editing an expense across the year boundary moves it between `data.expenses`
   and `historyData.expenses` under the same id; main and history are merged
@@ -30,11 +19,6 @@ Each item: `severity` · `file:line` · description · suggested fix.
   *Fix:* when relocating between stores, add the id to `data._deletedIds` for
   the store it left (or dedupe across stores during merge).
 
-- [ ] **LTA bus-stop coords fetched directly (CORS) + API key leaked via proxy** — `finance-events.js:~236-245, 355-358`.
-  `fetchBusStopCoords` calls DataMall directly (no CORS headers → silently fails,
-  map markers never load), while the arrivals path routes the `AccountKey`
-  through `corsproxy.io` (leaks the key to a third party). *Fix:* route both
-  through the same trusted proxy/backend; avoid exposing the key client-side.
 
 ---
 
@@ -63,10 +47,6 @@ Each item: `severity` · `file:line` · description · suggested fix.
   *Fix:* `(b._ts || 0) - (a._ts || 0)` (and same for date sorts using
   `localeCompare` on possibly-missing dates).
 
-- [ ] **`calcCpfProjection` salary excludes bonus / ignores AW ceiling; annual compounding overstates interest** — `finance-tax.js` (`_calcCpfProjection`).
-  Documented simplification, but interest is credited as if the full year's
-  contribution earned a full year of interest. *Fix:* either document clearly in
-  the UI or move to a monthly (or half-year) convention.
 
 - [ ] **Retirement vs CPF accumulation use inconsistent interest conventions** — `finance-tax.js:~895-897` vs CPF loop.
   CPF gives a full year's interest on the year's contributions (overstates);
