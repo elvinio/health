@@ -547,7 +547,9 @@ document.getElementById('assetForm').addEventListener('submit', e => {
     asset.class = cls;
     asset.units = units;
     const last = asset.history[asset.history.length - 1];
-    if (!last || last.value !== value || last.date !== date) {
+    if (last && last.date === date) {
+      if (last.value !== value) { last.value = value; last._ts = Date.now(); }
+    } else {
       asset.history.push({ date, value, _ts: Date.now() });
     }
   } else {
