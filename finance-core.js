@@ -212,7 +212,7 @@ function recalcMonthlyAgg(d, expenses) {
   const exps = expenses !== undefined ? expenses : d.expenses;
   d.monthlyAgg = {};
   exps.forEach(e => {
-    if (e.cat === 'TopUp') return;
+    if (!e.date || !e.cat || e.cat === 'TopUp') return;
     const m = e.date.slice(0, 7);
     if (!d.monthlyAgg[m]) d.monthlyAgg[m] = {};
     d.monthlyAgg[m][e.cat] = (d.monthlyAgg[m][e.cat] || 0) + e.amount;
@@ -228,7 +228,7 @@ function allExpenses() {
 
 function migrateExpenses() {
   const curYear = String(new Date().getFullYear());
-  const past = data.expenses.filter(e => !e.date.startsWith(curYear + '-'));
+  const past = data.expenses.filter(e => e.date && !e.date.startsWith(curYear + '-'));
   if (!past.length) return;
   const existingIds = new Set(historyData.expenses.map(e => e.id));
   past.forEach(e => { if (!existingIds.has(e.id)) historyData.expenses.push(e); });

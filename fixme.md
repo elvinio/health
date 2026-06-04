@@ -12,7 +12,7 @@ Each item: `severity` · `file:line` · description · suggested fix.
 
 ## 🟠 High
 
-- [ ] **Cross-store expense move doesn't propagate via `_deletedIds`** — `finance-expenses.js:~152-172`.
+- [x] **Cross-store expense move doesn't propagate via `_deletedIds`** — `finance-expenses.js:~152-172`.
   Editing an expense across the year boundary moves it between `data.expenses`
   and `historyData.expenses` under the same id; main and history are merged
   independently, so a partner's stale copy in the other store can resurrect.
@@ -29,7 +29,7 @@ Each item: `severity` · `file:line` · description · suggested fix.
   on open; saving without touching the dropdown permanently rewrites it.
   *Fix:* inject the record's existing category as a `<select>` option.
 
-- [ ] **Same-day asset value re-entry appends a duplicate** — `finance-investments.js:~548`.
+- [x] **Same-day asset value re-entry appends a duplicate** — `finance-investments.js:~548`.
   Correcting a value on the same date adds a second same-date history row.
   *Fix:* if `last.date === date`, replace in place instead of pushing.
 
@@ -37,7 +37,7 @@ Each item: `severity` · `file:line` · description · suggested fix.
   Duplicate/blank names silently clobber unrelated parsers. *Fix:* merge by a
   stable `id` (assign one on create) and/or warn on duplicate names.
 
-- [ ] **`avgMonthlyExpense` always divides by 12** — `finance-ai.js:~108`.
+- [x] **`avgMonthlyExpense` always divides by 12** — `finance-ai.js:~108`.
   Understates spend / savings-rate / runway for users with <12 months of data.
   *Fix:* divide by the count of months that actually have aggregated data
   (`Math.min(12, monthsWithData)`).
@@ -86,7 +86,7 @@ Each item: `severity` · `file:line` · description · suggested fix.
   *Fix:* wrap writes in try/catch with a "storage full" toast; on parse failure
   back up the raw string to a separate key before returning defaults.
 
-- [ ] **`recalcMonthlyAgg`/`recalcBalances` crash on a record missing `date`/`cat`** — `finance-core.js:~213`.
+- [x] **`recalcMonthlyAgg`/`recalcBalances` crash on a record missing `date`/`cat`** — `finance-core.js:~213`.
   `e.date.slice(0,7)` throws on a malformed/merged record, breaking render.
   *Fix:* guard `if (!e.date) return;`.
 
