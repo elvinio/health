@@ -508,57 +508,7 @@ function renderCpf() {
 
   let milestoneHtml = '';
   if (proj && proj.lifePayout > 0) {
-    const frsSubLabel = proj.yearsToRetire > 0
-      ? `Projected RA ~${fmtDollar(proj.projFRS)} in ${proj.yearsToRetire} yrs`
-      : `RA: ${fmtDollar(CPF_FRS)}`;
-    const ersSubLabel = proj.yearsToRetire > 0
-      ? `Projected RA ~${fmtDollar(proj.projERS)} in ${proj.yearsToRetire} yrs`
-      : `RA: ${fmtDollar(CPF_ERS)}`;
-    milestoneHtml = `<div style="display:flex;gap:10px;margin-bottom:12px">
-      <div style="flex:1;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px;border-left:3px solid var(--primary)">
-        <div style="font-size:.7rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em">FRS Plan</div>
-        <div style="font-size:1.15rem;font-weight:800;margin-top:4px">~${fmtDollar(proj.frsRefPayout)} / mo</div>
-        <div style="font-size:.78rem;color:var(--muted);margin-top:2px">${frsSubLabel}</div>
-        ${proj.oa55pre !== null ? `
-          <div style="font-size:.78rem;color:var(--text);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
-            <div style="font-size:.7rem;color:var(--muted);margin-bottom:3px;font-weight:600">BALANCES AT 55</div>
-            <div style="display:flex;justify-content:space-between"><span>SA</span><strong>${fmtDollar(proj.sa55pre)}</strong></div>
-            <div style="display:flex;justify-content:space-between;margin-top:2px"><span>OA</span><strong>${fmtDollar(proj.oa55pre)}</strong></div>
-          </div>
-          <div style="font-size:.78rem;color:var(--text);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
-            <div style="font-size:.7rem;color:var(--muted);margin-bottom:3px;font-weight:600">TRANSFERRED → RA <span style="font-weight:400">(target ${fmtDollar(proj.frsAt55)})</span></div>
-            <div style="display:flex;justify-content:space-between"><span>from SA</span><strong>${fmtDollar(proj.frsRaFromSA)}</strong></div>
-            <div style="display:flex;justify-content:space-between;margin-top:2px"><span>from OA</span><strong>—</strong></div>
-          </div>` : ''}
-        ${proj.frsOAretire !== null ? `
-          <div style="font-size:.78rem;color:var(--text);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
-            <div style="font-size:.7rem;color:var(--muted);margin-bottom:3px;font-weight:600">OA AT ${proj.retireAge}</div>
-            <div style="display:flex;justify-content:space-between"><span>OA</span><strong>${fmtDollar(proj.frsOAretire)}</strong></div>
-          </div>` : ''}
-      </div>
-      <div style="flex:1;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px;border-left:3px solid var(--primary)">
-        <div style="font-size:.7rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em">ERS Plan</div>
-        <div style="font-size:1.15rem;font-weight:800;margin-top:4px">~${fmtDollar(proj.ersRefPayout)} / mo</div>
-        <div style="font-size:.78rem;color:var(--muted);margin-top:2px">${ersSubLabel}</div>
-        ${proj.oa55pre !== null ? `
-          <div style="font-size:.78rem;color:var(--text);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
-            <div style="font-size:.7rem;color:var(--muted);margin-bottom:3px;font-weight:600">BALANCES AT 55</div>
-            <div style="display:flex;justify-content:space-between"><span>SA</span><strong>${fmtDollar(proj.sa55pre)}</strong></div>
-            <div style="display:flex;justify-content:space-between;margin-top:2px"><span>OA</span><strong>${fmtDollar(proj.oa55pre)}</strong></div>
-          </div>
-          <div style="font-size:.78rem;color:var(--text);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
-            <div style="font-size:.7rem;color:var(--muted);margin-bottom:3px;font-weight:600">TRANSFERRED → RA <span style="font-weight:400">(target ${fmtDollar(proj.ersAt55)})</span></div>
-            <div style="display:flex;justify-content:space-between"><span>from SA</span><strong>${fmtDollar(proj.ersRaFromSA)}</strong></div>
-            <div style="display:flex;justify-content:space-between;margin-top:2px"><span>from OA</span><strong>${fmtDollar(proj.ersRaFromOA)}</strong></div>
-          </div>` : ''}
-        ${proj.ersOAretire !== null ? `
-          <div style="font-size:.78rem;color:var(--text);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
-            <div style="font-size:.7rem;color:var(--muted);margin-bottom:3px;font-weight:600">OA AT ${proj.retireAge}</div>
-            <div style="display:flex;justify-content:space-between"><span>OA</span><strong>${fmtDollar(proj.ersOAretire)}</strong></div>
-          </div>` : ''}
-      </div>
-    </div>
-    ${assumptionsCard}${explanationCard}${renderSaProjectionTable(proj)}`;
+    milestoneHtml = `${assumptionsCard}${explanationCard}${renderSaProjectionTable(proj)}`;
   }
 
   let ra55Html = '';
