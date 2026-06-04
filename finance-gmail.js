@@ -48,10 +48,11 @@ document.getElementById('importParsersFile').addEventListener('change', e => {
       if (!Array.isArray(config.parsers)) throw new Error('Missing parsers array');
       const existing = loadGmailParsers();
       const incoming = config.parsers;
-      // Merge by name: incoming wins if name exists, otherwise append
       const merged = [...existing];
       incoming.forEach(p => {
-        const idx = merged.findIndex(x => x.name === p.name);
+        const idx = p.id
+          ? merged.findIndex(x => x.id === p.id)
+          : merged.findIndex(x => x.name === p.name);
         if (idx >= 0) merged[idx] = p; else merged.push(p);
       });
       saveGmailParsers(merged);
@@ -61,7 +62,7 @@ document.getElementById('importParsersFile').addEventListener('change', e => {
         data._emailCatMapTs  = Date.now();
         saveData(data);
       }
-      const added   = incoming.filter(p => !existing.find(x => x.name === p.name)).length;
+      const added = incoming.filter(p => !existing.find(x => (p.id && x.id === p.id) || x.name === p.name)).length;
       const updated = incoming.length - added;
       showToast(`${added} added, ${updated} updated (${merged.length} total)`);
       renderEmailRulesSubTab();
@@ -168,7 +169,10 @@ function openParserEditor(idx) {
 }
 
 function saveParserEditor() {
+  const parsers = loadGmailParsers();
+  const existing = editingParserIdx >= 0 ? parsers[editingParserIdx] : null;
   const p = {
+    id:              (existing && existing.id) || uid(),
     name:            document.getElementById('parserName').value.trim(),
     subjectContains: document.getElementById('parserSubject').value.trim(),
     amount: { regex: document.getElementById('parserAmountRegex').value.trim(), group: parseInt(document.getElementById('parserAmountGroup').value) || 1 },
@@ -176,7 +180,6 @@ function saveParserEditor() {
     desc:   { regex: document.getElementById('parserDescRegex').value.trim(),   group: parseInt(document.getElementById('parserDescGroup').value) || 1 }
   };
   if (!p.name || !p.subjectContains) { showToast('Name and subject are required'); return; }
-  const parsers = loadGmailParsers();
   if (editingParserIdx >= 0) parsers[editingParserIdx] = p;
   else parsers.push(p);
   saveGmailParsers(parsers);
@@ -217,7 +220,10 @@ function openEventParserEditor(idx) {
 
 function saveEventParserEditor() {
   const diRegex = document.getElementById('evParserDiRegex').value.trim();
+  const parsers = loadGmailParsers();
+  const existing = editingEventParserIdx >= 0 ? parsers[editingEventParserIdx] : null;
   const p = {
+    id:              (existing && existing.id) || uid(),
     type:            'event',
     name:            document.getElementById('evParserName').value.trim(),
     subjectContains: document.getElementById('evParserSubject').value.trim(),
@@ -244,7 +250,6 @@ function saveEventParserEditor() {
   if (!p.name || !p.subjectContains)  { showToast('Name and subject are required'); return; }
   if (!p.title.regex)                 { showToast('Title regex is required'); return; }
   if (!p.datetime.regex)              { showToast('Datetime regex is required'); return; }
-  const parsers = loadGmailParsers();
   if (editingEventParserIdx >= 0) parsers[editingEventParserIdx] = p;
   else parsers.push(p);
   saveGmailParsers(parsers);
