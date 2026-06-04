@@ -363,60 +363,97 @@ function renderCpfChart(proj) {
   </div>`;
 }
 
-function renderSaProjectionTable(proj) {
+function renderSaProjectionTables() {
   const s = data.cpfSettings || {};
   const ersGrowthRate = parseFloat(s.ersGrowthRate) || 3.5;
   const ERS_2026 = 440800;
-  const annualSalary = 102000; // annual cap (OW $8,000 + AW portion) × 0.37 × SA ratio
-  const dobYear = proj.dobYear;
-  const startYear = dobYear + 55 - proj.yearsTurn55;
+  const annualSalary = 102000;
+  const currentYear = new Date().getFullYear();
 
-  let sa = proj.saStart;
-  const rows = [];
-  for (let year = startYear; year <= dobYear + 55; year++) {
-    const age = year - dobYear;
-    if (age > 55) break;
-    const alloc = cpfAlloc(age);
-    const saContrib = Math.round(annualSalary * alloc.sa);
-    sa = (sa + saContrib) * (1 + CPF_INT_SA);
-    const ersThisYear = Math.round(ERS_2026 * Math.pow(1 + ersGrowthRate / 100, year - 2026));
-    rows.push({ age, saContrib, sa: Math.round(sa), ers: ersThisYear });
+  function tableForPerson(person) {
+    const dob = person === 'husband' ? s.dateOfBirth : s.spouseDob;
+    if (!dob) return '';
+    const dobYear = parseInt(dob.slice(0, 4));
+    if (!dobYear) return '';
+
+    const personRecords = (data.cpfRecords || [])
+      .filter(r => (r.forPerson || 'husband') === person)
+      .slice().sort((a, b) => a.year - b.year);
+    const lastRecord = personRecords[personRecords.length - 1];
+
+    const topupType   = lastRecord?.topupType || 'employment';
+    const topupAmount = parseFloat(lastRecord?.topupAmount) || 0;
+
+    let startYear = lastRecord ? parseInt(lastRecord.year) + 1 : currentYear;
+    let sa        = lastRecord ? (lastRecord.saBalance || 0) : 0;
+
+    const rows = [];
+    for (let year = startYear; year <= dobYear + 55; year++) {
+      const age = year - dobYear;
+      if (age > 55) break;
+      const ersThisYear = Math.round(ERS_2026 * Math.pow(1 + ersGrowthRate / 100, year - 2026));
+
+      let saContrib;
+      if (topupType === 'self') {
+        const cap = ersThisYear / 2;
+        const applied = Math.max(0, Math.min(topupAmount, cap - sa));
+        sa = (sa + applied) * (1 + CPF_INT_SA);
+        saContrib = Math.round(applied);
+      } else {
+        const alloc = cpfAlloc(age);
+        saContrib = Math.round(annualSalary * alloc.sa);
+        sa = (sa + saContrib) * (1 + CPF_INT_SA);
+      }
+      rows.push({ age, saContrib, sa: Math.round(sa), ers: ersThisYear });
+    }
+
+    if (!rows.length) return '';
+    const last = rows[rows.length - 1];
+
+    const isSelf = topupType === 'self';
+    const ref55  = isSelf ? Math.round(last.ers / 2) : last.ers;
+    const leftover = last.sa - ref55;
+    const leftoverColor = leftover >= 0 ? 'var(--green,#27ae60)' : 'var(--red,#e74c3c)';
+    const colHeader = isSelf ? 'Cap (ERS/2)' : 'ERS';
+    const footLabel = isSelf ? 'SA at 55 − ERS/2 at 55' : 'SA at 55 − ERS at 55';
+    const label     = person === 'husband' ? 'Husband' : 'Wife';
+    const modeLabel = isSelf ? 'self top-up' : 'max contribution';
+    const footnote  = isSelf
+      ? `Self top-up $${topupAmount.toLocaleString()}/yr · capped when SA ≥ ERS/2 · SA interest 4% · ERS grows at ${ersGrowthRate}%/yr from $440,800 (2026 base)`
+      : `Annual cap $102,000 · contribution = $102,000 × 37% × SA ratio · SA interest 4% · ERS grows at ${ersGrowthRate}%/yr from $440,800 (2026 base)<br>SA ratio within 37%: age 35–45 → 18.91% · age 46–50 → 21.62% · age 51–55 → 31.08%`;
+
+    return `<div style="background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;margin-bottom:12px;overflow-x:auto">
+      <div style="font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">SA Balance to Age 55 — ${label} (${modeLabel})</div>
+      <table style="width:100%;border-collapse:collapse;font-size:.8rem">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border)">
+            <th style="text-align:left;padding:4px 6px;color:var(--muted);font-weight:600">Age</th>
+            <th style="text-align:right;padding:4px 6px;color:var(--muted);font-weight:600">${isSelf ? 'Topup' : 'Contribution'}</th>
+            <th style="text-align:right;padding:4px 6px;color:var(--muted);font-weight:600">SA Balance</th>
+            <th style="text-align:right;padding:4px 6px;color:var(--muted);font-weight:600">${colHeader}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `<tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:4px 6px">${r.age}</td>
+            <td style="text-align:right;padding:4px 6px">${fmtDollar(r.saContrib)}</td>
+            <td style="text-align:right;padding:4px 6px;font-weight:600">${fmtDollar(r.sa)}</td>
+            <td style="text-align:right;padding:4px 6px;color:var(--muted)">${fmtDollar(isSelf ? Math.round(r.ers / 2) : r.ers)}</td>
+          </tr>`).join('')}
+        </tbody>
+        <tfoot>
+          <tr style="border-top:2px solid var(--border);font-weight:700">
+            <td colspan="2" style="padding:6px 6px;font-size:.78rem">${footLabel}</td>
+            <td style="text-align:right;padding:6px 6px;color:${leftoverColor}">${fmtDollar(leftover)}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+      <div style="font-size:.7rem;color:var(--muted);margin-top:6px">${footnote}</div>
+    </div>`;
   }
 
-  if (!rows.length) return '';
-  const last = rows[rows.length - 1];
-  const leftover = last.sa - last.ers;
-  const leftoverColor = leftover >= 0 ? 'var(--green,#27ae60)' : 'var(--red,#e74c3c)';
-
-  return `<div style="background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;margin-bottom:12px;overflow-x:auto">
-    <div style="font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">SA Balance to Age 55 (max contribution)</div>
-    <table style="width:100%;border-collapse:collapse;font-size:.8rem">
-      <thead>
-        <tr style="border-bottom:1px solid var(--border)">
-          <th style="text-align:left;padding:4px 6px;color:var(--muted);font-weight:600">Age</th>
-          <th style="text-align:right;padding:4px 6px;color:var(--muted);font-weight:600">Contribution</th>
-          <th style="text-align:right;padding:4px 6px;color:var(--muted);font-weight:600">SA Balance</th>
-          <th style="text-align:right;padding:4px 6px;color:var(--muted);font-weight:600">ERS</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${rows.map(r => `<tr style="border-bottom:1px solid var(--border)">
-          <td style="padding:4px 6px">${r.age}</td>
-          <td style="text-align:right;padding:4px 6px">${fmtDollar(r.saContrib)}</td>
-          <td style="text-align:right;padding:4px 6px;font-weight:600">${fmtDollar(r.sa)}</td>
-          <td style="text-align:right;padding:4px 6px;color:var(--muted)">${fmtDollar(r.ers)}</td>
-        </tr>`).join('')}
-      </tbody>
-      <tfoot>
-        <tr style="border-top:2px solid var(--border);font-weight:700">
-          <td colspan="2" style="padding:6px 6px;font-size:.78rem">SA at 55 − ERS at 55</td>
-          <td style="text-align:right;padding:6px 6px;color:${leftoverColor}">${fmtDollar(leftover)}</td>
-          <td></td>
-        </tr>
-      </tfoot>
-    </table>
-    <div style="font-size:.7rem;color:var(--muted);margin-top:6px">Annual cap $102,000 · contribution = $102,000 × 37% × SA ratio · SA interest 4% · ERS grows at ${ersGrowthRate}%/yr from $440,800 (2026 base)<br>SA ratio within 37%: age 35–45 → 18.91% · age 46–50 → 21.62% · age 51–55 → 31.08%</div>
-  </div>`;
+  return tableForPerson('husband') + tableForPerson('wife');
 }
 
 function renderCpf() {
@@ -508,7 +545,7 @@ function renderCpf() {
 
   let milestoneHtml = '';
   if (proj && proj.lifePayout > 0) {
-    milestoneHtml = `${assumptionsCard}${explanationCard}${renderSaProjectionTable(proj)}`;
+    milestoneHtml = `${assumptionsCard}${explanationCard}${renderSaProjectionTables()}`;
   }
 
   let ra55Html = '';
@@ -537,7 +574,7 @@ function renderCpf() {
       const total = (r.oaBalance || 0) + (r.saBalance || 0) + (r.maBalance || 0);
       const totalInt = (r.oaInterest || 0) + (r.saInterest || 0) + (r.maInterest || 0);
       return `<div class="cpf-card" onclick="openCpfEntrySheet('${esc(r.id)}')">
-        <div class="cpf-card-year">${esc(String(r.year))}</div>
+        <div class="cpf-card-year">${esc(String(r.year))} <span style="font-size:.72rem;color:var(--muted);font-weight:400">· ${r.forPerson === 'wife' ? 'Wife' : 'Husband'}</span></div>
         <div class="cpf-card-meta">
           <span><span class="label">OA</span>${fmtDollar(r.oaBalance || 0)}</span>
           <span><span class="label">SA</span>${fmtDollar(r.saBalance || 0)}</span>
@@ -574,18 +611,30 @@ function saveCpfAssumptions() {
   renderCpf();
 }
 
+function toggleCpfTopupAmount() {
+  const isSelf = document.getElementById('cpfTopupType').value === 'self';
+  document.getElementById('cpfTopupAmountField').style.display = isSelf ? '' : 'none';
+}
+
 function openCpfEntrySheet(id) {
   document.getElementById('cpfEntryForm').reset();
   document.getElementById('cpfEntryId').value = '';
   document.getElementById('cpfEntryDeleteBtn').style.display = 'none';
+  document.getElementById('cpfEntryFor').value = 'husband';
   document.getElementById('cpfEntryYear').value = new Date().getFullYear() - 1;
+  document.getElementById('cpfTopupType').value = 'employment';
+  document.getElementById('cpfTopupAmountField').style.display = 'none';
 
   if (id) {
     const r = (data.cpfRecords || []).find(x => x.id === id);
     if (!r) return;
     document.getElementById('cpfEntrySheetTitle').textContent = 'Edit CPF Record';
     document.getElementById('cpfEntryId').value = id;
+    document.getElementById('cpfEntryFor').value = r.forPerson || 'husband';
     document.getElementById('cpfEntryYear').value = r.year;
+    document.getElementById('cpfTopupType').value = r.topupType || 'employment';
+    document.getElementById('cpfTopupAmount').value = r.topupAmount || '';
+    document.getElementById('cpfTopupAmountField').style.display = r.topupType === 'self' ? '' : 'none';
     document.getElementById('cpfOA').value = r.oaBalance || '';
     document.getElementById('cpfSA').value = r.saBalance || '';
     document.getElementById('cpfMA').value = r.maBalance || '';
@@ -605,8 +654,12 @@ document.getElementById('cpfEntryForm').addEventListener('submit', e => {
   const id = document.getElementById('cpfEntryId').value;
   const year = parseInt(document.getElementById('cpfEntryYear').value);
   if (!year) return;
+  const topupType = document.getElementById('cpfTopupType').value || 'employment';
   const entry = {
     id: id || uid(), year,
+    forPerson:   document.getElementById('cpfEntryFor').value || 'husband',
+    topupType,
+    topupAmount: topupType === 'self' ? (parseFloat(document.getElementById('cpfTopupAmount').value) || 0) : 0,
     oaBalance:  parseFloat(document.getElementById('cpfOA').value) || 0,
     saBalance:  parseFloat(document.getElementById('cpfSA').value) || 0,
     maBalance:  parseFloat(document.getElementById('cpfMA').value) || 0,

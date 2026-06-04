@@ -9,8 +9,12 @@ function openAccountSettings() {
       <div class="section-heading">CPF Projection</div>
       <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Used to project CPF balances on the Tax › CPF page.</p>
       <div class="field">
-        <label>Date of Birth</label>
+        <label>Date of Birth (Husband)</label>
         <input type="date" id="cpfDOB" value="${esc(cpfS.dateOfBirth || '')}">
+      </div>
+      <div class="field">
+        <label>Date of Birth (Wife)</label>
+        <input type="date" id="cpfSpouseDOB" value="${esc(cpfS.spouseDob || '')}">
       </div>
     </div>`;
 
@@ -127,6 +131,7 @@ function saveAccountSettings() {
 
   if (!data.cpfSettings) data.cpfSettings = {};
   data.cpfSettings.dateOfBirth = (document.getElementById('cpfDOB')?.value || '').trim();
+  data.cpfSettings.spouseDob   = (document.getElementById('cpfSpouseDOB')?.value || '').trim();
   data._cpfSettingsTs = Date.now();
 
   const newPin = (document.getElementById('settingsPinInput')?.value || '').replace(/\D/g, '');
