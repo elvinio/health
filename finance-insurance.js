@@ -535,7 +535,7 @@ function manualGenOngoingExpenses() {
 
 // ── Mortgages ─────────────────────────────────────────────────────────────────
 function mortgageCurrentBalance(m) {
-  const entries = (m.entries || []).filter(e => e.type === 'balance').sort((a, b) => b.date.localeCompare(a.date) || b._ts - a._ts);
+  const entries = (m.entries || []).filter(e => e.type === 'balance').sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b._ts || 0) - (a._ts || 0));
   return entries.length ? entries[0].amount : (m.principal || 0);
 }
 
@@ -703,7 +703,7 @@ function openMortgageOverlay(id) {
 }
 
 function renderMortgageOverlayBody(m) {
-  const entries = [...(m.entries || [])].sort((a, b) => b.date.localeCompare(a.date) || b._ts - a._ts);
+  const entries = [...(m.entries || [])].sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b._ts || 0) - (a._ts || 0));
   const monthlyPmt = mortgageMonthlyInstallment(m);
   const bal = mortgageCurrentBalance(m);
   const yearlyInterest = bal * (m.interestRate / 100);

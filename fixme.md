@@ -24,16 +24,11 @@ Each item: `severity` · `file:line` · description · suggested fix.
 
 ## 🟡 Medium
 
-- [ ] **Custom expense category silently rewritten to 'Other'** — `finance-expenses.js:~117-127`.
-  Editing an expense whose category isn't in the dropdown resets it to 'Other'
-  on open; saving without touching the dropdown permanently rewrites it.
-  *Fix:* inject the record's existing category as a `<select>` option.
-
 - [x] **Same-day asset value re-entry appends a duplicate** — `finance-investments.js:~548`.
   Correcting a value on the same date adds a second same-date history row.
   *Fix:* if `last.date === date`, replace in place instead of pushing.
 
-- [ ] **Gmail parser import merges by non-unique `name`** — `finance-gmail.js:~51-56`.
+- [x] **Gmail parser import merges by non-unique `name`** — `finance-gmail.js:~51-56`.
   Duplicate/blank names silently clobber unrelated parsers. *Fix:* merge by a
   stable `id` (assign one on create) and/or warn on duplicate names.
 
@@ -42,7 +37,7 @@ Each item: `severity` · `file:line` · description · suggested fix.
   *Fix:* divide by the count of months that actually have aggregated data
   (`Math.min(12, monthsWithData)`).
 
-- [ ] **Mortgage "current balance" sort uses raw `_ts`** — `finance-insurance.js:~492, 660`.
+- [x] **Mortgage "current balance" sort uses raw `_ts`** — `finance-insurance.js:~492, 660`.
   Undefined `_ts` on imported entries yields `NaN` comparisons → wrong balance.
   *Fix:* `(b._ts || 0) - (a._ts || 0)` (and same for date sorts using
   `localeCompare` on possibly-missing dates).
@@ -67,7 +62,7 @@ Each item: `severity` · `file:line` · description · suggested fix.
 - [ ] **Full-list `innerHTML` rebuild on every search keystroke** — `finance-expenses.js` (`onSearchInput` → `renderExpenseList`).
   Janky on large histories, discards scroll position. *Fix:* debounce ~150ms.
 
-- [ ] **Drive: pretty-printed JSON upload + no 401 re-auth/retry + sequential downloads** — `finance-drive.js` (`uploadToDrive` ~`:660`, `getAccessToken`, `driveSync`).
+- [x] **Drive: pretty-printed JSON upload + no 401 re-auth/retry + sequential downloads** — `finance-drive.js` (`uploadToDrive` ~`:660`, `getAccessToken`, `driveSync`).
   *Fix:* drop `JSON.stringify(payload, null, 2)`; on HTTP 401 clear `driveToken`
   and retry once; `Promise.all` the two independent downloads.
 
@@ -90,7 +85,7 @@ Each item: `severity` · `file:line` · description · suggested fix.
   `e.date.slice(0,7)` throws on a malformed/merged record, breaking render.
   *Fix:* guard `if (!e.date) return;`.
 
-- [ ] **`uid()` collision risk under bulk import** — `finance-core.js:~242`.
+- [x] **`uid()` collision risk under bulk import** — `finance-core.js:~242`.
   ~5 random base36 chars per ms. *Fix:* use `crypto.randomUUID()` when available.
 
 - [ ] **`autoGenOngoingExpenses` calls `saveHistory` inside the loop** — `finance-insurance.js:~471`.
