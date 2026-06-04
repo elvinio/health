@@ -101,11 +101,16 @@ function computeCashflow() {
   const months = lastNMonthKeys(12);
   const agg = data.monthlyAgg || {};
   let spendTotal = 0;
+  let monthsWithData = 0;
   months.forEach(m => {
     const cats = agg[m];
-    if (cats) spendTotal += Object.values(cats).reduce((a, b) => a + b, 0);
+    if (cats) {
+      const total = Object.values(cats).reduce((a, b) => a + b, 0);
+      if (total !== 0) monthsWithData++;
+      spendTotal += total;
+    }
   });
-  const avgMonthlyExpense = spendTotal / 12;
+  const avgMonthlyExpense = spendTotal / (monthsWithData || 1);
 
   // Derive monthly income from the latest tax estimate year (basicSalary + bonus) / 12.
   let taxMonthlyIncome = 0;
