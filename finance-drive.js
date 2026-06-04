@@ -574,7 +574,13 @@ async function driveSync() {
     const token = await getAccessToken(clientId);
 
     setDriveStatus('Downloading…');
-    const remote = await downloadFromDrive(token, fileId);
+    const historyFileId = localStorage.getItem(DRIVE_HISTORY_FILE_KEY);
+    // Fire both downloads in parallel; history prefetch fails gracefully if not needed
+    const remoteP = downloadFromDrive(token, fileId);
+    const remoteHistP = historyFileId
+      ? downloadFromDrive(token, historyFileId).catch(() => null)
+      : Promise.resolve(null);
+    const remote = await remoteP;
     if (!remote.accounts || !Array.isArray(remote.expenses) || !Array.isArray(remote.assets)) {
       throw new Error('Invalid backup format');
     }
@@ -584,22 +590,19 @@ async function driveSync() {
     const remoteHistFromMain = (remote.expenses || []).filter(e => !e.date.startsWith(curYear + '-'));
     remote.expenses = (remote.expenses || []).filter(e => e.date.startsWith(curYear + '-'));
 
-    // Decide whether to download history based on the timestamp embedded in the main file
+    // Decide whether to use the already-in-flight history download
     const remoteHistTs = remote.historyUpdatedAt || 0;
     const localHistTs = historyData._updatedAt || 0;
-    const historyFileId = localStorage.getItem(DRIVE_HISTORY_FILE_KEY);
 
     let mergedHistory = historyData;
     let uploadHistory = false;
 
     if (historyFileId && (localHistTs !== remoteHistTs || remoteHistFromMain.length)) {
-      // Timestamps differ (or old-format entries exist): always download + merge before uploading
+      // Timestamps differ (or old-format entries exist): merge before uploading
       // so we never overwrite records that are only on the remote side.
       let remoteHistory = { expenses: remoteHistFromMain };
-      try {
-        const dl = await downloadFromDrive(token, historyFileId);
-        if (Array.isArray(dl.expenses)) remoteHistory = mergeHistoryData(dl, { expenses: remoteHistFromMain });
-      } catch {}
+      const dl = await remoteHistP;
+      if (dl && Array.isArray(dl.expenses)) remoteHistory = mergeHistoryData(dl, { expenses: remoteHistFromMain });
       mergedHistory = mergeHistoryData(historyData, remoteHistory);
       uploadHistory = true;
     } else if (!historyFileId && remoteHistTs > localHistTs) {
@@ -729,7 +732,7 @@ async function forceSyncHistory() {
 }
 
 async function uploadFileToDrive(token, fileId, payload, filename, storageKey) {
-  const content = JSON.stringify(payload, null, 2);
+  const content = JSON.stringify(payload);
   const metadata = { name: filename, mimeType: 'application/json' };
   const form = new FormData();
   form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
@@ -738,7 +741,12 @@ async function uploadFileToDrive(token, fileId, payload, filename, storageKey) {
     ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart&supportsAllDrives=true`
     : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true';
   const method = fileId ? 'PATCH' : 'POST';
-  const resp = await fetch(url, { method, headers: { Authorization: 'Bearer ' + token }, body: form });
+  let resp = await fetch(url, { method, headers: { Authorization: 'Bearer ' + token }, body: form });
+  if (resp.status === 401) {
+    driveToken = null;
+    const freshToken = await getAccessToken(localStorage.getItem(DRIVE_CLIENT_KEY));
+    resp = await fetch(url, { method, headers: { Authorization: 'Bearer ' + freshToken }, body: form });
+  }
   if (!resp.ok) throw new Error('HTTP ' + resp.status);
   const json = await resp.json();
   if (storageKey) localStorage.setItem(storageKey, json.id);
@@ -755,9 +763,13 @@ async function uploadHistoryToDrive(token, fileId, payload) {
 }
 
 async function downloadFromDrive(token, fileId) {
-  const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-    headers: { Authorization: 'Bearer ' + token }
-  });
+  const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+  let resp = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+  if (resp.status === 401) {
+    driveToken = null;
+    const freshToken = await getAccessToken(localStorage.getItem(DRIVE_CLIENT_KEY));
+    resp = await fetch(url, { headers: { Authorization: 'Bearer ' + freshToken } });
+  }
   if (!resp.ok) throw new Error('HTTP ' + resp.status);
   return resp.json();
 }

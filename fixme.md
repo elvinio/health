@@ -62,7 +62,7 @@ Each item: `severity` · `file:line` · description · suggested fix.
 - [ ] **Full-list `innerHTML` rebuild on every search keystroke** — `finance-expenses.js` (`onSearchInput` → `renderExpenseList`).
   Janky on large histories, discards scroll position. *Fix:* debounce ~150ms.
 
-- [ ] **Drive: pretty-printed JSON upload + no 401 re-auth/retry + sequential downloads** — `finance-drive.js` (`uploadToDrive` ~`:660`, `getAccessToken`, `driveSync`).
+- [x] **Drive: pretty-printed JSON upload + no 401 re-auth/retry + sequential downloads** — `finance-drive.js` (`uploadToDrive` ~`:660`, `getAccessToken`, `driveSync`).
   *Fix:* drop `JSON.stringify(payload, null, 2)`; on HTTP 401 clear `driveToken`
   and retry once; `Promise.all` the two independent downloads.
 
