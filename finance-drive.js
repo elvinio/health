@@ -620,6 +620,19 @@ async function driveSync() {
     mergedHistory.expenses = mergedHistory.expenses.filter(e => !deletedSet.has(e.id));
     mergedHistory.powerRecords = (mergedHistory.powerRecords || []).filter(r => !deletedSet.has(r.id));
 
+    // Cross-store dedup: if the same expense ID exists in both merged stores after a
+    // cross-year-boundary edit, keep the copy with the higher _ts and drop the other.
+    {
+      const histExpById = new Map(mergedHistory.expenses.map(e => [e.id, e]));
+      merged.expenses = merged.expenses.filter(e => {
+        const h = histExpById.get(e.id);
+        if (!h) return true;
+        if ((e._ts || 0) >= (h._ts || 0)) { histExpById.delete(e.id); return true; }
+        return false;
+      });
+      mergedHistory.expenses = [...histExpById.values()];
+    }
+
     setDriveStatus('Uploading…');
     merged.busApiKey = getBusApiKey() || merged.busApiKey || '';
     if (uploadHistory) {
@@ -684,6 +697,15 @@ async function forceSyncHistory() {
     const deletedSet = new Set(data._deletedIds || []);
     mergedHistory.expenses = mergedHistory.expenses.filter(e => !deletedSet.has(e.id));
     mergedHistory.powerRecords = (mergedHistory.powerRecords || []).filter(r => !deletedSet.has(r.id));
+
+    // Cross-store dedup: drop history copies that are superseded by a newer main copy
+    {
+      const mainExpById = new Map(data.expenses.map(e => [e.id, e]));
+      mergedHistory.expenses = mergedHistory.expenses.filter(e => {
+        const m = mainExpById.get(e.id);
+        return !m || (e._ts || 0) > (m._ts || 0);
+      });
+    }
     setDriveStatus('Uploading history…');
     mergedHistory._updatedAt = Date.now();
     await uploadHistoryToDrive(token, historyFileId, mergedHistory);
