@@ -6,20 +6,20 @@ Personal health and finance tools, all served as static files under `/health/`.
 
 | File | Purpose | ~Lines |
 |---|---|---|
-| `finance.html` | Finance PWA shell — HTML only (no inline CSS or JS) | 850 |
-| `finance.css` | Finance PWA styles | 716 |
-| `finance-core.js` | Constants, data layer, utilities, sheet/tab helpers | 599 |
-| `finance-drive.js` | Google Drive bidirectional sync + merge logic | 587 |
-| `finance-expenses.js` | Expenses tab — render, CRUD, filters, recurring, mortgage inline | 367 |
-| `finance-investments.js` | Accounts, assets, investment history modal | 407 |
-| `finance-events.js` | Events tab, calendar, bus panel, Leaflet map | 847 |
-| `finance-insurance.js` | Insurance, recurring expenses, mortgages | 613 |
-| `finance-tax.js` | Income tax, CPF projection, retirement planning | 1040 |
-| `finance-ai.js` | AI advisor — net-worth snapshots, savings/runway, consolidated summary builder, Drive push/fetch, Markdown report render | 380 |
-| `finance-app.js` | Analysis tab, `renderAll()`, theme picker, init sequence | 394 |
-| `finance-gmail.js` | Email parser rules (expense + event parsers) | 264 |
+| `finance.html` | Finance PWA shell — HTML only (no inline CSS or JS) | 1083 |
+| `finance.css` | Finance PWA styles | 916 |
+| `finance-core.js` | Constants, data layer, utilities, sheet/tab/FAB helpers, SG tax + CPF constants | 415 |
+| `finance-drive.js` | Import/export + Google Drive bidirectional sync + merge logic | 776 |
+| `finance-expenses.js` | Expenses tab — render, CRUD, filters, year/account pills, sub-tab switching | 375 |
+| `finance-investments.js` | Account settings, budgets, assets, asset allocation, investment history modal | 627 |
+| `finance-events.js` | Events tab, calendar, bus panel, Leaflet map, notes, reminders | 934 |
+| `finance-insurance.js` | Insurance, medical visits, recurring expenses, mortgages | 816 |
+| `finance-tax.js` | Income tax, CPF projection, retirement planning, tax PIN | 1186 |
+| `finance-ai.js` | AI advisor — net-worth snapshots, savings/runway, consolidated summary builder, Drive push/fetch, Markdown report render | 582 |
+| `finance-app.js` | Analysis tab, `renderAll()`, theme picker, `esc()`, DMY widget, init sequence | 791 |
+| `finance-gmail.js` | Email parser rules (expense + event parsers) | 268 |
 | `apps-script/quarterly-report.gs` | Optional Google Apps Script — quarterly Claude API call → Drive report | — |
-| `sw.js` | Service worker for `finance.html` | 50 |
+| `sw.js` | Service worker for `finance.html` | 76 |
 | `tracker.html` | Health tracker PWA | — |
 | `sw-tracker.js` | Service worker for `tracker.html` | — |
 | `her.html` / `him.html` | Health plan pages | — |
@@ -48,18 +48,21 @@ All files share a global scope. Each file may reference globals defined in files
 
 ```js
 // sw.js line 1
-const CACHE = 'finance-v64';  // increment this number
+const CACHE = 'finance-v119';  // increment this number (current value as of this writing)
 ```
 
-Current ASSETS list (17 files):
+Current ASSETS list (18 files):
 ```
 /health/finance.html, /health/finance.css,
 /health/finance-core.js, /health/finance-drive.js, /health/finance-expenses.js,
 /health/finance-investments.js, /health/finance-events.js, /health/finance-insurance.js,
 /health/finance-tax.js, /health/finance-ai.js, /health/finance-app.js, /health/finance-gmail.js,
 /health/themes.css, /health/icons/icon-192.png, /health/icons/icon-512.png,
-/health/fonts/material-symbols-outlined.css, /health/fonts/material-symbols-outlined.woff2
+/health/fonts/material-symbols-outlined.css, /health/fonts/material-symbols-outlined.woff2,
+/health/manifest.json
 ```
+
+Leaflet's CSS/JS are cached separately in `EXT_CACHE` (`finance-ext-v1`) on first fetch — they are versioned URLs (`leaflet@1.9.4`) and do not need a cache bump.
 
 Without bumping, users will keep being served old cached files after deployment.
 
@@ -76,16 +79,19 @@ Same rule applies to `tracker.html` — bump the version in `sw-tracker.js` if t
 
 ### Tabs
 
+There are **5 top-level tabs** (there is no standalone Investments tab — assets live under Tax › Assets):
+
 | Tab | `data-tab` | Icon | Page ID |
 |---|---|---|---|
 | Events | `events` | `event` | `page-events` |
 | Expenses | `expenses` | `credit_card` | `page-expenses` |
-| Investments | `investments` | `trending_up` | `page-investments` |
 | Analysis | `analysis` | `bar_chart` | `page-analysis` |
 | Insurance | `insurance` | `shield` | `page-insurance` |
 | Tax | `tax` | `receipt_long` | `page-tax` |
 
-Tab switching is driven by `data-tab` attributes and the `currentTab` variable. Each tab maps to a `#page-{tab}` div. The FAB (`+` button, id `fabBtn`) is hidden on the Analysis tab; its action depends on `currentTab`.
+Tab switching is driven by `data-tab` attributes and the `currentTab` variable (the click handler lives at the bottom of `finance-core.js`). Each tab maps to a `#page-{tab}` div. The FAB (`+` button, id `fabBtn`) action depends on `currentTab` **and the active sub-tab**; it is hidden on Analysis › AI/Expense and Tax › Retirement (see the `fabBtn` handler in `finance-core.js` and `renderAll()` in `finance-app.js`).
+
+> Note: `renderInvestments()` (`finance-investments.js`) is **not currently wired into any tab** — assets are rendered by `renderAssetsSubTab()` on the Tax tab. Treat `renderInvestments()` as dead/legacy unless re-introduced.
 
 ### Bottom sheets
 
@@ -107,8 +113,14 @@ Tab switching is driven by `data-tab` attributes and the `currentTab` variable. 
 | `parserEditorSheet` | Add/edit expense email parser |
 | `evParserEditorSheet` | Add/edit event email parser |
 | `aiReportSheet` | Paste/save the AI advisor Markdown report |
+| `expenseBudgetSheet` | Expense categories + emojis, monthly budgets, email-keyword map |
+| `allocationRatioSheet` | Target asset-allocation percentages |
+| `customPromptSheet` | Edit the AI advisor prompt template |
+| `medicalSheet` | Add/edit medical visit |
+| `noteSheet` | Add/edit note |
+| `powerSheet` | Add/edit utility (electricity/water) record |
 
-Modal overlays: `backdrop`, `mortgageOverlay`, `historyOverlay`, `driveOverlay`.
+Modal overlays: `backdrop`, `mortgageOverlay`, `historyOverlay`, `driveOverlay`, plus the `taxPinOverlay` (PIN gate for the Tax tab).
 
 ### Data storage
 
@@ -132,8 +144,8 @@ Two localStorage keys:
   insurances: [],        // { id, name, personInsured, startDate, contractId, details, paymentAmount, paymentFrequency, agentContacts, _updatedAt }
   taxRecords: [],        // { id, year, isHistorical, basicSalary, bonus, otherIncome, cpfEmployee, reliefs, taxRebate, _ts }
   cpfRecords: [],        // { id, year, oaBalance, saBalance, maBalance, oaInterest, saInterest, maInterest, _ts }
-  cpfSettings: { dateOfBirth, retirementAge, monthlySalary, lifeExpectancy, ersGrowthRate, mortalityFactor, monthlyMortgage },
-  retirementSettings: { inflationRate, investmentRate, retirementAge, deathAge, monthlyExpenses },
+  cpfSettings: { dateOfBirth, spouseDob, retirementAge, lifeExpectancy, ersGrowthRate, mortalityFactor, monthlyMortgage },
+  retirementSettings: { inflationRate, investmentRate, retirementAge, deathAge, monthlyExpenses, annualSavings, safeWithdrawalRate },
   _deletedIds: [],
   budgets: {},           // { [category]: amount }
   monthlyAgg: {},        // { [YYYY-MM]: { [category]: total } }
@@ -141,13 +153,19 @@ Two localStorage keys:
   ongoingExpenses: [],   // { id, name, amount, frequency, startDate, category, accountId, note, lastAutoGenPeriod, _updatedAt }
   emailCatMap: [],       // [{ match, value }]
   emailCatDefault: 'Other',
-  netWorthSnapshots: [], // { key: 'YYYY-Qn', date, liquid, assets, cpf, debt, net, _ts } — one per quarter
+  netWorthSnapshots: [], // { key, date, liquid, assets, investableAssets, cpf, debt, net, _ts } — key is the capture date (YYYY-MM-DD); auto ≤1/quarter + manual per-day
   aiReport: null,        // { markdown, generatedAt, period } — latest AI advisor report
-  dependents: []         // { id, name, relationship, birthYear, sex, _ts } — household, enriches AI analysis
+  customAiPrompt: null,  // string | null — user-edited AI prompt template (null = use DEFAULT_AI_PROMPT)
+  dependents: [],        // { id, name, relationship, birthYear, sex, _ts } — household, enriches AI analysis
+  allocationRatios: {},  // { Equities: 40, Bonds: 20, ... } target allocation % per class
+  medicalVisits: [],     // { id, title, person, description, date, amount, paymentType, _ts }
+  notes: []              // { id, title, content, _updatedAt }
 }
 ```
 
-`ASSET_CLASSES` (in `finance-core.js`): Cash, Equities, Bonds, Property (rental), Home (own use), Crypto, Commodities, Other. `isInvestable(a)` excludes `Home (own use)` — counted in net worth but excluded from investable allocation and `calcRetirementPlan()` drawdown.
+Per-field sync timestamps (set on write, consumed by `mergeData` for last-writer-wins): `_termDatesTs`, `_eventTagsTs`, `_expenseCatsTs`, `_emailParsersTs`, `_emailCatMapTs`, `_cpfSettingsTs`, `_aiReportTs`, `_dependentsTs`, `_allocationRatiosTs`, `_customAiPromptTs`, `_retirementSettingsTs`.
+
+`ASSET_CLASSES` (in `finance-core.js`): Cash, Equities, Bonds, Gold, Property (rental), Home (own use), Crypto, Commodities, CPF, Other. `isInvestable(a)` excludes `Home (own use)` — counted in net worth but excluded from investable allocation and `calcRetirementPlan()` drawdown. ⚠️ A `CPF`-class asset is **also** summed on top of `cpfRecords` in `computeNetWorth()`, so CPF should live in only one place to avoid double-counting.
 
 **Adding a new data collection to `data` (main key):**
 1. Add `myCollection: []` to `defaultData()`
@@ -250,9 +268,12 @@ Follow all five steps or the collection will be silently dropped during syncs an
 | `finance:googleClientId` | OAuth2 client ID |
 | `finance:googleLoginHint` | Last signed-in Google email |
 | `finance:busApiKey` | LTA DataMall API key |
+| `finance:busProxyUrl` | Optional local CORS-proxy base URL for bus calls |
+| `finance:busStopCoords` | Cached lat/lng for `BUS_STOPS` (bus map) |
 | `finance:balanceHidden` | Bool — hide balance amounts |
 | `finance:lastAcct` | Last-used account ID |
 | `finance:lastSync` | Timestamp of last Drive sync |
+| `finance:taxPin` | PIN gating the Tax tab (digits only) |
 | `finance:driveSummaryFileId` | Drive file ID for `finance-elvis-summary.json` (AI summary) |
 | `finance:driveReportFileId` | Drive file ID for `finance-elvis-report.json` (AI report) |
 | `busMapCenter` | Saved map centre `[lat, lng]` |
@@ -264,12 +285,15 @@ Two Drive files per user: `finance-elvis.json` (main) and `finance-elvis-history
 **Merge strategy** (bidirectional, conflict-resolved):
 
 *Main data (`mergeData` in `finance-drive.js`):*
-- Expenses/Events/Tax/CPF/Insurance/OngoingExpenses/Dependents: union by ID, prefer higher `_ts` / `_updatedAt`, exclude `_deletedIds`
-- Assets: union by ID, merge `history[]`, deduplicate by `_ts`; `name`/`units`/`class` prefer local
+- Expenses/Events/Tax/CPF/Insurance/OngoingExpenses/Dependents/MedicalVisits/Notes: union by ID, prefer higher `_ts` / `_updatedAt`, exclude `_deletedIds`
+- Assets: union by ID, merge `history[]`, deduplicate by `_ts`; `name`/`units`/`class` prefer local (via `_nameTs`)
 - Mortgages: union by ID, merge `entries[]`, deduplicate by ID
 - Accounts: prefer higher `_updatedAt`
-- Scalars (termDates, eventTags, expenseCats, emailParsers, emailCatMap, `aiReport` via `_aiReportTs`): last-writer-wins via timestamp
-- `netWorthSnapshots`: union by quarter `key`, prefer higher `_ts`
+- Scalars/objects (termDates, eventTags, expenseCats, emailParsers, emailCatMap+emailCatDefault, cpfSettings, retirementSettings, allocationRatios, customAiPrompt, `aiReport`): last-writer-wins via the matching `_*Ts` timestamp
+- `netWorthSnapshots`: union by `key` (the capture date), prefer higher `_ts`
+- `budgets`: shallow merge (local keys win)
+
+> When you add a new collection/field to `data`, add a matching merge block to `mergeData` (step 5 of "Adding a new data collection") or it will silently fail to sync.
 
 *History data (`mergeHistoryData` in `finance-drive.js`):*
 - `expenses` and every other collection (`powerRecords`, …): union by ID, prefer higher `_ts`
@@ -285,8 +309,9 @@ consolidated, AI-ready summary, then renders a Markdown report.
 - **Net-worth snapshots**: `recordNetWorthSnapshot(force)` auto-records at most one
   `netWorthSnapshots` entry per quarter on load; the *📸 Snapshot now* button (`snapshotNetWorthNow()`)
   captures a dated point on demand. (`computeNetWorth()` = accounts + assets + CPF − mortgage debt.)
-- **Cash flow**: `computeCashflow()` → avg monthly spend, savings rate, runway (vs a 6-month
-  emergency-fund target). Shown as a KPI strip via `renderAiKpis()`.
+- **Cash flow**: `computeCashflow()` → avg monthly spend (last 12 months from `monthlyAgg`),
+  monthly income (from latest non-historical tax estimate), and savings rate. Shown as a KPI strip
+  via `renderAiKpis()` (Net Worth + QoQ delta, Savings Rate).
 - **Asset allocation**: `renderAssetAllocation()` (on Tax › Assets) groups assets by `class` with a
   stacked bar; own-home shown but flagged as excluded from the investable total.
 - **Net-worth chart**: `renderNetWorthChart()` plots `netWorthSnapshots` by date (single point + hint until a second capture exists).
@@ -306,9 +331,9 @@ consolidated, AI-ready summary, then renders a Markdown report.
 
 ### Expense categories
 
-Default: `Grocery` · `Travel` (plus any in `data.expenseCats` and any `.cat` values already on expenses)
+Default: `DEFAULT_CATS` = `Grocery` · `Travel` · `Income Tax` · `Allowance` (`finance-core.js`), plus any in `data.expenseCats` and any `.cat` values already on expenses.
 
-`TopUp` is income (adds to balance); all others are expenses (subtract). Categories are open — new ones can be added via import and will appear in the UI.
+`TopUp` is income (adds to balance); all others are expenses (subtract). Categories are open — new ones can be added via import and will appear in the UI. `data.expenseCats` is a comma-separated "emoji name" string parsed by `parseCatEmojis()` / `expenseCatDefaults()`.
 
 ### Expense sub-tabs
 
@@ -318,19 +343,34 @@ The Expenses page has four sub-tabs switched by `switchExpSubTab(tab)`:
 - `mortgage` — renders `renderMortgageListInline()`
 - `emailrules` — renders `renderEmailRulesSubTab()`
 
+### Analysis sub-tabs
+
+Switched by `switchAnalysisSubTab(tab)` (`finance-app.js`):
+- `ai` — AI Financial Advisor card (`renderAiReport()`, default)
+- `expense` — category/yearly/asset-mortgage charts + monthly cards + budget summary
+- `power` — utility (electricity/water) records & chart (`renderPower()`); FAB adds a power record
+
+### Insurance sub-tabs
+
+Switched by `switchInsSubTab(tab)` (`finance-insurance.js`):
+- `policy` — insurance policies (`renderInsurances()`, default)
+- `medical` — medical visits log (`renderMedical()`); FAB adds a visit
+
 ### Events features
 
-- **Views**: list (grouped by week), calendar (month grid), bus panel (real-time LTA arrivals), bus map (Leaflet interactive map)
+- **Views** (`setEventView(mode)`): `list` (grouped by week), `calendar` (month grid), `bus` (real-time LTA arrivals), `busmap` (Leaflet interactive map), `notes` (free-form notes)
 - **Bus stops**: 6 hardcoded stops in `BUS_STOPS` array in `finance-core.js`
-- **External APIs**: LTA DataMall (`BUS_API_URL`), Leaflet.js (loaded dynamically), Geolocation API
+- **External APIs**: LTA DataMall (`BUS_API_URL`, via `corsproxy.io` or an optional local proxy URL), Leaflet.js (loaded dynamically), Geolocation API
 - **Reminders**: browser notifications via `scheduleEventReminders()`
 
 ### Tax tab sub-tabs
 
-- `tax` — income tax estimates + historical records, SVG chart
-- `cpf` — CPF projection chart + recorded balances
-- `assets` — asset list (same data as Investments)
+Switched by `switchTaxSubTab(tab)` (`finance-expenses.js`):
+- `incometax` — income tax estimates + historical records, SVG chart (default)
+- `cpf` — CPF projection chart + recorded balances + SA-to-ERS tables
+- `assets` — asset list + allocation (same `data.assets` source)
 - `retirement` — retirement drawdown projection
+- Optional **PIN gate** (`finance:taxPin`): `maybeShowTaxPin()` shows `taxPinOverlay` on entry until unlocked.
 
 ### Themes
 
@@ -349,7 +389,7 @@ Theme preference stored in `localStorage` under `finance:theme`.
 
 - **Bottom sheets**: `openSheet(id)` / `closeSheet()`. Each sheet has a `.sheet` div, handle, title, and form.
 - **Toast notifications**: `showToast(message, duration?)`.
-- **XSS safety**: always use `esc(str)` (defined in `finance-app.js`) when interpolating user data into innerHTML.
+- **XSS safety**: always use `esc(str)` (defined in `finance-app.js`) when interpolating user data into innerHTML. ⚠️ `esc()` escapes only `& < > "` — it does **not** escape single quotes. Inline handlers built as `onclick="fn('${esc(x)}')"` are therefore still injectable if `x` contains a `'`. Prefer `data-*` attributes + event delegation, or extend `esc()` to cover `'` and `` ` ``, when wiring user-controlled values into single-quoted handlers. (Tracked in `fixme.md`.)
 - **IDs**: generated with `uid()` (short random alphanumeric strings).
 - **Formatting**: `fmtCurrency(n)` for dollar amounts, `fmt(n)` for plain numbers, `today()` for current date string.
 - **Empty states**: use the `.empty-state` + `.icon` pattern (see existing tabs for examples).
@@ -371,20 +411,22 @@ Theme preference stored in `localStorage` under `finance:theme`.
 
 ### `renderAll()` call chain
 
+`renderAll()` (`finance-app.js`) renders **only the active tab** (it `switch`es on `currentTab`); inactive tabs are rendered when next visited. It also recomputes FAB visibility first.
+
 ```
-renderEventList()
-renderAccountFilterPills() + renderYearFilterPills()
-renderExpenseList()
-  → renderOngoingListInline()   [if currentExpSubTab === 'recurring']
-  → renderMortgageListInline()  [if currentExpSubTab === 'mortgage']
-renderInvestments()
-renderAnalysis()
-renderInsurances()
-renderTaxRecords()
-  → renderCpf()          [if currentTaxSubTab === 'cpf']
-  → renderAssetsSubTab() [if currentTaxSubTab === 'assets']
-  → renderRetirement()   [if currentTaxSubTab === 'retirement']
+events:    eventViewMode === 'notes' ? renderNotesList() : renderEventList()
+expenses:  renderAccountFilterPills() + renderYearFilterPills() + renderExpenseList()
+             → renderOngoingListInline()   [if currentExpSubTab === 'recurring']
+             → renderMortgageListInline()  [if currentExpSubTab === 'mortgage']
+analysis:  renderAnalysis()  // dispatches on currentAnalysisSubTab → ai | expense | power
+insurance: currentInsSubTab === 'medical' ? renderMedical() : renderInsurances()
+tax:       renderTaxRecords()
+             → renderCpf()          [if currentTaxSubTab === 'cpf']
+             → renderAssetsSubTab() [if currentTaxSubTab === 'assets']
+             → renderRetirement()   [if currentTaxSubTab === 'retirement']
 ```
+
+> Because each render rebuilds the whole tab's `innerHTML`, an uncaught exception in one render blanks that tab. Guard parsing of imported/legacy data accordingly.
 
 ### Gmail email parser (`finance-gmail.js`)
 
