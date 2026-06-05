@@ -66,37 +66,21 @@ function renderTaxChart() {
 
   if (records.length < 2) return '';
 
-  const COL_W = 64, H = 140, PAD_L = 44, PAD_B = 28, PAD_T = 16, PAD_R = 12;
-  const svgW = PAD_L + records.length * COL_W + PAD_R;
-  const svgH = H + PAD_T + PAD_B;
   const INCOME_COLOR = 'var(--primary)', TAX_COLOR = '#e74c3c';
 
-  const maxVal = Math.max(...records.map(r => r.income), 1);
-  const scale = Math.pow(10, Math.floor(Math.log10(maxVal)));
-  const maxY = Math.ceil(maxVal / scale) * scale;
-  const xPos = i => PAD_L + i * COL_W + COL_W / 2;
-  const yPos = v => PAD_T + H - Math.min(1, v / maxY) * H;
+  // Y-axis scaled to income (tax is always smaller, so it plots correctly within the range).
+  const rawMax = Math.max(...records.map(r => r.income), 1);
+  const scale = Math.pow(10, Math.floor(Math.log10(rawMax)));
+  const yMax = Math.ceil(rawMax / scale) * scale;
 
-  const ticks = [0, .25, .5, .75, 1].map(f => ({ v: maxY * f, y: yPos(maxY * f) }));
-  const grid = ticks.map(({ v, y }) =>
-    `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${(svgW - PAD_R).toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1"/>` +
-    `<text x="${(PAD_L - 4).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--muted)">${fmtShort(v)}</text>`
-  ).join('');
-
-  function makeLine(vals, color, dash) {
-    const pts = vals.map((v, i) => [xPos(i), yPos(v)]);
-    const d = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
-    const extra = dash ? ` stroke-dasharray="${dash}"` : '';
-    const dots = pts.map(([cx, cy], i) =>
-      `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.5" fill="${color}" stroke="#fff" stroke-width="1.5"/>` +
-      `<text x="${cx.toFixed(1)}" y="${(cy - 9).toFixed(1)}" text-anchor="middle" font-size="8" font-weight="700" fill="${color}">${fmtShort(vals[i])}</text>`
-    ).join('');
-    return `<path d="${d}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"${extra}/>${dots}`;
-  }
-
-  const xLabels = records.map((r, i) =>
-    `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="9" fill="var(--muted)">${r.year}${!r.isHistorical ? '*' : ''}</text>`
-  ).join('');
+  const xLabels = records.map(r => `${r.year}${!r.isHistorical ? '*' : ''}`);
+  const svg = lineChart({
+    height: 140, padT: 16, xLabelSize: 9, xLabels, yMax,
+    series: [
+      { values: records.map(r => r.income), color: INCOME_COLOR, valueLabels: true },
+      { values: records.map(r => r.tax), color: TAX_COLOR, dash: '5 3', valueLabels: true },
+    ],
+  });
 
   const legend = `<div style="display:flex;gap:16px;margin-top:6px;padding:0 4px;font-size:.75rem;color:var(--text)">
     <span style="display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:18px;height:3px;background:var(--primary);border-radius:2px"></span>Income</span>
@@ -105,14 +89,7 @@ function renderTaxChart() {
 
   return `<div class="chart-wrap">
     <div class="chart-title">Income &amp; Tax Year-over-Year</div>
-    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-      <svg width="${svgW}" height="${svgH}" style="display:block">
-        ${grid}
-        ${makeLine(records.map(r => r.income), INCOME_COLOR, '')}
-        ${makeLine(records.map(r => r.tax), TAX_COLOR, '5 3')}
-        ${xLabels}
-      </svg>
-    </div>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">${svg}</div>
     ${legend}
     <div style="font-size:.72rem;color:var(--muted);margin-top:4px;padding:0 4px">* estimated (not yet filed)</div>
   </div>`;
@@ -297,47 +274,30 @@ function renderCpfChart(proj) {
   if (points.length < 2) return '';
 
   const OA_COLOR = '#2980b9', SA_COLOR = '#e67e22', MA_COLOR = '#27ae60', RA_COLOR = '#8e44ad';
-  const COL_W = 52, H = 160, PAD_L = 44, PAD_B = 28, PAD_T = 16, PAD_R = 12;
-  const svgW = PAD_L + points.length * COL_W + PAD_R;
-  const svgH = H + PAD_T + PAD_B;
 
-  const maxVal = Math.max(...points.map(p => Math.max(p.oa, p.sa, p.ma, p.ra)), 1);
-  const scale = Math.pow(10, Math.floor(Math.log10(maxVal)));
-  const maxY = Math.ceil(maxVal / scale) * scale;
-  const xPos = i => PAD_L + i * COL_W + COL_W / 2;
-  const yPos = v => PAD_T + H - Math.min(1, v / maxY) * H;
+  // X-axis: every 2nd year + always show last point
+  const xLabels = points.map((p, i) =>
+    (i % 2 === 0 || i === points.length - 1) ? String(p.year) : ''
+  );
 
-  const ticks = [0, .25, .5, .75, 1].map(f => ({ v: maxY * f, y: yPos(maxY * f) }));
-  const grid = ticks.map(({ v, y }) =>
-    `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${(svgW - PAD_R).toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1"/>` +
-    `<text x="${(PAD_L - 4).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--muted)">${fmtShort(v)}</text>`
-  ).join('');
+  // Milestone vertical lines at age 55, CPF LIFE 65, and retirement
+  const milestones = points.reduce((acc, p, i) => {
+    if (p.age === 55 || p.age === proj.retireAge || p.age === 65) {
+      const label = p.age === 55 ? 'Age 55' : p.age === 65 ? 'CPF LIFE 65' : `Retire ${p.age}`;
+      acc.push({ index: i, label });
+    }
+    return acc;
+  }, []);
 
-  function line(vals, color, dash) {
-    const pts = vals.map((v, i) => [xPos(i), yPos(v)]);
-    const d = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
-    const da = dash ? ` stroke-dasharray="${dash}"` : '';
-    const dots = pts.map(([cx, cy]) =>
-      `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="2.5" fill="${color}" stroke="#fff" stroke-width="1.5"/>`
-    ).join('');
-    return `<path d="${d}" fill="none" stroke="${color}" stroke-width="2"${da} stroke-linejoin="round" stroke-linecap="round"/>${dots}`;
-  }
-
-  // Vertical milestone lines at age 55, retirement, and 65 (CPF LIFE start)
-  const milestones = points.map((p, i) => {
-    const isMilestone = p.age === 55 || p.age === proj.retireAge || p.age === 65;
-    if (!isMilestone) return '';
-    const x = xPos(i);
-    const lbl = p.age === 55 ? 'Age 55' : p.age === 65 ? 'CPF LIFE 65' : `Retire ${p.age}`;
-    return `<line x1="${x.toFixed(1)}" y1="${PAD_T}" x2="${x.toFixed(1)}" y2="${(PAD_T + H).toFixed(1)}" stroke="#aaa" stroke-width="1" stroke-dasharray="3 3"/>` +
-           `<text x="${x.toFixed(1)}" y="${(PAD_T - 3).toFixed(1)}" text-anchor="middle" font-size="7" fill="#aaa">${lbl}</text>`;
-  }).join('');
-
-  // X-axis labels: every 2 years
-  const xLabels = points.map((p, i) => {
-    if (i % 2 !== 0 && i !== points.length - 1) return '';
-    return `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="8" fill="var(--muted)">${p.year}</text>`;
-  }).join('');
+  const svg = lineChart({
+    colW: 52, height: 160, padT: 16, xLabels, milestones,
+    series: [
+      { values: points.map(p => p.oa), color: OA_COLOR, strokeWidth: 2, dotR: 2.5 },
+      { values: points.map(p => p.sa), color: SA_COLOR, dash: '4 3', strokeWidth: 2, dotR: 2.5 },
+      { values: points.map(p => p.ma), color: MA_COLOR, dash: '2 2', strokeWidth: 2, dotR: 2.5 },
+      { values: points.map(p => p.ra), color: RA_COLOR, strokeWidth: 2, dotR: 2.5 },
+    ],
+  });
 
   const legend = `<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;padding:0 4px;font-size:.75rem;color:var(--text)">
     <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:14px;height:3px;background:${OA_COLOR};border-radius:2px"></span>OA</span>
@@ -348,16 +308,7 @@ function renderCpfChart(proj) {
 
   return `<div class="chart-wrap">
     <div class="chart-title">CPF Balance Projection</div>
-    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-      <svg width="${svgW}" height="${svgH}" style="display:block">
-        ${grid}${milestones}
-        ${line(points.map(p => p.oa), OA_COLOR, '')}
-        ${line(points.map(p => p.sa), SA_COLOR, '4 3')}
-        ${line(points.map(p => p.ma), MA_COLOR, '2 2')}
-        ${line(points.map(p => p.ra), RA_COLOR, '')}
-        ${xLabels}
-      </svg>
-    </div>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">${svg}</div>
     ${legend}
     <div style="font-size:.72rem;color:var(--muted);margin-top:4px;padding:0 4px">Rates: OA 2.5% · SA/RA/MA 4% · No contribution after retirement age. BHS cap $${CPF_BHS.toLocaleString()} · FRS 2026: $${CPF_FRS.toLocaleString()} · ERS 2026: $${CPF_ERS.toLocaleString()} (projected to your age 55 using ERS growth rate).</div>
   </div>`;

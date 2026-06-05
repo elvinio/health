@@ -12,7 +12,7 @@ Actionable issues from the code review (full write-up in `finance-review.md`). G
 
 ## 🏗 Architecture / tech-debt (no single line)
 
-- [ ] **De-duplicate SVG chart scaffolding.** Grid/ticks/axis/path building is reimplemented ~7× across `finance-app/tax/ai`. Extract one `lineChart()` helper (also fixes the theme-color issue centrally).
+- [x] **De-duplicate SVG chart scaffolding.** Grid/ticks/axis/path building is reimplemented ~7× across `finance-app/tax/ai`. Extract one `lineChart()` helper (also fixes the theme-color issue centrally).
 - [ ] **De-duplicate** asset-card markup (`renderInvestments` vs `renderAssetsSubTab`), bus API-setup UI (`renderBusPanel` vs `renderBusMapPanel`), and `autoGen`/`manualGen` recurring functions.
 - [ ] **Move repeated inline styles to CSS classes** in `finance.css` to shrink the JS and keep theming consistent.
 - [x] **`_deletedIds` grows unbounded** — cap or age out tombstones.

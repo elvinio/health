@@ -41,73 +41,124 @@ function fmtShort(n) {
   return '$' + Math.round(n);
 }
 
+// ── Shared SVG line-chart builder ─────────────────────────────────────────────
+// Returns an <svg> string. Callers wrap it in a .chart-wrap div with title/legend.
+//
+// series: [{ values[], color, dash?, strokeWidth?, dotR?, valueLabels? }]
+// milestones: [{ index, label }] — vertical reference lines (CPF chart)
+// area: CSS color for semi-transparent fill under first series (net-worth chart)
+// overlayFn: (xPos, yPos, svgW) => svgString — injected before series lines
+//   (used for budget dashed lines in the category chart)
+// yMin / yMax: explicit axis bounds; yMax is auto ceil-to-scale when omitted
+// xLabelSize: font-size for x-axis labels (default 8; pass 9 for year-label charts)
+function lineChart({
+  colW = 64, height = 160, padL = 44, padB = 28, padT = 8, padR = 12,
+  xLabels = [],
+  series = [],
+  yMin = 0, yMax,
+  yFmt,
+  xLabelSize = 8,
+  milestones = [],
+  area = null,
+  overlayFn = null,
+}) {
+  const fmt = yFmt || fmtShort;
+  const n = xLabels.length;
+  const svgW = padL + n * colW + padR;
+  const svgH = height + padT + padB;
+
+  let lo = yMin;
+  let hi = yMax;
+  if (hi == null) {
+    const allVals = series.flatMap(s => s.values);
+    const rawMax = allVals.length ? Math.max(...allVals, 1) : 1;
+    const scale = Math.pow(10, Math.floor(Math.log10(rawMax)));
+    hi = Math.ceil(rawMax / scale) * scale;
+  }
+  const range = (hi - lo) || 1;
+
+  const xPos = i => padL + i * colW + colW / 2;
+  const yPos = v => padT + height - Math.min(1, Math.max(0, (v - lo) / range)) * height;
+
+  const grid = [0, .25, .5, .75, 1].map(f => {
+    const v = lo + range * f, y = yPos(v);
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${(svgW - padR).toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1"/>` +
+           `<text x="${(padL - 4).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--muted)">${fmt(v)}</text>`;
+  }).join('');
+
+  const xAxis = xLabels.map((lbl, i) =>
+    `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="${xLabelSize}" fill="var(--muted)">${lbl}</text>`
+  ).join('');
+
+  const milestoneLines = milestones.map(({ index, label }) => {
+    const x = xPos(index);
+    return `<line x1="${x.toFixed(1)}" y1="${padT}" x2="${x.toFixed(1)}" y2="${(padT + height).toFixed(1)}" stroke="#aaa" stroke-width="1" stroke-dasharray="3 3"/>` +
+           `<text x="${x.toFixed(1)}" y="${(padT - 3).toFixed(1)}" text-anchor="middle" font-size="7" fill="#aaa">${label}</text>`;
+  }).join('');
+
+  let areaPath = '';
+  if (area && series.length && series[0].values.length > 1) {
+    const pts = series[0].values.map((v, i) => [xPos(i), yPos(v)]);
+    areaPath = `<path d="M${pts[0][0].toFixed(1)},${yPos(lo).toFixed(1)} ${pts.map(p => `L${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')} L${pts[pts.length - 1][0].toFixed(1)},${yPos(lo).toFixed(1)} Z" fill="${area}" opacity="0.08"/>`;
+  }
+
+  const seriesLines = series.map(({ values, color, dash = '', strokeWidth = 2.5, dotR = 3.5, valueLabels = false }) => {
+    const pts = values.map((v, i) => [xPos(i), yPos(v)]);
+    const d = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+    const dashAttr = dash ? ` stroke-dasharray="${dash}"` : '';
+    const dots = pts.map(([cx, cy], i) =>
+      `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${dotR}" fill="${color}" stroke="#fff" stroke-width="1.5"/>` +
+      (valueLabels ? `<text x="${cx.toFixed(1)}" y="${(cy - 9).toFixed(1)}" text-anchor="middle" font-size="8" font-weight="700" fill="${color}">${fmt(values[i])}</text>` : '')
+    ).join('');
+    return `<path d="${d}" fill="none" stroke="${color}" stroke-width="${strokeWidth}"${dashAttr} stroke-linejoin="round" stroke-linecap="round"/>${dots}`;
+  }).join('');
+
+  const extras = overlayFn ? overlayFn(xPos, yPos, svgW) : '';
+
+  return `<svg width="${svgW}" height="${svgH}" style="display:block">${grid}${milestoneLines}${extras}${areaPath}${seriesLines}${xAxis}</svg>`;
+}
+
 function renderCategoryChart(byMonth, months, allCats) {
   if (!months.length) return '';
   const budgets = data.budgets || {};
-  const visibleCats = allCats.filter(c => !_hiddenCats.has(c));
   const TOTAL_COLOR = '#2c3e50';
   const totalHidden = _hiddenCats.has('Total');
-
-  const COL_W = 64, H = 160, PAD_L = 44, PAD_B = 28, PAD_T = 8, PAD_R = 12;
-  const svgW = PAD_L + months.length * COL_W + PAD_R;
-  const svgH = H + PAD_T + PAD_B;
 
   const monthlyTotals = months.map(m => allCats.reduce((s, cat) => s + ((byMonth[m] && byMonth[m][cat]) || 0), 0));
 
   let maxVal = 0;
-  visibleCats.forEach(cat => months.forEach(m => {
-    maxVal = Math.max(maxVal, (byMonth[m] && byMonth[m][cat]) || 0);
-  }));
-  visibleCats.forEach(cat => { const b = budgets[cat]; if (b > 0) maxVal = Math.max(maxVal, b); });
+  allCats.forEach(cat => {
+    if (_hiddenCats.has(cat)) return;
+    months.forEach(m => { maxVal = Math.max(maxVal, (byMonth[m] && byMonth[m][cat]) || 0); });
+    const b = budgets[cat]; if (b > 0) maxVal = Math.max(maxVal, b);
+  });
   if (!totalHidden) monthlyTotals.forEach(v => { maxVal = Math.max(maxVal, v); });
   if (maxVal === 0) maxVal = 100;
   const scale = Math.pow(10, Math.floor(Math.log10(maxVal)));
-  maxVal = Math.ceil(maxVal / scale) * scale;
+  const yMax = Math.ceil(maxVal / scale) * scale;
 
-  const xPos = i => PAD_L + i * COL_W + COL_W / 2;
-  const yPos = v => PAD_T + H - Math.min(1, v / maxVal) * H;
+  const xLabels = months.map(m =>
+    new Date(m + '-01T00:00:00').toLocaleDateString(undefined, { month: 'short', year: '2-digit' })
+  );
 
-  const ticks = [0, .25, .5, .75, 1].map(f => ({ v: maxVal * f, y: yPos(maxVal * f) }));
+  const series = allCats
+    .map((cat, ci) => _hiddenCats.has(cat) ? null : {
+      values: months.map(m => (byMonth[m] && byMonth[m][cat]) || 0),
+      color: catColor(cat, ci),
+      strokeWidth: 2,
+    })
+    .filter(Boolean);
+  if (!totalHidden) series.push({ values: monthlyTotals, color: TOTAL_COLOR });
 
-  const grid = ticks.map(({ v, y }) =>
-    `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${(svgW - PAD_R).toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1"/>` +
-    `<text x="${(PAD_L - 4).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--muted)">${fmtShort(v)}</text>`
-  ).join('');
-
-  const xLabels = months.map((m, i) => {
-    const lbl = new Date(m + '-01T00:00:00').toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
-    return `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="8" fill="var(--muted)">${lbl}</text>`;
-  }).join('');
-
-  const budgetLines = allCats.map((cat, ci) => {
+  const overlayFn = (_, yPos, svgW) => allCats.map((cat, ci) => {
     if (_hiddenCats.has(cat)) return '';
     const b = budgets[cat];
-    if (!b || b <= 0) return '';
+    if (!b || b <= 0 || b > yMax) return '';
     const y = yPos(b);
-    if (y < PAD_T - 2 || y > PAD_T + H + 2) return '';
-    return `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${(svgW - PAD_R).toFixed(1)}" y2="${y.toFixed(1)}" stroke="${catColor(cat, ci)}" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.5"/>`;
+    return `<line x1="44" y1="${y.toFixed(1)}" x2="${svgW - 12}" y2="${y.toFixed(1)}" stroke="${catColor(cat, ci)}" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.5"/>`;
   }).join('');
 
-  const catLines = allCats.map((cat, ci) => {
-    if (_hiddenCats.has(cat)) return '';
-    const color = catColor(cat, ci);
-    const pts = months.map((m, i) => [xPos(i), yPos((byMonth[m] && byMonth[m][cat]) || 0)]);
-    const path = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
-    const dots = pts.map(([cx, cy]) =>
-      `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.5" fill="${color}" stroke="#fff" stroke-width="1.5"/>`
-    ).join('');
-    return `<path d="${path}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>${dots}`;
-  }).join('');
-
-  const totalLine = (() => {
-    if (totalHidden) return '';
-    const pts = monthlyTotals.map((v, i) => [xPos(i), yPos(v)]);
-    const path = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
-    const dots = pts.map(([cx, cy]) =>
-      `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.5" fill="${TOTAL_COLOR}" stroke="#fff" stroke-width="1.5"/>`
-    ).join('');
-    return `<path d="${path}" fill="none" stroke="${TOTAL_COLOR}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${dots}`;
-  })();
+  const svg = lineChart({ height: 160, padT: 8, xLabels, series, yMax, overlayFn });
 
   const legend = allCats.map((cat, ci) => {
     const b = budgets[cat];
@@ -118,18 +169,12 @@ function renderCategoryChart(byMonth, months, allCats) {
     return `<div class="legend-item" style="${itemStyle}" onclick='toggleChartCat(${JSON.stringify(cat)})'><div class="legend-dot" style="background:${catColor(cat, ci)}"></div><span style="${nameStyle}">${esc(cat)}${budgetTag}</span></div>`;
   }).join('');
 
-  const totalLegendItem = (() => {
-    const hidden = _hiddenCats.has('Total');
-    const itemStyle = `cursor:pointer;user-select:none;${hidden ? 'opacity:0.35;' : ''}`;
-    const nameStyle = hidden ? 'text-decoration:line-through' : '';
-    return `<div class="legend-item" style="${itemStyle}" onclick='toggleChartCat("Total")'><div class="legend-dot" style="background:${TOTAL_COLOR}"></div><span style="${nameStyle}">Total</span></div>`;
-  })();
+  const totalHid = _hiddenCats.has('Total');
+  const totalLegendItem = `<div class="legend-item" style="cursor:pointer;user-select:none;${totalHid ? 'opacity:0.35;' : ''}" onclick='toggleChartCat("Total")'><div class="legend-dot" style="background:${TOTAL_COLOR}"></div><span style="${totalHid ? 'text-decoration:line-through' : ''}">Total</span></div>`;
 
   return `<div class="chart-wrap">
     <div class="chart-title">Monthly Trend by Category</div>
-    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-      <svg width="${svgW}" height="${svgH}" style="display:block">${grid}${budgetLines}${catLines}${totalLine}${xLabels}</svg>
-    </div>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">${svg}</div>
     <div class="chart-legend">${legend}${totalLegendItem}</div>
   </div>`;
 }
@@ -141,48 +186,22 @@ function renderYearlyChart() {
   const curYear = String(new Date().getFullYear());
   const cutoff = new Date().toISOString().slice(0, 10);
   const totals = years.map(y => {
-    if (y === curYear) {
+    if (y === curYear)
       return data.expenses.filter(e => e.cat !== 'TopUp' && e.date <= cutoff).reduce((s, e) => s + e.amount, 0);
-    }
     return Object.entries(data.monthlyAgg)
       .filter(([m]) => m.startsWith(y + '-'))
       .reduce((s, [, cats]) => s + Object.values(cats).reduce((a, b) => a + b, 0), 0);
   });
 
-  const COL_W = 64, H = 140, PAD_L = 44, PAD_B = 28, PAD_T = 8, PAD_R = 12;
-  const svgW = PAD_L + years.length * COL_W + PAD_R;
-  const svgH = H + PAD_T + PAD_B;
-
-  let maxVal = Math.max(...totals, 1);
-  const scale = Math.pow(10, Math.floor(Math.log10(maxVal)));
-  maxVal = Math.ceil(maxVal / scale) * scale;
-
-  const xPos = i => PAD_L + i * COL_W + COL_W / 2;
-  const yPos = v => PAD_T + H - Math.min(1, v / maxVal) * H;
-
-  const ticks = [0, .25, .5, .75, 1].map(f => ({ v: maxVal * f, y: yPos(maxVal * f) }));
-  const grid = ticks.map(({ v, y }) =>
-    `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${(svgW - PAD_R).toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1"/>` +
-    `<text x="${(PAD_L - 4).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--muted)">${fmtShort(v)}</text>`
-  ).join('');
-
-  const COLOR = 'var(--primary)';
-  const pts = totals.map((v, i) => [xPos(i), yPos(v)]);
-  const path = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
-  const line = `<path d="${path}" fill="none" stroke="${COLOR}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
-  const dots = pts.map(([cx, cy], i) =>
-    `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="4" fill="${COLOR}" stroke="#fff" stroke-width="1.5"/>` +
-    `<text x="${cx.toFixed(1)}" y="${(cy - 9).toFixed(1)}" text-anchor="middle" font-size="8" font-weight="700" fill="${COLOR}">${fmtShort(totals[i])}</text>`
-  ).join('');
-  const xLabels = years.map((y, i) =>
-    `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="9" fill="var(--muted)">${y}${y === curYear ? '*' : ''}</text>`
-  ).join('');
+  const xLabels = years.map(y => `${y}${y === curYear ? '*' : ''}`);
+  const svg = lineChart({
+    height: 140, xLabelSize: 9, xLabels,
+    series: [{ values: totals, color: 'var(--primary)', dotR: 4, valueLabels: true }],
+  });
 
   return `<div class="chart-wrap">
     <div class="chart-title">Yearly Total Spending</div>
-    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-      <svg width="${svgW}" height="${svgH}" style="display:block">${grid}${line}${dots}${xLabels}</svg>
-    </div>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">${svg}</div>
     <div style="font-size:.72rem;color:var(--muted);margin-top:4px;padding:0 4px">* current year to date</div>
   </div>`;
 }
@@ -283,46 +302,15 @@ function renderAssetMortgageChart() {
   const hasMortgage = mortgageTotals.some(v => v > 0);
   if (!hasAsset && !hasMortgage) return '';
 
-  const COL_W = 64, H = 160, PAD_L = 44, PAD_B = 28, PAD_T = 8, PAD_R = 12;
-  const svgW = PAD_L + months.length * COL_W + PAD_R;
-  const svgH = H + PAD_T + PAD_B;
-
-  const maxVal = Math.max(...assetTotals, ...mortgageTotals, 1);
-  const scale = Math.pow(10, Math.floor(Math.log10(maxVal)));
-  const maxScaled = Math.ceil(maxVal / scale) * scale;
-
-  const xPos = i => PAD_L + i * COL_W + COL_W / 2;
-  const yPos = v => PAD_T + H - Math.min(1, v / maxScaled) * H;
-
-  const ticks = [0, .25, .5, .75, 1].map(f => ({ v: maxScaled * f, y: yPos(maxScaled * f) }));
-  const grid = ticks.map(({ v, y }) =>
-    `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${(svgW - PAD_R).toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1"/>` +
-    `<text x="${(PAD_L - 4).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--muted)">${fmtShort(v)}</text>`
-  ).join('');
-
-  const xLabels = months.map((m, i) => {
-    const lbl = new Date(m + '-01T00:00:00').toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
-    return `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="8" fill="var(--muted)">${lbl}</text>`;
-  }).join('');
-
   const ASSET_COLOR = '#27ae60';
   const MORTGAGE_COLOR = '#e74c3c';
 
-  const assetLine = (() => {
-    if (!hasAsset) return '';
-    const pts = assetTotals.map((v, i) => [xPos(i), yPos(v)]);
-    const path = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
-    const dots = pts.map(([cx, cy]) => `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.5" fill="${ASSET_COLOR}" stroke="#fff" stroke-width="1.5"/>`).join('');
-    return `<path d="${path}" fill="none" stroke="${ASSET_COLOR}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${dots}`;
-  })();
+  const xLabels = months.map(m => new Date(m + '-01T00:00:00').toLocaleDateString(undefined, { month: 'short', year: '2-digit' }));
+  const series = [];
+  if (hasAsset) series.push({ values: assetTotals, color: ASSET_COLOR });
+  if (hasMortgage) series.push({ values: mortgageTotals, color: MORTGAGE_COLOR, strokeWidth: 2, dash: '5 3' });
 
-  const mortgageLine = (() => {
-    if (!hasMortgage) return '';
-    const pts = mortgageTotals.map((v, i) => [xPos(i), yPos(v)]);
-    const path = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
-    const dots = pts.map(([cx, cy]) => `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.5" fill="${MORTGAGE_COLOR}" stroke="#fff" stroke-width="1.5"/>`).join('');
-    return `<path d="${path}" fill="none" stroke="${MORTGAGE_COLOR}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="5 3"/>${dots}`;
-  })();
+  const svg = lineChart({ xLabels, series });
 
   const legend = `<div class="chart-legend">
     ${hasAsset ? `<div class="legend-item"><div class="legend-dot" style="background:${ASSET_COLOR}"></div><span>Total Assets</span></div>` : ''}
@@ -331,9 +319,7 @@ function renderAssetMortgageChart() {
 
   return `<div class="chart-wrap">
     <div class="chart-title">Asset &amp; Mortgage Trend</div>
-    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-      <svg width="${svgW}" height="${svgH}" style="display:block">${grid}${assetLine}${mortgageLine}${xLabels}</svg>
-    </div>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">${svg}</div>
     ${legend}
   </div>`;
 }
