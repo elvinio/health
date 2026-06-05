@@ -1,4 +1,4 @@
-const CACHE = 'finance-v118';
+const CACHE = 'finance-v119';
 const EXT_CACHE = 'finance-ext-v1';
 const ASSETS = [
   '/health/finance.html',
@@ -18,6 +18,7 @@ const ASSETS = [
   '/health/icons/icon-512.png',
   '/health/fonts/material-symbols-outlined.css',
   '/health/fonts/material-symbols-outlined.woff2',
+  '/health/manifest.json',
 ];
 
 // Versioned external assets — safe to cache indefinitely.

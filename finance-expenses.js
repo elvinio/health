@@ -308,9 +308,13 @@ function setAccountFilter(id) {
   renderExpenseList();
 }
 
+let _searchDebounce;
 function onSearchInput() {
-  filterSearch = document.getElementById('expenseSearch').value.toLowerCase();
-  renderExpenseList();
+  clearTimeout(_searchDebounce);
+  _searchDebounce = setTimeout(() => {
+    filterSearch = document.getElementById('expenseSearch').value.toLowerCase();
+    renderExpenseList();
+  }, 150);
 }
 
 function switchExpSubTab(tab) {
