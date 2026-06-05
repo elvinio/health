@@ -67,7 +67,7 @@ function renderExpenseList() {
         ${exps.map(e => {
           const emoji = emojiMap[e.cat] || '';
           return `
-            <div class="expense-item" onclick="openExpenseSheet('${e.id}')">
+            <div class="expense-item" onclick="openExpenseSheet('${esc(e.id)}')">
               <span class="cat-emoji">${emoji}</span>
               <div class="expense-left">
                 <span class="expense-desc">${esc(e.desc)}</span>

@@ -45,8 +45,8 @@ function mortgageBalance(m) {
 // Current net worth = liquid (accounts) + assets + CPF − mortgage debt.
 function computeNetWorth() {
   const liquid = (data.accounts || []).reduce((s, a) => s + (a.balance || 0), 0);
-  const assets = (data.assets || []).reduce((s, a) => s + currentValue(a), 0);
-  const investableAssets = (data.assets || []).reduce((s, a) => s + (isInvestable(a) ? currentValue(a) : 0), 0);
+  const assets = (data.assets || []).reduce((s, a) => s + (a.class === 'CPF' ? 0 : currentValue(a)), 0);
+  const investableAssets = (data.assets || []).reduce((s, a) => s + (isInvestable(a) && a.class !== 'CPF' ? currentValue(a) : 0), 0);
   const cpf = latestCpfBalances().total;
   const debt = (data.mortgages || []).reduce((s, m) => s + mortgageBalance(m), 0);
   return {
