@@ -85,7 +85,7 @@ function confirmClearData() {
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(HISTORY_KEY);
   data = defaultData();
-  historyData = { expenses: [] };
+  historyData = { expenses: [], powerRecords: [] };
   saveData(data);
   saveHistory(historyData);
   renderAll();
@@ -110,6 +110,8 @@ document.getElementById('importEventsFile').addEventListener('change', e => {
       let added = 0, updated = 0;
       incoming.forEach(ev => {
         if (!ev.id || !ev.title || !ev.startDate) return;
+        if (!ev.startTime) ev.startTime = { hour: 0, minute: 0, ampm: 'AM' };
+        if (!ev.endTime) ev.endTime = { hour: 0, minute: 0, ampm: 'AM' };
         const idx = data.events.findIndex(e => e.id === ev.id);
         if (idx >= 0) {
           if ((ev._ts || 0) > (data.events[idx]._ts || 0)) { data.events[idx] = ev; updated++; }
@@ -587,8 +589,8 @@ async function driveSync() {
 
     // Split off any past-year entries that landed in remote.expenses (old format)
     const curYear = String(new Date().getFullYear());
-    const remoteHistFromMain = (remote.expenses || []).filter(e => !e.date.startsWith(curYear + '-'));
-    remote.expenses = (remote.expenses || []).filter(e => e.date.startsWith(curYear + '-'));
+    const remoteHistFromMain = (remote.expenses || []).filter(e => e.date && !e.date.startsWith(curYear + '-'));
+    remote.expenses = (remote.expenses || []).filter(e => e.date && e.date.startsWith(curYear + '-'));
 
     // Decide whether to use the already-in-flight history download
     const remoteHistTs = remote.historyUpdatedAt || 0;

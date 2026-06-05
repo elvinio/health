@@ -70,13 +70,13 @@ function renderCategoryChart(byMonth, months, allCats) {
   const ticks = [0, .25, .5, .75, 1].map(f => ({ v: maxVal * f, y: yPos(maxVal * f) }));
 
   const grid = ticks.map(({ v, y }) =>
-    `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${(svgW - PAD_R).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#e8dece" stroke-width="1"/>` +
-    `<text x="${(PAD_L - 4).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="#7a6a52">${fmtShort(v)}</text>`
+    `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${(svgW - PAD_R).toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1"/>` +
+    `<text x="${(PAD_L - 4).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--muted)">${fmtShort(v)}</text>`
   ).join('');
 
   const xLabels = months.map((m, i) => {
     const lbl = new Date(m + '-01T00:00:00').toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
-    return `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="8" fill="#7a6a52">${lbl}</text>`;
+    return `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="8" fill="var(--muted)">${lbl}</text>`;
   }).join('');
 
   const budgetLines = allCats.map((cat, ci) => {
@@ -162,8 +162,8 @@ function renderYearlyChart() {
 
   const ticks = [0, .25, .5, .75, 1].map(f => ({ v: maxVal * f, y: yPos(maxVal * f) }));
   const grid = ticks.map(({ v, y }) =>
-    `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${(svgW - PAD_R).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#e8dece" stroke-width="1"/>` +
-    `<text x="${(PAD_L - 4).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="#7a6a52">${fmtShort(v)}</text>`
+    `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${(svgW - PAD_R).toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1"/>` +
+    `<text x="${(PAD_L - 4).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--muted)">${fmtShort(v)}</text>`
   ).join('');
 
   const COLOR = 'var(--primary)';
@@ -175,7 +175,7 @@ function renderYearlyChart() {
     `<text x="${cx.toFixed(1)}" y="${(cy - 9).toFixed(1)}" text-anchor="middle" font-size="8" font-weight="700" fill="${COLOR}">${fmtShort(totals[i])}</text>`
   ).join('');
   const xLabels = years.map((y, i) =>
-    `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="9" fill="#7a6a52">${y}${y === curYear ? '*' : ''}</text>`
+    `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="9" fill="var(--muted)">${y}${y === curYear ? '*' : ''}</text>`
   ).join('');
 
   return `<div class="chart-wrap">
@@ -296,13 +296,13 @@ function renderAssetMortgageChart() {
 
   const ticks = [0, .25, .5, .75, 1].map(f => ({ v: maxScaled * f, y: yPos(maxScaled * f) }));
   const grid = ticks.map(({ v, y }) =>
-    `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${(svgW - PAD_R).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#e8dece" stroke-width="1"/>` +
-    `<text x="${(PAD_L - 4).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="#7a6a52">${fmtShort(v)}</text>`
+    `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${(svgW - PAD_R).toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1"/>` +
+    `<text x="${(PAD_L - 4).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--muted)">${fmtShort(v)}</text>`
   ).join('');
 
   const xLabels = months.map((m, i) => {
     const lbl = new Date(m + '-01T00:00:00').toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
-    return `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="8" fill="#7a6a52">${lbl}</text>`;
+    return `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="8" fill="var(--muted)">${lbl}</text>`;
   }).join('');
 
   const ASSET_COLOR = '#27ae60';
@@ -523,9 +523,7 @@ function renderAnalysis() {
   Object.entries(data.monthlyAgg || {}).forEach(([month, cats]) => {
     if (!analysisYears.has(month.slice(0, 4))) return;
     const filtered = {};
-    Object.entries(cats).forEach(([cat, amt]) => {
-      if (cat !== 'Other') filtered[cat] = amt;
-    });
+    Object.entries(cats).forEach(([cat, amt]) => { filtered[cat] = amt; });
     if (Object.keys(filtered).length) byMonth[month] = filtered;
   });
 
@@ -585,31 +583,36 @@ function renderAll() {
   document.getElementById('fabBtn').style.display =
     ((currentTab === 'analysis' && currentAnalysisSubTab !== 'power') || (currentTab === 'tax' && currentTaxSubTab === 'retirement')) ? 'none' : '';
 
-  if (currentTab === 'events') {
-    if (eventViewMode === 'notes') renderNotesList();
-    else renderEventList();
-  } else if (currentTab === 'expenses') {
-    renderAccountFilterPills();
-    renderYearFilterPills();
-    renderExpenseList();
-    if (currentExpSubTab === 'recurring') renderOngoingListInline();
-    else if (currentExpSubTab === 'mortgage') renderMortgageListInline();
-  } else if (currentTab === 'analysis') {
-    renderAnalysis();
-  } else if (currentTab === 'insurance') {
-    if (currentInsSubTab === 'medical') renderMedical();
-    else renderInsurances();
-  } else if (currentTab === 'tax') {
-    renderTaxRecords();
-    if (currentTaxSubTab === 'cpf') renderCpf();
-    else if (currentTaxSubTab === 'assets') renderAssetsSubTab();
-    else if (currentTaxSubTab === 'retirement') renderRetirement();
+  try {
+    if (currentTab === 'events') {
+      if (eventViewMode === 'notes') renderNotesList();
+      else renderEventList();
+    } else if (currentTab === 'expenses') {
+      renderAccountFilterPills();
+      renderYearFilterPills();
+      renderExpenseList();
+      if (currentExpSubTab === 'recurring') renderOngoingListInline();
+      else if (currentExpSubTab === 'mortgage') renderMortgageListInline();
+    } else if (currentTab === 'analysis') {
+      renderAnalysis();
+    } else if (currentTab === 'insurance') {
+      if (currentInsSubTab === 'medical') renderMedical();
+      else renderInsurances();
+    } else if (currentTab === 'tax') {
+      renderTaxRecords();
+      if (currentTaxSubTab === 'cpf') renderCpf();
+      else if (currentTaxSubTab === 'assets') renderAssetsSubTab();
+      else if (currentTaxSubTab === 'retirement') renderRetirement();
+    }
+  } catch (err) {
+    console.error('[renderAll] tab=' + currentTab, err);
+    showToast('Render error — check console');
   }
 }
 
 // ── XSS-safe escape ───────────────────────────────────────────────────────────
 function esc(s) {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/`/g, '&#96;');
 }
 
 // ── DMY Date Widget ───────────────────────────────────────────────────────────

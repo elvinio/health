@@ -79,8 +79,8 @@ function renderTaxChart() {
 
   const ticks = [0, .25, .5, .75, 1].map(f => ({ v: maxY * f, y: yPos(maxY * f) }));
   const grid = ticks.map(({ v, y }) =>
-    `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${(svgW - PAD_R).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#e8dece" stroke-width="1"/>` +
-    `<text x="${(PAD_L - 4).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="#7a6a52">${fmtShort(v)}</text>`
+    `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${(svgW - PAD_R).toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1"/>` +
+    `<text x="${(PAD_L - 4).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--muted)">${fmtShort(v)}</text>`
   ).join('');
 
   function makeLine(vals, color, dash) {
@@ -95,7 +95,7 @@ function renderTaxChart() {
   }
 
   const xLabels = records.map((r, i) =>
-    `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="9" fill="#7a6a52">${r.year}${!r.isHistorical ? '*' : ''}</text>`
+    `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="9" fill="var(--muted)">${r.year}${!r.isHistorical ? '*' : ''}</text>`
   ).join('');
 
   const legend = `<div style="display:flex;gap:16px;margin-top:6px;padding:0 4px;font-size:.75rem;color:var(--text)">
@@ -309,8 +309,8 @@ function renderCpfChart(proj) {
 
   const ticks = [0, .25, .5, .75, 1].map(f => ({ v: maxY * f, y: yPos(maxY * f) }));
   const grid = ticks.map(({ v, y }) =>
-    `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${(svgW - PAD_R).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#e8dece" stroke-width="1"/>` +
-    `<text x="${(PAD_L - 4).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="#7a6a52">${fmtShort(v)}</text>`
+    `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${(svgW - PAD_R).toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1"/>` +
+    `<text x="${(PAD_L - 4).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--muted)">${fmtShort(v)}</text>`
   ).join('');
 
   function line(vals, color, dash) {
@@ -336,7 +336,7 @@ function renderCpfChart(proj) {
   // X-axis labels: every 2 years
   const xLabels = points.map((p, i) => {
     if (i % 2 !== 0 && i !== points.length - 1) return '';
-    return `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="8" fill="#7a6a52">${p.year}</text>`;
+    return `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="8" fill="var(--muted)">${p.year}</text>`;
   }).join('');
 
   const legend = `<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;padding:0 4px;font-size:.75rem;color:var(--text)">

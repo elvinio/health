@@ -50,8 +50,8 @@ function renderExpenseList() {
     if (month.startsWith(curYear)) {
       const balanceAccounts = filterAccount ? data.accounts.filter(a => a.id === filterAccount) : data.accounts;
       const balanceDivs = balanceAccounts.map(acc => {
-        const bal = data.expenses
-          .filter(e => e.ac === acc.id && e.date.slice(0, 7) <= month)
+        const bal = allExpenses()
+          .filter(e => e.ac === acc.id && e.date && e.date.slice(0, 7) <= month)
           .reduce((s, e) => s + (e.cat === 'TopUp' ? e.amount : -e.amount), acc.startingBalance);
         return `<div><span style="${statStyle}">${esc(acc.name)}</span><br><span style="${valStyle}">${hidden ? '••••' : fmtDollar(bal)}</span></div>`;
       }).join('');
@@ -67,7 +67,7 @@ function renderExpenseList() {
         ${exps.map(e => {
           const emoji = emojiMap[e.cat] || '';
           return `
-            <div class="expense-item" onclick="openExpenseSheet('${e.id}')">
+            <div class="expense-item" onclick="openExpenseSheet('${esc(e.id)}')">
               <span class="cat-emoji">${emoji}</span>
               <div class="expense-left">
                 <span class="expense-desc">${esc(e.desc)}</span>

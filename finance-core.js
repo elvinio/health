@@ -232,7 +232,7 @@ function migrateExpenses() {
   if (!past.length) return;
   const existingIds = new Set(historyData.expenses.map(e => e.id));
   past.forEach(e => { if (!existingIds.has(e.id)) historyData.expenses.push(e); });
-  data.expenses = data.expenses.filter(e => e.date.startsWith(curYear + '-'));
+  data.expenses = data.expenses.filter(e => e.date && e.date.startsWith(curYear + '-'));
   saveHistory(historyData);
   saveData(data);
 }

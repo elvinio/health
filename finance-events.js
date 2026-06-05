@@ -1,5 +1,6 @@
 // ── Events ────────────────────────────────────────────────────────────────────
 function eventToMs(ev) {
+  if (!ev.startTime) return new Date(ev.startDate).getTime();
   let h = ev.startTime.hour % 12;
   if (ev.startTime.ampm === 'PM') h += 12;
   const [y, m, d] = ev.startDate.split('-').map(Number);
