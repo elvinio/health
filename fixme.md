@@ -8,7 +8,7 @@ Actionable issues from the code review (full write-up in `finance-review.md`). G
 - [x] **`openExpenseSheet` silently rewrites an unknown category to `Other`** (`finance-expenses.js:125-127`) on edit+save.
 - [x] **Net-worth snapshot `key` is the date, not the quarter** (`finance-ai.js:84`), contradicting the `'YYYY-Qn'` comment; "one per quarter" is enforced only by the write-time check, not the merge key.
 - [x] **`parseCatEmojis()` called once per month** inside the `renderExpenseList` loop (`finance-expenses.js:63`); hoist it.
-- [ ] **First bus-map load does ~20 serial proxied requests** (`fetchBusStopCoords`, `finance-events.js:368`). Cached after, but slow on first open.
+- [x] **First bus-map load does ~20 serial proxied requests** (`fetchBusStopCoords`, `finance-events.js:368`). Cached after, but slow on first open.
 
 ## 🏗 Architecture / tech-debt (no single line)
 

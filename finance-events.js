@@ -364,24 +364,27 @@ async function fetchBusStopCoords(apiKey) {
   const missing = BUS_STOPS.map(s => s.code).filter(c => !cached[c]);
   if (!missing.length) return cached;
 
-  let skip = 0;
-  const found = new Set();
-  while (found.size < missing.length && skip <= 10000) {
-    try {
-      const target = `https://datamall2.mytransport.sg/ltaodataservice/BusStops?$skip=${skip}`;
-      const res = await busProxyFetch(target, apiKey);
-      const json = await res.json();
-      if (!json.value?.length) break;
-      json.value.forEach(s => {
-        if (missing.includes(s.BusStopCode)) {
-          cached[s.BusStopCode] = { lat: s.Latitude, lng: s.Longitude, name: s.Description };
-          found.add(s.BusStopCode);
-        }
-      });
-      if (found.size === missing.length) break;
-      skip += 500;
-    } catch { break; }
-  }
+  // Fire all pages in parallel (~21 pages × 500 stops covers the full LTA dataset).
+  // Much faster than the previous serial loop on first load.
+  const BASE = 'https://datamall2.mytransport.sg/ltaodataservice/BusStops';
+  const skips = Array.from({ length: 21 }, (_, i) => i * 500);
+  const pages = await Promise.allSettled(
+    skips.map(skip =>
+      busProxyFetch(`${BASE}?$skip=${skip}`, apiKey)
+        .then(r => r.json())
+        .catch(() => null)
+    )
+  );
+
+  pages.forEach(result => {
+    if (result.status !== 'fulfilled' || !result.value?.value?.length) return;
+    result.value.value.forEach(s => {
+      if (missing.includes(s.BusStopCode)) {
+        cached[s.BusStopCode] = { lat: s.Latitude, lng: s.Longitude, name: s.Description };
+      }
+    });
+  });
+
   localStorage.setItem(cacheKey, JSON.stringify(cached));
   return cached;
 }
