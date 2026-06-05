@@ -3,7 +3,7 @@
   "short_name": "Finance",
   "description": "Personal finance tracker",
   "start_url": "/health/finance.html",
-  "scope": "/health/finance.html",
+  "scope": "/health/",
   "display": "standalone",
   "background_color": "#f0f4f8",
   "theme_color": "#1b3a6b",
