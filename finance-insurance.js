@@ -471,16 +471,13 @@ function autoGenOngoingExpenses() {
       saveHistory(historyData);
     }
 
-    const month = info.dueDate.slice(0, 7);
-    if (!data.monthlyAgg[month]) data.monthlyAgg[month] = {};
-    data.monthlyAgg[month][exp.cat] = (data.monthlyAgg[month][exp.cat] || 0) + exp.amount;
-
     o.lastAutoGenPeriod = info.periodKey;
     anyAdded = true;
   });
 
   if (anyAdded) {
     recalcBalances(data, allExpenses());
+    recalcMonthlyAgg(data, allExpenses());
     saveData(data);
     renderAll();
   }
@@ -515,16 +512,13 @@ function manualGenOngoingExpenses() {
       saveHistory(historyData);
     }
 
-    const month = info.dueDate.slice(0, 7);
-    if (!data.monthlyAgg[month]) data.monthlyAgg[month] = {};
-    data.monthlyAgg[month][exp.cat] = (data.monthlyAgg[month][exp.cat] || 0) + exp.amount;
-
     o.lastAutoGenPeriod = info.periodKey;
     added++;
   });
 
   if (added > 0) {
     recalcBalances(data, allExpenses());
+    recalcMonthlyAgg(data, allExpenses());
     saveData(data);
     renderAll();
     showToast(`Added ${added} recurring expense${added > 1 ? 's' : ''}`);

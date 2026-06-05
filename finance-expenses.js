@@ -50,8 +50,8 @@ function renderExpenseList() {
     if (month.startsWith(curYear)) {
       const balanceAccounts = filterAccount ? data.accounts.filter(a => a.id === filterAccount) : data.accounts;
       const balanceDivs = balanceAccounts.map(acc => {
-        const bal = data.expenses
-          .filter(e => e.ac === acc.id && e.date.slice(0, 7) <= month)
+        const bal = allExpenses()
+          .filter(e => e.ac === acc.id && e.date && e.date.slice(0, 7) <= month)
           .reduce((s, e) => s + (e.cat === 'TopUp' ? e.amount : -e.amount), acc.startingBalance);
         return `<div><span style="${statStyle}">${esc(acc.name)}</span><br><span style="${valStyle}">${hidden ? '••••' : fmtDollar(bal)}</span></div>`;
       }).join('');

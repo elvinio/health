@@ -516,8 +516,8 @@ function renderNetWorthChart() {
 
   const ticks = [0, .25, .5, .75, 1].map(f => ({ v: lo + range * f, y: yPos(lo + range * f) }));
   const grid = ticks.map(({ v, y }) =>
-    `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${(svgW - PAD_R).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#e8dece" stroke-width="1"/>` +
-    `<text x="${(PAD_L - 4).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="#7a6a52">${short(v)}</text>`
+    `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${(svgW - PAD_R).toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1"/>` +
+    `<text x="${(PAD_L - 4).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--muted)">${short(v)}</text>`
   ).join('');
   const pts = vals.map((v, i) => [xPos(i), yPos(v)]);
   const area = single ? '' : `M${pts[0][0].toFixed(1)},${yPos(lo).toFixed(1)} ` +
@@ -529,7 +529,7 @@ function renderNetWorthChart() {
     `<text x="${cx.toFixed(1)}" y="${(cy - 8).toFixed(1)}" text-anchor="middle" font-size="8" font-weight="700" fill="var(--primary)">${short(vals[i])}</text>`
   ).join('');
   const xLabels = snaps.map((s, i) =>
-    `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="8" fill="#7a6a52">${dateLbl(s.date)}</text>`
+    `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="8" fill="var(--muted)">${dateLbl(s.date)}</text>`
   ).join('');
   const hint = single ? `<div style="font-size:.72rem;color:var(--muted);margin-top:4px;padding:0 4px">Tap “Snapshot now” over time to build the trend.</div>` : '';
 
