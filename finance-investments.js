@@ -260,52 +260,6 @@ function saveExpenseBudget() {
   showToast('Expense budget saved');
 }
 
-// ── Render: Investments ───────────────────────────────────────────────────────
-function renderInvestments() {
-  const total = data.assets.reduce((s, a) => s + currentValue(a), 0);
-  document.getElementById('portfolioTotal').textContent = fmtDollar(total);
-
-  const prevTotal = data.assets.reduce((s, a) => s + prevValue(a), 0);
-  const diff = total - prevTotal;
-  const pct = prevTotal ? (diff / prevTotal * 100) : 0;
-  const changeEl = document.getElementById('portfolioChange');
-  if (data.assets.length && prevTotal !== total) {
-    changeEl.textContent = `${diff >= 0 ? '+' : ''}${fmtDollar(diff)} (${diff >= 0 ? '+' : ''}${pct.toFixed(2)}%) from last update`;
-  } else {
-    changeEl.textContent = '';
-  }
-
-  const el = document.getElementById('assetList');
-  if (!data.assets.length) {
-    el.innerHTML = `<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">trending_up</span></div>No assets yet.<br>Tap + to add one.</div>`;
-    return;
-  }
-  el.innerHTML = data.assets.map(a => {
-    const cur = currentValue(a);
-    const prev = prevValue(a);
-    const diff = cur - prev;
-    const pct = prev ? (diff / prev * 100) : 0;
-    const deltaClass = diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat';
-    const deltaText = prev > 0
-      ? `${diff >= 0 ? '+' : ''}${fmtDollar(diff)} (${diff >= 0 ? '+' : ''}${pct.toFixed(2)}%)`
-      : 'No prior value';
-    const lastDate = a.history.length ? a.history[a.history.length - 1].date : '';
-    const unitsLabel = (a.units != null && a.units !== 1) ? `<span style="color:var(--muted);font-size:.75rem;font-weight:500"> ×${a.units}</span>` : '';
-    return `
-      <div class="asset-card" onclick="openAssetSheet('${a.id}')">
-        <div class="asset-row-main">
-          <div class="asset-name">${esc(a.name)}${unitsLabel}</div>
-          <div style="display:flex;align-items:center;gap:4px">
-            <div class="asset-value">${fmtDollar(cur)}</div>
-            <button class="iconbtn" style="font-size:.9rem;color:var(--muted)" onclick="event.stopPropagation();openHistory('${a.id}')"><span class="material-symbols-outlined">history</span></button>
-          </div>
-        </div>
-        <div class="asset-meta">
-          <span class="asset-delta ${deltaClass}">${deltaText}</span>${lastDate ? ` <span style="color:var(--muted)">· ${formatDate(lastDate)}</span>` : ''}
-        </div>
-      </div>`;
-  }).join('');
-}
 
 function currentValue(a) {
   const units = a.units != null ? a.units : 1;
