@@ -418,6 +418,72 @@ function renderSaProjectionTables() {
   return tableForPerson('husband') + tableForPerson('wife');
 }
 
+function renderSrsProjectionTable() {
+  const SRS_CONTRIB = 15300;
+  const SRS_GROWTH  = 0.04;
+
+  function tableForPerson(person) {
+    const s = data.cpfSettings || {};
+    const dobStr = person === 'husband' ? s.dateOfBirth : s.spouseDob;
+    if (!dobStr) return '';
+    const dobYear = parseInt(dobStr.slice(0, 4));
+    if (!dobYear) return '';
+
+    const personRecords = (data.cpfRecords || [])
+      .filter(r => (r.forPerson || 'husband') === person)
+      .slice().sort((a, b) => a.year - b.year);
+    const lastRecord = personRecords[personRecords.length - 1];
+    if (!lastRecord || !lastRecord.srsBalance) return '';
+
+    let srs = lastRecord.srsBalance;
+    const startYear = parseInt(lastRecord.year) + 1;
+    const endYear = dobYear + 63;
+
+    const rows = [];
+    let transitionAge = null;
+    for (let year = startYear; year <= endYear; year++) {
+      const age = year - dobYear;
+      const contrib = age <= 55 ? SRS_CONTRIB : 0;
+      if (contrib === 0 && transitionAge === null && rows.some(r => r.contrib > 0)) transitionAge = age;
+      srs = Math.round((srs + contrib) * (1 + SRS_GROWTH));
+      rows.push({ age, contrib, srs });
+    }
+    if (!rows.length) return '';
+
+    const label = person === 'husband' ? 'Husband' : 'Wife';
+    const finalBalance = rows[rows.length - 1].srs;
+
+    return `<div style="background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;margin-bottom:12px;overflow-x:auto">
+      <div style="font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">SRS Balance to Age 63 — ${label}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:.8rem">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border)">
+            <th style="text-align:left;padding:4px 6px;color:var(--muted);font-weight:600">Age</th>
+            <th style="text-align:right;padding:4px 6px;color:var(--muted);font-weight:600">Contribution</th>
+            <th style="text-align:right;padding:4px 6px;color:var(--muted);font-weight:600">SRS Balance</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `<tr style="border-bottom:1px solid var(--border)${r.age === transitionAge ? ';border-top:2px solid var(--border)' : ''}">
+            <td style="padding:4px 6px">${r.age}</td>
+            <td style="text-align:right;padding:4px 6px;color:${r.contrib ? 'inherit' : 'var(--muted)'}">${r.contrib ? fmtDollar(r.contrib) : '—'}</td>
+            <td style="text-align:right;padding:4px 6px;font-weight:600">${fmtDollar(r.srs)}</td>
+          </tr>`).join('')}
+        </tbody>
+        <tfoot>
+          <tr style="border-top:2px solid var(--border);font-weight:700">
+            <td colspan="2" style="padding:6px 6px;font-size:.78rem">SRS at age 63</td>
+            <td style="text-align:right;padding:6px 6px;color:var(--green)">${fmtDollar(finalBalance)}</td>
+          </tr>
+        </tfoot>
+      </table>
+      <div style="font-size:.7rem;color:var(--muted);margin-top:6px">Annual contribution $15,300 · Growth 4%/yr · Contributions stop at 55 · Balance grows until 63</div>
+    </div>`;
+  }
+
+  return tableForPerson('husband') + tableForPerson('wife');
+}
+
 function renderCpf() {
   const el = document.getElementById('cpfContent');
   if (!el) return;
@@ -505,9 +571,12 @@ function renderCpf() {
     </div>
   </details>`;
 
+  const srsHtml = renderSrsProjectionTable();
   let milestoneHtml = '';
   if (proj && proj.lifePayout > 0) {
-    milestoneHtml = `${assumptionsCard}${explanationCard}${renderSaProjectionTables()}`;
+    milestoneHtml = `${assumptionsCard}${explanationCard}${renderSaProjectionTables()}${srsHtml}`;
+  } else {
+    milestoneHtml = srsHtml;
   }
 
   let ra55Html = '';
@@ -541,6 +610,7 @@ function renderCpf() {
           <span><span class="label">OA</span>${fmtDollar(r.oaBalance || 0)}</span>
           <span><span class="label">SA</span>${fmtDollar(r.saBalance || 0)}</span>
           <span><span class="label">MA</span>${fmtDollar(r.maBalance || 0)}</span>
+          ${r.srsBalance ? `<span><span class="label">SRS</span>${fmtDollar(r.srsBalance)}</span>` : ''}
           <span><span class="label">Interest</span>${fmtDollar(totalInt)}</span>
         </div>
         <div class="cpf-card-total">Total: ${fmtDollar(total)}</div>
@@ -600,6 +670,7 @@ function openCpfEntrySheet(id) {
     document.getElementById('cpfOA').value = r.oaBalance || '';
     document.getElementById('cpfSA').value = r.saBalance || '';
     document.getElementById('cpfMA').value = r.maBalance || '';
+    document.getElementById('cpfSRS').value = r.srsBalance || '';
     document.getElementById('cpfOAInt').value = r.oaInterest || '';
     document.getElementById('cpfSAInt').value = r.saInterest || '';
     document.getElementById('cpfMAInt').value = r.maInterest || '';
@@ -625,6 +696,7 @@ document.getElementById('cpfEntryForm').addEventListener('submit', e => {
     oaBalance:  parseFloat(document.getElementById('cpfOA').value) || 0,
     saBalance:  parseFloat(document.getElementById('cpfSA').value) || 0,
     maBalance:  parseFloat(document.getElementById('cpfMA').value) || 0,
+    srsBalance: parseFloat(document.getElementById('cpfSRS').value) || 0,
     oaInterest: parseFloat(document.getElementById('cpfOAInt').value) || 0,
     saInterest: parseFloat(document.getElementById('cpfSAInt').value) || 0,
     maInterest: parseFloat(document.getElementById('cpfMAInt').value) || 0,
