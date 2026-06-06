@@ -83,6 +83,7 @@ const HISTORY_KEY = 'finance:v1:history';
 const DRIVE_HISTORY_FILE_KEY = 'finance:driveHistoryFileId';
 const BUS_API_KEY_STORAGE = 'finance:busApiKey';
 const BUS_PROXY_URL_STORAGE = 'finance:busProxyUrl';
+const BUS_PROXY_TOKEN_STORAGE = 'finance:busProxyToken';
 const BUS_STOPS = [
   { code: '83121', name: 'Nature Mansions', services: ['15', '150', '155'] },
   { code: '83129', name: 'Ji Xiang Court',  services: ['15', '150'] },
