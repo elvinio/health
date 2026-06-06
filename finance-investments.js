@@ -279,11 +279,11 @@ function latestCpfBalances() {
 const ASSET_CLASS_COLORS = {
   'Cash': '#16a085', 'Equities': '#2980b9', 'Bonds': '#8e44ad',
   'Gold': '#f1c40f', 'Property (rental)': '#d35400', 'Home (own use)': '#7f8c8d',
-  'Crypto': '#f39c12', 'Commodities': '#c0392b', 'CPF': '#27ae60', 'Other': '#95a5a6'
+  'Crypto': '#f39c12', 'Commodities': '#c0392b', 'CPF': '#27ae60', 'SRS': '#1abc9c', 'Other': '#95a5a6'
 };
 function assetClassColor(c) { return ASSET_CLASS_COLORS[c] || '#95a5a6'; }
 
-const ALLOCATION_CATS = ['Equities', 'Bonds', 'Gold', 'Crypto', 'Cash', 'CPF'];
+const ALLOCATION_CATS = ['Equities', 'Bonds', 'Gold', 'Crypto', 'Cash', 'CPF', 'SRS'];
 
 function computeAllocationAmounts() {
   const byClass = {};
