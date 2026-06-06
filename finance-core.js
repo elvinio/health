@@ -46,7 +46,7 @@ const DEFAULT_CATS = ['Grocery', 'Travel', 'Income Tax', 'Allowance'];
 // Asset classes for allocation. "Home (own use)" is counted in net worth but
 // excluded from investable assets / retirement drawdown (you can't sell the roof
 // over your family's head to fund retirement).
-const ASSET_CLASSES = ['Cash', 'Equities', 'Bonds', 'Gold', 'Property (rental)', 'Home (own use)', 'Crypto', 'Commodities', 'CPF', 'Other'];
+const ASSET_CLASSES = ['Cash', 'Equities', 'Bonds', 'Gold', 'Property (rental)', 'Home (own use)', 'Crypto', 'Commodities', 'CPF', 'SRS', 'Other'];
 const NON_INVESTABLE_CLASSES = ['Home (own use)'];
 function assetClass(a) { return a.class || 'Other'; }
 function isInvestable(a) { return !NON_INVESTABLE_CLASSES.includes(assetClass(a)); }
