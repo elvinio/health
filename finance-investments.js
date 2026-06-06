@@ -425,7 +425,11 @@ function renderAssetsSubTab() {
   el.innerHTML = `
     ${data.assets.length && prevTotal !== total ? `<div style="font-size:.8rem;color:var(--muted);margin-bottom:8px;padding:0 4px">${diff >= 0 ? '+' : ''}${fmtDollar(diff)} (${diff >= 0 ? '+' : ''}${pct.toFixed(2)}%) from last update</div>` : ''}
     ${renderAssetAllocation()}
-    ${data.assets.map(a => {
+    ${[...data.assets].sort((a, b) => {
+      const ORDER = ['Equities','Cash','Gold','SRS','CPF','Bonds','Crypto'];
+      const ai = ORDER.indexOf(assetClass(a)); const bi = ORDER.indexOf(assetClass(b));
+      return (ai === -1 ? ORDER.length : ai) - (bi === -1 ? ORDER.length : bi);
+    }).map(a => {
       const cur = currentValue(a);
       const prev = prevValue(a);
       const d2 = cur - prev;
