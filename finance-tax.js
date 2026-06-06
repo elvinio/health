@@ -314,51 +314,62 @@ function renderCpfChart(proj) {
   </div>`;
 }
 
-function renderSaProjectionTables() {
+// Projects SA to age 55 for 'husband' or 'wife' using the same logic as the CPF tab SA table.
+// Returns { rows, topupType, topupAmount, dobYear } or null if DOB not set.
+function calcSaProjectionRows(person) {
   const s = data.cpfSettings || {};
+  const dobStr = person === 'husband' ? s.dateOfBirth : s.spouseDob;
+  if (!dobStr) return null;
+  const dobYear = parseInt(dobStr.slice(0, 4));
+  if (!dobYear) return null;
+
   const ersGrowthRate = parseFloat(s.ersGrowthRate) || 3.5;
   const ERS_2026 = 440800;
   const annualSalary = 102000;
   const currentYear = new Date().getFullYear();
 
-  function tableForPerson(person) {
-    const dob = person === 'husband' ? s.dateOfBirth : s.spouseDob;
-    if (!dob) return '';
-    const dobYear = parseInt(dob.slice(0, 4));
-    if (!dobYear) return '';
+  const personRecords = (data.cpfRecords || [])
+    .filter(r => (r.forPerson || 'husband') === person)
+    .slice().sort((a, b) => a.year - b.year);
+  const lastRecord = personRecords[personRecords.length - 1];
 
-    const personRecords = (data.cpfRecords || [])
-      .filter(r => (r.forPerson || 'husband') === person)
-      .slice().sort((a, b) => a.year - b.year);
-    const lastRecord = personRecords[personRecords.length - 1];
+  const topupType = lastRecord?.topupType || 'employment';
+  const topupAmount = parseFloat(lastRecord?.topupAmount) || 0;
 
-    const topupType   = lastRecord?.topupType || 'employment';
-    const topupAmount = parseFloat(lastRecord?.topupAmount) || 0;
+  let startYear = lastRecord ? parseInt(lastRecord.year) + 1 : currentYear;
+  let sa = lastRecord ? (lastRecord.saBalance || 0) : 0;
 
-    let startYear = lastRecord ? parseInt(lastRecord.year) + 1 : currentYear;
-    let sa        = lastRecord ? (lastRecord.saBalance || 0) : 0;
-
-    const rows = [];
-    for (let year = startYear; year <= dobYear + 55; year++) {
-      const age = year - dobYear;
-      if (age > 55) break;
-      const ersThisYear = Math.round(ERS_2026 * Math.pow(1 + ersGrowthRate / 100, year - 2026));
-
-      let saContrib;
-      if (topupType === 'self') {
-        const cap = ersThisYear / 2;
-        const applied = Math.max(0, Math.min(topupAmount, cap - sa));
-        sa = (sa + applied) * (1 + CPF_INT_SA);
-        saContrib = Math.round(applied);
-      } else {
-        const alloc = cpfAlloc(age);
-        saContrib = Math.round(annualSalary * alloc.sa);
-        sa = (sa + saContrib) * (1 + CPF_INT_SA);
-      }
-      rows.push({ age, saContrib, sa: Math.round(sa), ers: ersThisYear });
+  const rows = [];
+  for (let year = startYear; year <= dobYear + 55; year++) {
+    const age = year - dobYear;
+    if (age > 55) break;
+    const ersThisYear = Math.round(ERS_2026 * Math.pow(1 + ersGrowthRate / 100, year - 2026));
+    let saContrib;
+    if (topupType === 'self') {
+      const cap = ersThisYear / 2;
+      const applied = Math.max(0, Math.min(topupAmount, cap - sa));
+      sa = (sa + applied) * (1 + CPF_INT_SA);
+      saContrib = Math.round(applied);
+    } else {
+      const alloc = cpfAlloc(age);
+      saContrib = Math.round(annualSalary * alloc.sa);
+      sa = (sa + saContrib) * (1 + CPF_INT_SA);
     }
+    rows.push({ age, saContrib, sa: Math.round(sa), ers: ersThisYear });
+  }
 
-    if (!rows.length) return '';
+  return { rows, topupType, topupAmount, dobYear };
+}
+
+function renderSaProjectionTables() {
+  const s = data.cpfSettings || {};
+  const ersGrowthRate = parseFloat(s.ersGrowthRate) || 3.5;
+
+  function tableForPerson(person) {
+    const proj = calcSaProjectionRows(person);
+    if (!proj || !proj.rows.length) return '';
+    const { rows, topupType, topupAmount } = proj;
+
     const last = rows[rows.length - 1];
 
     const isSelf = topupType === 'self';
@@ -877,53 +888,27 @@ function saveRetirementSettings(field, value) {
   renderRetirement();
 }
 
-// Projects SA (interest-only from last CPF record) → RA formation at 55 → CPF LIFE payout at 65.
-// No salary contributions are assumed — caller should keep records current.
-// Returns monthly payout in dollars, or 0 if projection is not possible.
-function calcCpfLifePayoutForPerson(dobStr, personRecords) {
-  if (!dobStr) return 0;
-  const dobYear = parseInt(dobStr.slice(0, 4));
-  if (!dobYear) return 0;
-
+// Uses the final row of calcSaProjectionRows (same as CPF tab SA table) as SA@55,
+// forms RA = min(SA@55, projected FRS@55), grows RA at 4% for 10 years to age 65.
+// Returns CPF LIFE monthly payout in dollars.
+function calcCpfLifePayoutForPerson(person) {
   const s = data.cpfSettings || {};
+  const proj = calcSaProjectionRows(person);
+  if (!proj || !proj.rows.length) return 0;
+
+  const { rows, dobYear } = proj;
+  const sa55 = rows[rows.length - 1].sa;
+
   const ersGrowthRate = parseFloat(s.ersGrowthRate) || 3.5;
   const lifeExp = parseFloat(s.lifeExpectancy) || 85;
   const mortalityFactor = parseFloat(s.mortalityFactor) || 1.35;
   const currentYear = new Date().getFullYear();
 
-  const records = (personRecords || []).slice().sort((a, b) => a.year - b.year);
-  const lastRecord = records[records.length - 1];
-
-  let startYear, sa;
-  if (lastRecord) {
-    startYear = parseInt(lastRecord.year) + 1;
-    sa = lastRecord.saBalance || 0;
-  } else {
-    startYear = currentYear;
-    sa = 0;
-  }
-
-  const payoutStartYear = dobYear + 65;
-  const raFormYear = dobYear + 55;
-  // Can't reconstruct RA if records only start after age 55 (no raBalance field)
-  if (startYear > payoutStartYear || startYear > raFormYear) return 0;
-
-  const yearsTurn55 = Math.max(0, raFormYear - currentYear);
+  const yearsTurn55 = Math.max(0, dobYear + 55 - currentYear);
   const frsAt55 = Math.round(CPF_FRS * Math.pow(1 + ersGrowthRate / 100, yearsTurn55));
 
-  let ra = 0;
-  for (let y = startYear; y <= payoutStartYear; y++) {
-    const age = y - dobYear;
-    if (age < 55) {
-      sa = sa * (1 + CPF_INT_SA);
-    } else if (age === 55) {
-      sa = sa * (1 + CPF_INT_SA);
-      ra = Math.min(sa, frsAt55);
-      sa = 0;
-    } else {
-      ra = ra * (1 + CPF_INT_RA);
-    }
-  }
+  let ra = Math.min(sa55, frsAt55);
+  for (let age = 55; age < 65; age++) ra = ra * (1 + CPF_INT_RA);
 
   return Math.round(ra * cpfLifeMonthlyFactor(lifeExp, mortalityFactor));
 }
@@ -954,21 +939,14 @@ function calcRetirementPlan() {
 
   const annualSavings = s.annualSavings != null ? s.annualSavings : 150000;
 
-  // Husband CPF LIFE: use actual projected RA balance (not ERS reference)
+  // Both use calcSaProjectionRows (same as CPF tab SA table): SA@55 → RA → grows to 65 → payout
   let hubCpfMonthly = 0;
-  try {
-    const cpfProj = calcCpfProjection();
-    if (cpfProj) hubCpfMonthly = cpfProj.lifePayout || 0;
-  } catch (e) {}
+  try { hubCpfMonthly = calcCpfLifePayoutForPerson('husband'); } catch (e) {}
   const hubCpfAnnual = hubCpfMonthly * 12;
 
-  // Wife CPF LIFE: project from her CPF records (SA interest-only growth → RA at 55 → payout at 65)
   let wifeCpfMonthly = 0;
   if (cpfSet.spouseDob) {
-    try {
-      const wifeRecords = (data.cpfRecords || []).filter(r => (r.forPerson || 'husband') === 'wife');
-      wifeCpfMonthly = calcCpfLifePayoutForPerson(cpfSet.spouseDob, wifeRecords);
-    } catch (e) {}
+    try { wifeCpfMonthly = calcCpfLifePayoutForPerson('wife'); } catch (e) {}
   }
   const wifeCpfAnnual = wifeCpfMonthly * 12;
 
@@ -1146,12 +1124,12 @@ function renderRetirement() {
       <div class="ret-summary-item">
         <div class="ret-summary-label">Husband CPF LIFE / yr</div>
         <div class="ret-summary-value">${fmtDollar(hubCpfAnnual)}</div>
-        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">starts husband age ${hubCpfStartAge} · based on projected RA</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">starts husband age ${hubCpfStartAge} · SA@55 from CPF tab table → RA → age 65</div>
       </div>
       ${wifeCpfAnnual > 0 ? `<div class="ret-summary-item">
         <div class="ret-summary-label">Wife CPF LIFE / yr</div>
         <div class="ret-summary-value">${fmtDollar(wifeCpfAnnual)}</div>
-        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">starts husband age ${wifeCpfStartAge} · SA interest-only projection</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">starts husband age ${wifeCpfStartAge} · SA@55 from CPF tab table → RA → age 65</div>
       </div>` : ''}
       <div class="ret-summary-item">
         <div class="ret-summary-label">Monthly Spending (today's $)</div>
