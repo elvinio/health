@@ -151,16 +151,28 @@ function renderEventItem(ev) {
   </div>`;
 }
 
+function switchEventListSubTab(tab) {
+  currentEventListSubTab = tab;
+  ['upcoming', 'past'].forEach(t => {
+    const btn = document.getElementById(`evListSubTab-${t}`);
+    if (btn) btn.classList.toggle('active', t === tab);
+  });
+  renderEventList();
+}
+
 function renderEventList() {
   const el = document.getElementById('eventList');
   if (!el) return;
   renderTermWeekBanner();
   renderEventTagFilterPills();
-  const now = Date.now();
+  const todayStr = today();
   let events = (data.events || []).slice().sort((a, b) => eventToMs(a) - eventToMs(b));
   if (filterEventTag) events = events.filter(ev => (ev.tags || []).includes(filterEventTag));
-  const upcoming = events.filter(ev => eventToMs(ev) >= now);
-  const past = events.filter(ev => eventToMs(ev) < now);
+
+  // upcoming: starts today or later, or multi-day ending today or later
+  const upcoming = events.filter(ev => ev.startDate >= todayStr || (ev.endDate && ev.endDate >= todayStr));
+  // past: started before today and ended before today
+  const past = events.filter(ev => ev.startDate < todayStr && (!ev.endDate || ev.endDate < todayStr));
 
   if (!events.length) {
     el.innerHTML = `<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">event</span></div>No events yet.<br>Tap + to add one.</div>`;
@@ -186,11 +198,20 @@ function renderEventList() {
     return html;
   };
 
-  const termWeekLabel = getCurrentTermWeek() || 'Upcoming';
-  let html = '';
-  if (upcoming.length) html += `<div class="event-section-label">${termWeekLabel}</div>${renderWithWeekMarkers(upcoming)}`;
-  if (past.length) html += `<div class="event-section-label" style="margin-top:24px">Past</div>${past.map(renderEventItem).join('')}`;
-  el.innerHTML = html;
+  if (currentEventListSubTab === 'past') {
+    if (!past.length) {
+      el.innerHTML = `<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">history</span></div>No past events.</div>`;
+      return;
+    }
+    el.innerHTML = renderWithWeekMarkers(past.slice().reverse());
+  } else {
+    if (!upcoming.length) {
+      el.innerHTML = `<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">event</span></div>No upcoming events.<br>Tap + to add one.</div>`;
+      return;
+    }
+    const termWeekLabel = getCurrentTermWeek() || 'Upcoming';
+    el.innerHTML = `<div class="event-section-label">${termWeekLabel}</div>${renderWithWeekMarkers(upcoming)}`;
+  }
 }
 
 function setEventView(mode) {
@@ -200,6 +221,7 @@ function setEventView(mode) {
   document.getElementById('evViewBus').classList.toggle('active', mode === 'bus');
   document.getElementById('evViewBusMap').classList.toggle('active', mode === 'busmap');
   document.getElementById('evViewNotes').classList.toggle('active', mode === 'notes');
+  document.getElementById('eventListSubTabs').style.display = mode === 'list' ? '' : 'none';
   document.getElementById('eventList').style.display = mode === 'list' ? '' : 'none';
   document.getElementById('eventCalendar').style.display = mode === 'calendar' ? '' : 'none';
   document.getElementById('busPanel').style.display = mode === 'bus' ? '' : 'none';

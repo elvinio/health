@@ -207,6 +207,7 @@ let filterYear = String(new Date().getFullYear());
 let currentExpSubTab = 'expenses';
 let filterEventTag = null;
 let eventViewMode = 'list';
+let currentEventListSubTab = 'upcoming';
 let calYear = new Date().getFullYear();
 let calMonth = new Date().getMonth();
 let analysisYears = new Set([String(new Date().getFullYear())]);
