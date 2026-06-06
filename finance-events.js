@@ -283,6 +283,33 @@ async function fetchBusStop(stopCode, apiKey) {
   return resp.json();
 }
 
+// Shared Bus API-setup form markup, used by both the bus arrivals panel and the
+// bus map panel. `idPrefix` namespaces the input ids ('bus' vs 'busMap') and
+// `reloadFn` is the name of the render function to call after saving.
+function busApiSetupHtml(idPrefix, reloadFn) {
+  const apiKey = getBusApiKey();
+  const proxyUrl = localStorage.getItem(BUS_PROXY_URL_STORAGE) || '';
+  return `<div class="bus-api-setup">
+    <div style="font-weight:600;margin-bottom:4px">Bus API Setup</div>
+    <div style="font-size:.82rem;color:var(--muted);margin-bottom:8px">A proxy URL (Apps Script or local) is required — it forwards requests to LTA without exposing your key to a third party. The API key is optional: leave it blank if the proxy holds the key server-side, or enter it if your proxy expects it as a header.</div>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:2px">Proxy URL</div>
+    <input type="text" id="${idPrefix}ProxyUrlInput" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(proxyUrl)}" />
+    <div style="font-size:.78rem;color:var(--muted);margin-top:8px;margin-bottom:2px">Proxy token <span style="opacity:.6">(optional — set PROXY_TOKEN in Script Properties)</span></div>
+    <input type="text" id="${idPrefix}ProxyTokenInput" placeholder="your-secret-token" value="${esc(localStorage.getItem(BUS_PROXY_TOKEN_STORAGE) || '')}" />
+    <div style="font-size:.78rem;color:var(--muted);margin-top:8px;margin-bottom:2px">LTA AccountKey <span style="opacity:.6">(optional — only if your proxy doesn't hold it)</span></div>
+    <input type="text" id="${idPrefix}ApiKeyInput" placeholder="LTA AccountKey (not needed with Apps Script proxy)" value="${esc(apiKey)}" />
+    <button class="btn btn-primary btn-block" style="margin-top:8px" onclick="
+      const k=document.getElementById('${idPrefix}ApiKeyInput').value.trim();
+      const p=document.getElementById('${idPrefix}ProxyUrlInput').value.trim();
+      const t=document.getElementById('${idPrefix}ProxyTokenInput').value.trim();
+      localStorage.setItem(BUS_PROXY_URL_STORAGE,p);
+      localStorage.setItem(BUS_PROXY_TOKEN_STORAGE,t);
+      if(k) saveBusApiKey(k);
+      if(p) ${reloadFn}();
+    ">Save &amp; Load</button>
+  </div>`;
+}
+
 async function renderBusPanel() {
   const panel = document.getElementById('busPanel');
   if (!panel || panel.style.display === 'none') return;
@@ -290,25 +317,7 @@ async function renderBusPanel() {
   const proxyUrl = localStorage.getItem(BUS_PROXY_URL_STORAGE) || '';
 
   if (!proxyUrl) {
-    panel.innerHTML = `<div class="bus-api-setup">
-      <div style="font-weight:600;margin-bottom:4px">Bus API Setup</div>
-      <div style="font-size:.82rem;color:var(--muted);margin-bottom:8px">A proxy URL (Apps Script or local) is required — it forwards requests to LTA without exposing your key to a third party. The API key is optional: leave it blank if the proxy holds the key server-side, or enter it if your proxy expects it as a header.</div>
-      <div style="font-size:.78rem;color:var(--muted);margin-bottom:2px">Proxy URL</div>
-      <input type="text" id="busProxyUrlInput" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(proxyUrl)}" />
-      <div style="font-size:.78rem;color:var(--muted);margin-top:8px;margin-bottom:2px">Proxy token <span style="opacity:.6">(optional — set PROXY_TOKEN in Script Properties)</span></div>
-      <input type="text" id="busProxyTokenInput" placeholder="your-secret-token" value="${esc(localStorage.getItem(BUS_PROXY_TOKEN_STORAGE) || '')}" />
-      <div style="font-size:.78rem;color:var(--muted);margin-top:8px;margin-bottom:2px">LTA AccountKey <span style="opacity:.6">(optional — only if your proxy doesn't hold it)</span></div>
-      <input type="text" id="busApiKeyInput" placeholder="LTA AccountKey (not needed with Apps Script proxy)" value="${esc(apiKey)}" />
-      <button class="btn btn-primary btn-block" style="margin-top:8px" onclick="
-        const k=document.getElementById('busApiKeyInput').value.trim();
-        const p=document.getElementById('busProxyUrlInput').value.trim();
-        const t=document.getElementById('busProxyTokenInput').value.trim();
-        localStorage.setItem(BUS_PROXY_URL_STORAGE,p);
-        localStorage.setItem(BUS_PROXY_TOKEN_STORAGE,t);
-        if(k) saveBusApiKey(k);
-        if(p) renderBusPanel();
-      ">Save &amp; Load</button>
-    </div>`;
+    panel.innerHTML = busApiSetupHtml('bus', 'renderBusPanel');
     return;
   }
 
@@ -502,25 +511,7 @@ function renderBusMapPanel() {
   const proxyUrl = localStorage.getItem(BUS_PROXY_URL_STORAGE) || '';
 
   if (!proxyUrl) {
-    panel.innerHTML = `<div class="bus-api-setup">
-      <div style="font-weight:600;margin-bottom:4px">Bus API Setup</div>
-      <div style="font-size:.82rem;color:var(--muted);margin-bottom:8px">A proxy URL (Apps Script or local) is required — it forwards requests to LTA without exposing your key to a third party. The API key is optional: leave it blank if the proxy holds the key server-side, or enter it if your proxy expects it as a header.</div>
-      <div style="font-size:.78rem;color:var(--muted);margin-bottom:2px">Proxy URL</div>
-      <input type="text" id="busMapProxyUrlInput" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(proxyUrl)}" />
-      <div style="font-size:.78rem;color:var(--muted);margin-top:8px;margin-bottom:2px">Proxy token <span style="opacity:.6">(optional — set PROXY_TOKEN in Script Properties)</span></div>
-      <input type="text" id="busMapProxyTokenInput" placeholder="your-secret-token" value="${esc(localStorage.getItem(BUS_PROXY_TOKEN_STORAGE) || '')}" />
-      <div style="font-size:.78rem;color:var(--muted);margin-top:8px;margin-bottom:2px">LTA AccountKey <span style="opacity:.6">(optional — only if your proxy doesn't hold it)</span></div>
-      <input type="text" id="busMapApiKeyInput" placeholder="LTA AccountKey (not needed with Apps Script proxy)" value="${esc(apiKey)}" />
-      <button class="btn btn-primary btn-block" style="margin-top:8px" onclick="
-        const k=document.getElementById('busMapApiKeyInput').value.trim();
-        const p=document.getElementById('busMapProxyUrlInput').value.trim();
-        const t=document.getElementById('busMapProxyTokenInput').value.trim();
-        localStorage.setItem(BUS_PROXY_URL_STORAGE,p);
-        localStorage.setItem(BUS_PROXY_TOKEN_STORAGE,t);
-        if(k) saveBusApiKey(k);
-        if(p) renderBusMapPanel();
-      ">Save &amp; Load</button>
-    </div>`;
+    panel.innerHTML = busApiSetupHtml('busMap', 'renderBusMapPanel');
     return;
   }
 

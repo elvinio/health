@@ -441,52 +441,11 @@ function getOngoingNextDue(o) {
   return null;
 }
 
-function autoGenOngoingExpenses() {
+// Generate any due recurring expenses as of `today`, pushing each to the
+// current-year list or historyData as appropriate. Returns { added, skipped }
+// and persists/re-renders only when something was added.
+function genDueOngoingExpenses(today) {
   const list = data.ongoingExpenses || [];
-  if (!list.length) return;
-  const today = new Date();
-  const curYear = String(today.getFullYear());
-  let anyAdded = false;
-
-  list.forEach(o => {
-    const info = getOngoingDueInfo(o, today);
-    if (!info) return;
-    if (o.lastAutoGenPeriod === info.periodKey) return;
-
-    const exp = {
-      id: uid(),
-      date: info.dueDate,
-      desc: o.name + (o.note ? ' · ' + o.note : ''),
-      amount: o.amount,
-      cat: o.category || 'Bills',
-      ac: o.accountId || (data.accounts[0] ? data.accounts[0].id : 'acc1'),
-      _ts: Date.now()
-    };
-
-    const expYear = info.dueDate.slice(0, 4);
-    if (expYear === curYear) {
-      data.expenses.push(exp);
-    } else {
-      historyData.expenses.push(exp);
-      saveHistory(historyData);
-    }
-
-    o.lastAutoGenPeriod = info.periodKey;
-    anyAdded = true;
-  });
-
-  if (anyAdded) {
-    recalcBalances(data, data.expenses);
-    recalcMonthlyAgg(data, allExpenses());
-    saveData(data);
-    renderAll();
-  }
-}
-
-function manualGenOngoingExpenses() {
-  const list = data.ongoingExpenses || [];
-  if (!list.length) { showToast('No recurring expenses set up'); return; }
-  const today = new Date();
   let added = 0, skipped = 0;
 
   list.forEach(o => {
@@ -521,6 +480,19 @@ function manualGenOngoingExpenses() {
     recalcMonthlyAgg(data, allExpenses());
     saveData(data);
     renderAll();
+  }
+  return { added, skipped };
+}
+
+function autoGenOngoingExpenses() {
+  if (!(data.ongoingExpenses || []).length) return;
+  genDueOngoingExpenses(new Date());
+}
+
+function manualGenOngoingExpenses() {
+  if (!(data.ongoingExpenses || []).length) { showToast('No recurring expenses set up'); return; }
+  const { added } = genDueOngoingExpenses(new Date());
+  if (added > 0) {
     showToast(`Added ${added} recurring expense${added > 1 ? 's' : ''}`);
   } else {
     showToast('Already up to date for this period');
