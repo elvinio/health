@@ -138,7 +138,12 @@ Two localStorage keys:
 ```js
 {
   accounts: [{ id, name, startingBalance, balance, _updatedAt }],
-  expenses: [],          // { id, ac, date, desc, amount, cat, _ts }
+                         // startingBalance = user-entered balance at START OF CURRENT YEAR (not account creation, not all-time).
+                         // balance = recalculated from startingBalance + current-year expenses only (data.expenses).
+                         // NEVER pass allExpenses() to recalcBalances() — that would subtract historical years' spending
+                         // from a start-of-year figure, producing a wrong (too low) balance.
+                         // recalcMonthlyAgg() is the exception — it intentionally uses allExpenses() for multi-year charts.
+  expenses: [],          // { id, ac, date, desc, amount, cat, _ts } — current year only; past years live in historyData.expenses
   assets: [],            // { id, name, class, units, history: [{ date, value, _ts }] } — class ∈ ASSET_CLASSES; "Home (own use)" is non-investable
   events: [],            // { id, title, description, startDate, startTime, endDate, endTime, tags, reminderHours, _ts }
   insurances: [],        // { id, name, personInsured, startDate, contractId, details, paymentAmount, paymentFrequency, agentContacts, _updatedAt }

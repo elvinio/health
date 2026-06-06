@@ -242,7 +242,7 @@ function migrateExpenses() {
 }
 
 migrateExpenses();
-recalcBalances(data, allExpenses());
+recalcBalances(data, data.expenses);
 recalcMonthlyAgg(data, allExpenses());
 
 // ── Utilities ────────────────────────────────────────────────────────────────

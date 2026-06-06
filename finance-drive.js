@@ -67,7 +67,7 @@ document.getElementById('importExpensesFile').addEventListener('change', e => {
           store.push(expense); added++;
         }
       });
-      recalcBalances(data, allExpenses());
+      recalcBalances(data, data.expenses);
       recalcMonthlyAgg(data, allExpenses());
       saveData(data);
       saveHistory(historyData);
@@ -660,7 +660,7 @@ async function driveSync() {
     if (merged.busProxyUrl) localStorage.setItem(BUS_PROXY_URL_STORAGE, merged.busProxyUrl);
     if (merged.busProxyToken) localStorage.setItem(BUS_PROXY_TOKEN_STORAGE, merged.busProxyToken);
     historyData = mergedHistory;
-    recalcBalances(data, allExpenses());
+    recalcBalances(data, data.expenses);
     recalcMonthlyAgg(data, allExpenses());
     // historyData._updatedAt and data.historyUpdatedAt are already equal here (both
     // paths set merged.historyUpdatedAt to historyData._updatedAt), so persist the
