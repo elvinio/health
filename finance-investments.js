@@ -5,9 +5,9 @@ function openAccountSettings() {
 
   const cpfS = data.cpfSettings || {};
   const cpfSection = `
-    <div style="padding-top:4px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+    <div class="settings-section">
       <div class="section-heading">CPF Projection</div>
-      <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Used to project CPF balances on the Tax › CPF page.</p>
+      <p class="settings-hint">Used to project CPF balances on the Tax › CPF page.</p>
       <div class="field">
         <label>Date of Birth (Husband)</label>
         <input type="date" id="cpfDOB" value="${esc(cpfS.dateOfBirth || '')}">
@@ -33,7 +33,7 @@ function openAccountSettings() {
   let depRows = '';
   for (let i = 0; i < depsList.length + 2; i++) depRows += depRowHtml(i, depsList[i] || {});
   const dependentsSection = `
-    <div style="padding-top:4px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+    <div class="settings-section">
       <div class="section-heading">Household / Dependents</div>
       <p style="font-size:.8rem;color:var(--muted);margin-bottom:10px">Enriches the AI financial analysis (insurance needs, education planning, tax reliefs). Age is derived from birth year. Leave a name blank to skip a row.</p>
       <div style="display:flex;gap:6px;margin-bottom:4px;font-size:.72rem;color:var(--muted);padding:0 2px">
@@ -44,18 +44,18 @@ function openAccountSettings() {
 
   const td = data.termDates || {};
   const tagsSection = `
-    <div style="padding-top:4px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+    <div class="settings-section">
       <div class="section-heading">School Terms</div>
-      <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Start date of each term. Used to show current term &amp; week on the events page.</p>
+      <p class="settings-hint">Start date of each term. Used to show current term &amp; week on the events page.</p>
       ${[1,2,3,4].map(n => `
         <div class="field">
           <label>Term ${n} Start</label>
           <input type="date" id="termDate${n}" value="${esc(td['t'+n] || '')}">
         </div>`).join('')}
     </div>
-    <div style="padding-top:4px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+    <div class="settings-section">
       <div class="section-heading">Event Tags</div>
-      <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Comma-separated list of tags for events (e.g. Work, Personal, Travel).</p>
+      <p class="settings-hint">Comma-separated list of tags for events (e.g. Work, Personal, Travel).</p>
       <div class="field">
         <input type="text" id="eventTagsInput" value="${esc((data.eventTags || []).join(', '))}" placeholder="Work, Personal, Travel">
       </div>
@@ -63,9 +63,9 @@ function openAccountSettings() {
 
   const pinSet = !!localStorage.getItem('finance:taxPin');
   const pinSection = `
-    <div style="padding-top:4px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+    <div class="settings-section">
       <div class="section-heading">Tax Page PIN</div>
-      <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Shows a PIN overlay when you navigate to the Tax tab — prevents casual glances only. To reset a forgotten PIN, open DevTools → Application → Local Storage and delete <code style="font-size:.78rem">finance:taxPin</code>.</p>
+      <p class="settings-hint">Shows a PIN overlay when you navigate to the Tax tab — prevents casual glances only. To reset a forgotten PIN, open DevTools → Application → Local Storage and delete <code style="font-size:.78rem">finance:taxPin</code>.</p>
       <div class="field" style="margin-bottom:8px">
         <label>New PIN <span style="font-weight:400;color:var(--muted)">(digits only${pinSet ? ', leave blank to keep current' : ''})</span></label>
         <input type="password" id="settingsPinInput" inputmode="numeric" pattern="[0-9]*" placeholder="${pinSet ? 'Enter new PIN to change' : 'e.g. 1234'}" autocomplete="new-password" style="letter-spacing:.15em;font-size:1.1rem">
@@ -174,7 +174,7 @@ function openExpenseBudget() {
   body.innerHTML = `
     <div style="padding-bottom:16px;border-bottom:1px solid var(--border)">
       <div class="section-heading">Expense Categories</div>
-      <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">Comma-separated, emoji first. Sets the emoji shown per category. E.g. 🎬 Entertainment, 🛒 Grocery</p>
+      <p class="settings-hint">Comma-separated, emoji first. Sets the emoji shown per category. E.g. 🎬 Entertainment, 🛒 Grocery</p>
       <div class="field">
         <input type="text" id="expenseCatsInput" value="${esc(data.expenseCats || '')}" placeholder="🎬 Entertainment, 🛒 Grocery, 🚗 Transport">
       </div>
@@ -339,7 +339,7 @@ function renderAssetAllocation() {
   return `<div class="chart-wrap">
     <div class="chart-title">Asset Allocation</div>
     <div class="alloc-bar">${bar}</div>
-    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+    <div class="scroll-x">
       <table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:.82rem">
         <thead><tr>
           <th style="text-align:left;padding:0 6px 6px 0;${thStyle.slice(thStyle.indexOf(';')+1)}">Type</th>
@@ -351,9 +351,9 @@ function renderAssetAllocation() {
         <tbody>${tableRows}</tbody>
         <tfoot><tr style="font-weight:700">
           <td style="padding:6px 6px 0 0;border-top:2px solid var(--border)">Total</td>
-          <td style="text-align:right;padding:6px;border-top:2px solid var(--border)">${fmtDollar(total)}</td>
-          <td style="text-align:right;padding:6px;border-top:2px solid var(--border)">100%</td>
-          <td style="text-align:right;padding:6px;border-top:2px solid var(--border)">${hasTarget ? totalTargetPct.toFixed(1) + '%' : '—'}</td>
+          <td class="td-total">${fmtDollar(total)}</td>
+          <td class="td-total">100%</td>
+          <td class="td-total">${hasTarget ? totalTargetPct.toFixed(1) + '%' : '—'}</td>
           <td style="border-top:2px solid var(--border)"></td>
         </tr></tfoot>
       </table>

@@ -89,7 +89,7 @@ function renderTaxChart() {
 
   return `<div class="chart-wrap">
     <div class="chart-title">Income &amp; Tax Year-over-Year</div>
-    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">${svg}</div>
+    <div class="scroll-x">${svg}</div>
     ${legend}
     <div style="font-size:.72rem;color:var(--muted);margin-top:4px;padding:0 4px">* estimated (not yet filed)</div>
   </div>`;
@@ -308,7 +308,7 @@ function renderCpfChart(proj) {
 
   return `<div class="chart-wrap">
     <div class="chart-title">CPF Balance Projection</div>
-    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">${svg}</div>
+    <div class="scroll-x">${svg}</div>
     ${legend}
     <div style="font-size:.72rem;color:var(--muted);margin-top:4px;padding:0 4px">Rates: OA 2.5% · SA/RA/MA 4% · No contribution after retirement age. BHS cap $${CPF_BHS.toLocaleString()} · FRS 2026: $${CPF_FRS.toLocaleString()} · ERS 2026: $${CPF_ERS.toLocaleString()} (projected to your age 55 using ERS growth rate).</div>
   </div>`;
@@ -389,10 +389,10 @@ function renderSaProjectionTables() {
       <table style="width:100%;border-collapse:collapse;font-size:.8rem">
         <thead>
           <tr style="border-bottom:1px solid var(--border)">
-            <th style="text-align:left;padding:4px 6px;color:var(--muted);font-weight:600">Age</th>
-            <th style="text-align:right;padding:4px 6px;color:var(--muted);font-weight:600">${isSelf ? 'Topup' : 'Contribution'}</th>
-            <th style="text-align:right;padding:4px 6px;color:var(--muted);font-weight:600">SA Balance</th>
-            <th style="text-align:right;padding:4px 6px;color:var(--muted);font-weight:600">${colHeader}</th>
+            <th class="th-l">Age</th>
+            <th class="th-r">${isSelf ? 'Topup' : 'Contribution'}</th>
+            <th class="th-r">SA Balance</th>
+            <th class="th-r">${colHeader}</th>
           </tr>
         </thead>
         <tbody>
@@ -458,9 +458,9 @@ function renderSrsProjectionTable() {
       <table style="width:100%;border-collapse:collapse;font-size:.8rem">
         <thead>
           <tr style="border-bottom:1px solid var(--border)">
-            <th style="text-align:left;padding:4px 6px;color:var(--muted);font-weight:600">Age</th>
-            <th style="text-align:right;padding:4px 6px;color:var(--muted);font-weight:600">Contribution</th>
-            <th style="text-align:right;padding:4px 6px;color:var(--muted);font-weight:600">SRS Balance</th>
+            <th class="th-l">Age</th>
+            <th class="th-r">Contribution</th>
+            <th class="th-r">SRS Balance</th>
           </tr>
         </thead>
         <tbody>
@@ -521,7 +521,7 @@ function renderCpf() {
           <span id="cpfRetireAgeVal" style="${sliderLblStyle}">${retireAgeVal} yrs</span>
         </div>
         <input type="range" id="cpfRetireAgeSlider" min="55" max="65" step="1" value="${retireAgeVal}" oninput="updateCpfSlider(this,'cpfRetireAgeVal',' yrs');saveCpfAssumptions()" style="width:100%;accent-color:var(--primary)">
-        <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted);margin-top:1px"><span>55</span><span>65</span></div>
+        <div class="slider-labels"><span>55</span><span>65</span></div>
       </div>
       <div>
         <div style="display:flex;justify-content:space-between;margin-bottom:3px">
@@ -529,7 +529,7 @@ function renderCpf() {
           <span id="cpfLifeExpVal" style="${sliderLblStyle}">${lifeExp} yrs</span>
         </div>
         <input type="range" id="cpfLifeExpSlider" min="82" max="92" step="1" value="${lifeExp}" oninput="updateCpfSlider(this,'cpfLifeExpVal',' yrs');saveCpfAssumptions()" style="width:100%;accent-color:var(--primary)">
-        <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted);margin-top:1px"><span>82</span><span>92</span></div>
+        <div class="slider-labels"><span>82</span><span>92</span></div>
       </div>
       <div>
         <div style="display:flex;justify-content:space-between;margin-bottom:3px">
@@ -537,7 +537,7 @@ function renderCpf() {
           <span id="cpfErsGrowthVal" style="${sliderLblStyle}">${ersGrowth}%</span>
         </div>
         <input type="range" id="cpfErsGrowthSlider" min="1" max="5" step="0.5" value="${ersGrowth}" oninput="updateCpfSlider(this,'cpfErsGrowthVal','%');saveCpfAssumptions()" style="width:100%;accent-color:var(--primary)">
-        <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted);margin-top:1px"><span>1%</span><span>5%</span></div>
+        <div class="slider-labels"><span>1%</span><span>5%</span></div>
       </div>
       <div>
         <div style="display:flex;justify-content:space-between;margin-bottom:3px">
@@ -545,7 +545,7 @@ function renderCpf() {
           <span id="cpfMortFactorVal" style="${sliderLblStyle}">${mortFactor}×</span>
         </div>
         <input type="range" id="cpfMortFactorSlider" min="1" max="1.5" step="0.05" value="${mortFactor}" oninput="updateCpfSlider(this,'cpfMortFactorVal','×');saveCpfAssumptions()" style="width:100%;accent-color:var(--primary)">
-        <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted);margin-top:1px"><span>1.00×</span><span>1.50×</span></div>
+        <div class="slider-labels"><span>1.00×</span><span>1.50×</span></div>
       </div>
       <div style="grid-column:span 2">
         <div style="display:flex;justify-content:space-between;margin-bottom:3px">
@@ -553,7 +553,7 @@ function renderCpf() {
           <span id="cpfMortgageVal" style="${sliderLblStyle}">$${Number(mortgage).toLocaleString()}</span>
         </div>
         <input type="range" id="cpfMortgageSlider" min="3000" max="5000" step="100" value="${mortgage}" oninput="updateCpfSlider(this,'cpfMortgageVal','','$');saveCpfAssumptions()" style="width:100%;accent-color:var(--primary)">
-        <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted);margin-top:1px"><span>$3,000</span><span>$5,000</span></div>
+        <div class="slider-labels"><span>$3,000</span><span>$5,000</span></div>
       </div>
     </div>
   </div>`;
@@ -1146,7 +1146,7 @@ function renderRetirement() {
         <input type="range" min="100000" max="200000" step="10000" value="${savingsVal}"
           oninput="document.getElementById('retSliderValSavings').textContent=fmtDollar(+this.value)"
           onchange="saveRetirementSettings('annualSavings',this.value)">
-        <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted);margin-top:1px"><span>$100k</span><span>$200k</span></div>
+        <div class="slider-labels"><span>$100k</span><span>$200k</span></div>
       </div>
       <div class="slider-group">
         <div class="slider-row">
@@ -1192,7 +1192,7 @@ function renderRetirement() {
         <input type="range" min="2.5" max="5.0" step="0.1" value="${s.safeWithdrawalRate != null ? s.safeWithdrawalRate : 4.0}"
           oninput="document.getElementById('retSliderValSwr').textContent=parseFloat(this.value).toFixed(1)+'%'"
           onchange="saveRetirementSettings('safeWithdrawalRate',this.value)">
-        <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted);margin-top:1px"><span>2.5%</span><span>5.0%</span></div>
+        <div class="slider-labels"><span>2.5%</span><span>5.0%</span></div>
       </div>
     </div>`;
 
@@ -1212,37 +1212,37 @@ function renderRetirement() {
       <div class="ret-summary-item">
         <div class="ret-summary-label">Portfolio at Retirement</div>
         <div class="ret-summary-value">${fmtDollar(retirementPortfolio)}</div>
-        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">investable assets (CPF, SRS &amp; home excluded)</div>
+        <div class="hint">investable assets (CPF, SRS &amp; home excluded)</div>
       </div>
       <div class="ret-summary-item">
         <div class="ret-summary-label">Annual Savings (today's $)</div>
         <div class="ret-summary-value">${fmtDollar(planSavings)}</div>
-        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">grows with inflation each year</div>
+        <div class="hint">grows with inflation each year</div>
       </div>
       <div class="ret-summary-item">
         <div class="ret-summary-label">SWR Annual Withdrawal (today's $)</div>
         <div class="ret-summary-value">${fmtDollar(W_real)}</div>
-        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">${(s.safeWithdrawalRate != null ? s.safeWithdrawalRate : 4.0).toFixed(1)}% of portfolio at retirement</div>
+        <div class="hint">${(s.safeWithdrawalRate != null ? s.safeWithdrawalRate : 4.0).toFixed(1)}% of portfolio at retirement</div>
       </div>
       <div class="ret-summary-item">
         <div class="ret-summary-label">Husband CPF LIFE / yr</div>
         <div class="ret-summary-value">${fmtDollar(hubCpfAnnual)}</div>
-        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">starts husband age ${hubCpfStartAge} · SA@55 from CPF tab table → RA → age 65</div>
+        <div class="hint">starts husband age ${hubCpfStartAge} · SA@55 from CPF tab table → RA → age 65</div>
       </div>
       ${wifeCpfAnnual > 0 ? `<div class="ret-summary-item">
         <div class="ret-summary-label">Wife CPF LIFE / yr</div>
         <div class="ret-summary-value">${fmtDollar(wifeCpfAnnual)}</div>
-        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">starts husband age ${wifeCpfStartAge} · SA@55 from CPF tab table → RA → age 65</div>
+        <div class="hint">starts husband age ${wifeCpfStartAge} · SA@55 from CPF tab table → RA → age 65</div>
       </div>` : ''}
       ${hubSrsAt62 > 0 ? `<div class="ret-summary-item">
         <div class="ret-summary-label">Husband SRS / yr (age ${hubSrsStartAge}–${hubSrsStartAge + 9})</div>
         <div class="ret-summary-value">${fmtDollar(hubSrsAnnual)}</div>
-        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">10-yr equal drawdown · SRS at 62: ${fmtDollar(hubSrsAt62)}</div>
+        <div class="hint">10-yr equal drawdown · SRS at 62: ${fmtDollar(hubSrsAt62)}</div>
       </div>` : ''}
       ${wifeSrsAt62 > 0 ? `<div class="ret-summary-item">
         <div class="ret-summary-label">Wife SRS / yr (starts husband age ${wifeSrsStartAge})</div>
         <div class="ret-summary-value">${fmtDollar(wifeSrsAnnual)}</div>
-        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">10-yr equal drawdown · SRS at 62: ${fmtDollar(wifeSrsAt62)}</div>
+        <div class="hint">10-yr equal drawdown · SRS at 62: ${fmtDollar(wifeSrsAt62)}</div>
       </div>` : ''}
       <div class="ret-summary-item">
         <div class="ret-summary-label">Monthly Spending (today's $)</div>
@@ -1251,7 +1251,7 @@ function renderRetirement() {
       <div class="ret-summary-item">
         <div class="ret-summary-label">Portfolio at Death Age</div>
         <div class="ret-summary-value" style="color:${endColor}">${fmtDollar(endPortfolio)}</div>
-        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">${endPortfolio >= 0 ? 'surplus — estate / buffer' : 'shortfall — raise savings or lower SWR'}</div>
+        <div class="hint">${endPortfolio >= 0 ? 'surplus — estate / buffer' : 'shortfall — raise savings or lower SWR'}</div>
       </div>
     </div>`;
 
