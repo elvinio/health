@@ -985,6 +985,23 @@ function calcCpfLifePayoutForPerson(person) {
   return Math.round(ra * cpfLifeMonthlyFactor(lifeExp, mortalityFactor));
 }
 
+function calcSrsBalance62ForPerson(person) {
+  const s = data.cpfSettings || {};
+  const dobStr = person === 'husband' ? s.dateOfBirth : s.spouseDob;
+  if (!dobStr) return 0;
+  const dobYear = parseInt(dobStr.slice(0, 4));
+  if (!dobYear) return 0;
+  const recs = (data.cpfRecords || []).filter(r => (r.forPerson || 'husband') === person).sort((a, b) => a.year - b.year);
+  const last = recs[recs.length - 1];
+  if (!last || !last.srsBalance) return 0;
+  let srs = last.srsBalance;
+  for (let y = parseInt(last.year) + 1; y <= dobYear + 62; y++) {
+    const age = y - dobYear;
+    srs = Math.round((srs + (age <= 55 ? 15300 : 0)) * 1.04);
+  }
+  return srs;
+}
+
 function calcRetirementPlan() {
   const s = data.retirementSettings;
   const cpfSet = data.cpfSettings;
@@ -1027,6 +1044,18 @@ function calcRetirementPlan() {
     ? 65 + (spouseDobYear - hubDobYear)
     : null;
 
+  // SRS: project each person's SRS balance to age 62, then draw down equally over 10 years (age 62–71).
+  const hubSrsAt62 = calcSrsBalance62ForPerson('husband');
+  const hubSrsAnnual = hubSrsAt62 > 0 ? Math.round(hubSrsAt62 / 10) : 0;
+  const wifeSrsAt62 = cpfSet.spouseDob ? calcSrsBalance62ForPerson('wife') : 0;
+  const wifeSrsAnnual = wifeSrsAt62 > 0 ? Math.round(wifeSrsAt62 / 10) : 0;
+  // Express SRS start ages in terms of husband's age (same offset logic as CPF).
+  const hubSrsStartAge = 62;
+  const hubSrsEndAge = 71;
+  const wifeSrsStartAge = (hubDobYear !== null && spouseDobYear !== null && wifeSrsAnnual > 0)
+    ? 62 + (spouseDobYear - hubDobYear) : null;
+  const wifeSrsEndAge = wifeSrsStartAge !== null ? wifeSrsStartAge + 9 : null;
+
   const rows = [];
   let assets = currentAssets;
 
@@ -1064,7 +1093,11 @@ function calcRetirementPlan() {
     const rowHubCpf = age >= hubCpfStartAge ? hubCpfAnnual : 0;
     const rowWifeCpf = (wifeCpfStartAge !== null && age >= wifeCpfStartAge) ? wifeCpfAnnual : 0;
     const cpfNom = rowHubCpf + rowWifeCpf;
-    const portfolioWithdrawal = Math.max(0, withdrawalNom - cpfNom);
+    const rowHubSrs = (hubSrsAnnual > 0 && age >= hubSrsStartAge && age <= hubSrsEndAge) ? hubSrsAnnual : 0;
+    const rowWifeSrs = (wifeSrsStartAge !== null && age >= wifeSrsStartAge && age <= wifeSrsEndAge) ? wifeSrsAnnual : 0;
+    const srsNom = rowHubSrs + rowWifeSrs;
+    const portfolioWithdrawal = Math.max(0, withdrawalNom - cpfNom - srsNom);
+    const totalIncome = cpfNom + srsNom + portfolioWithdrawal;
     const investReturn = assets * r;
     const assetsStart = assets;
     assets = assetsStart * (1 + r) - portfolioWithdrawal;
@@ -1072,9 +1105,11 @@ function calcRetirementPlan() {
       year: currentYear + yearsFromNow, age, phase: 'drawdown',
       assetsStart, investReturn,
       cpf: cpfNom, hubCpf: rowHubCpf, wifeCpf: rowWifeCpf,
+      srs: srsNom, hubSrs: rowHubSrs, wifeSrs: rowWifeSrs,
       withdrawal: withdrawalNom,
       withdrawalReal: W_real,
       portfolioWithdrawal,
+      totalIncome,
       assetsEnd: assets,
       assetsEndReal: assets / Math.pow(1 + g, yearsFromNow + 1)
     });
@@ -1082,7 +1117,7 @@ function calcRetirementPlan() {
 
   const endPortfolio = assets;
   // cpfAnnualPayout kept for backward-compat (AI summary uses it)
-  return { rows, W_real, hubCpfAnnual, wifeCpfAnnual, wifeCpfStartAge, cpfAnnualPayout: hubCpfAnnual + wifeCpfAnnual, retirementPortfolio, endPortfolio, currentAge, currentAssets, annualSavings };
+  return { rows, W_real, hubCpfAnnual, wifeCpfAnnual, wifeCpfStartAge, cpfAnnualPayout: hubCpfAnnual + wifeCpfAnnual, hubSrsAt62, wifeSrsAt62, hubSrsAnnual, wifeSrsAnnual, hubSrsStartAge, wifeSrsStartAge, retirementPortfolio, endPortfolio, currentAge, currentAssets, annualSavings };
 }
 
 function renderRetirement() {
@@ -1168,7 +1203,7 @@ function renderRetirement() {
     return;
   }
 
-  const { rows, W_real, hubCpfAnnual, wifeCpfAnnual, wifeCpfStartAge, retirementPortfolio, endPortfolio, annualSavings: planSavings } = plan;
+  const { rows, W_real, hubCpfAnnual, wifeCpfAnnual, wifeCpfStartAge, hubSrsAt62, wifeSrsAt62, hubSrsAnnual, wifeSrsAnnual, hubSrsStartAge, wifeSrsStartAge, retirementPortfolio, endPortfolio, annualSavings: planSavings } = plan;
   const endColor = endPortfolio >= 0 ? 'var(--green,#27ae60)' : 'var(--red,#e74c3c)';
   const hubCpfStartAge = 65;
 
@@ -1177,7 +1212,7 @@ function renderRetirement() {
       <div class="ret-summary-item">
         <div class="ret-summary-label">Portfolio at Retirement</div>
         <div class="ret-summary-value">${fmtDollar(retirementPortfolio)}</div>
-        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">investable assets (CPF &amp; home excluded)</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">investable assets (CPF, SRS &amp; home excluded)</div>
       </div>
       <div class="ret-summary-item">
         <div class="ret-summary-label">Annual Savings (today's $)</div>
@@ -1198,6 +1233,16 @@ function renderRetirement() {
         <div class="ret-summary-label">Wife CPF LIFE / yr</div>
         <div class="ret-summary-value">${fmtDollar(wifeCpfAnnual)}</div>
         <div style="font-size:.72rem;color:var(--muted);margin-top:2px">starts husband age ${wifeCpfStartAge} · SA@55 from CPF tab table → RA → age 65</div>
+      </div>` : ''}
+      ${hubSrsAt62 > 0 ? `<div class="ret-summary-item">
+        <div class="ret-summary-label">Husband SRS / yr (age ${hubSrsStartAge}–${hubSrsStartAge + 9})</div>
+        <div class="ret-summary-value">${fmtDollar(hubSrsAnnual)}</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">10-yr equal drawdown · SRS at 62: ${fmtDollar(hubSrsAt62)}</div>
+      </div>` : ''}
+      ${wifeSrsAt62 > 0 ? `<div class="ret-summary-item">
+        <div class="ret-summary-label">Wife SRS / yr (starts husband age ${wifeSrsStartAge})</div>
+        <div class="ret-summary-value">${fmtDollar(wifeSrsAnnual)}</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">10-yr equal drawdown · SRS at 62: ${fmtDollar(wifeSrsAt62)}</div>
       </div>` : ''}
       <div class="ret-summary-item">
         <div class="ret-summary-label">Monthly Spending (today's $)</div>
@@ -1226,8 +1271,9 @@ function renderRetirement() {
             <th>Portfolio Start</th>
             <th>Returns</th>
             <th>Savings / CPF</th>
-            <th>Withdrawal (nom.)</th>
-            <th>Withdrawal Today's $</th>
+            <th>SRS</th>
+            <th>Portfolio Drawdown</th>
+            <th>Total Income</th>
             <th>Portfolio End</th>
             <th>End Today's $</th>
           </tr>
@@ -1235,17 +1281,19 @@ function renderRetirement() {
         <tbody>
           ${rows.map(row => {
             const isDrawdown = row.phase === 'drawdown';
+            const streams = [];
+            if (isDrawdown && row.cpf > 0) streams.push(row.hubCpf > 0 && row.wifeCpf > 0 ? 'CPF×2' : 'CPF');
+            if (isDrawdown && row.srs > 0) streams.push('SRS');
             const phaseLabel = isDrawdown
-              ? (row.hubCpf > 0 && row.wifeCpf > 0
-                  ? '<span style="color:var(--green,#27ae60)">Drawdown+CPF×2</span>'
-                  : row.cpf > 0
-                    ? '<span style="color:var(--green,#27ae60)">Drawdown+CPF</span>'
-                    : '<span style="color:var(--red,#e74c3c)">Drawdown</span>')
+              ? (streams.length > 0
+                  ? `<span style="color:var(--green,#27ae60)">Drawdown+${streams.join('+')}</span>`
+                  : '<span style="color:var(--red,#e74c3c)">Drawdown</span>')
               : '<span style="color:var(--primary)">Accumulation</span>';
             const endNeg = row.assetsEnd < 0 ? 'color:var(--red,#e74c3c)' : '';
             const savingsOrCpf = isDrawdown ? fmtDollar(row.cpf || 0) : `<span style="color:var(--green,#27ae60)">${fmtDollar(row.savings)}</span>`;
-            const withdrawalNom = isDrawdown ? `<span style="color:var(--red,#e74c3c)">${fmtDollar(row.withdrawal)}</span>` : '—';
-            const withdrawalReal = isDrawdown ? fmtDollar(row.withdrawalReal) : '—';
+            const srsCell = isDrawdown ? (row.srs > 0 ? `<span style="color:var(--green,#27ae60)">${fmtDollar(row.srs)}</span>` : '—') : '—';
+            const portDrawdown = isDrawdown ? `<span style="color:var(--red,#e74c3c)">${fmtDollar(row.portfolioWithdrawal)}</span>` : '—';
+            const totalIncome = isDrawdown ? `<strong>${fmtDollar(row.totalIncome)}</strong>` : '—';
             return `<tr>
               <td style="text-align:left">${row.year}</td>
               <td>${row.age}</td>
@@ -1253,8 +1301,9 @@ function renderRetirement() {
               <td>${fmtDollar(row.assetsStart)}</td>
               <td style="color:var(--green,#27ae60)">${fmtDollar(row.investReturn)}</td>
               <td>${savingsOrCpf}</td>
-              <td>${withdrawalNom}</td>
-              <td style="color:var(--muted)">${withdrawalReal}</td>
+              <td>${srsCell}</td>
+              <td>${portDrawdown}</td>
+              <td>${totalIncome}</td>
               <td style="${endNeg}">${fmtDollar(row.assetsEnd)}</td>
               <td style="${endNeg}">${fmtDollar(row.assetsEndReal)}</td>
             </tr>`;
