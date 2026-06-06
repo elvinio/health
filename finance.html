@@ -59,6 +59,14 @@
     <button class="event-view-btn" id="evViewBusMap" aria-label="Bus map" onclick="setEventView('busmap')"><span class="material-symbols-outlined" aria-hidden="true" style="font-size:1.1rem">map</span></button>
     <button class="event-view-btn" id="evViewNotes" aria-label="Notes" onclick="setEventView('notes')"><span class="material-symbols-outlined" aria-hidden="true" style="font-size:1.1rem">description</span></button>
   </div>
+  <div class="exp-sub-tabs" id="eventListSubTabs">
+    <button class="exp-sub-tab active" id="evListSubTab-upcoming" onclick="switchEventListSubTab('upcoming')">
+      <span class="material-symbols-outlined" aria-hidden="true">event</span>Upcoming
+    </button>
+    <button class="exp-sub-tab" id="evListSubTab-past" onclick="switchEventListSubTab('past')">
+      <span class="material-symbols-outlined" aria-hidden="true">history</span>Past
+    </button>
+  </div>
   <div id="eventList"></div>
   <div id="eventCalendar" style="display:none"></div>
   <div id="busPanel" style="display:none"></div>
