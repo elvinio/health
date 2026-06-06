@@ -518,7 +518,7 @@ function renderNetWorthChart() {
 
   return `<div class=”chart-wrap” style=”margin-top:14px;margin-bottom:0”>
     <div class=”chart-title”>Net Worth Trend</div>
-    <div style=”overflow-x:auto;-webkit-overflow-scrolling:touch”>${svg}</div>
+    <div class=”scroll-x”>${svg}</div>
     ${hint}
   </div>`;
 }

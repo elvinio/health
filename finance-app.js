@@ -174,7 +174,7 @@ function renderCategoryChart(byMonth, months, allCats) {
 
   return `<div class="chart-wrap">
     <div class="chart-title">Monthly Trend by Category</div>
-    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">${svg}</div>
+    <div class="scroll-x">${svg}</div>
     <div class="chart-legend">${legend}${totalLegendItem}</div>
   </div>`;
 }
@@ -201,7 +201,7 @@ function renderYearlyChart() {
 
   return `<div class="chart-wrap">
     <div class="chart-title">Yearly Total Spending</div>
-    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">${svg}</div>
+    <div class="scroll-x">${svg}</div>
     <div style="font-size:.72rem;color:var(--muted);margin-top:4px;padding:0 4px">* current year to date</div>
   </div>`;
 }
@@ -319,7 +319,7 @@ function renderAssetMortgageChart() {
 
   return `<div class="chart-wrap">
     <div class="chart-title">Asset &amp; Mortgage Trend</div>
-    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">${svg}</div>
+    <div class="scroll-x">${svg}</div>
     ${legend}
   </div>`;
 }
@@ -377,7 +377,7 @@ function renderPower() {
 
   const chart = `<div class="chart-wrap">
     <div class="chart-title">Monthly Utility Costs</div>
-    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+    <div class="scroll-x">
       <svg width="${svgW}" height="${svgH}" style="display:block">${grid}${bars}</svg>
     </div>
     <div style="display:flex;gap:16px;margin-top:8px">
@@ -405,7 +405,7 @@ function renderPower() {
     const wc = (r.waterUsage || 0) * (r.waterUnitCost || 0);
     const mLabel = POWER_MONTHS[r.month - 1] + ' ' + r.year;
     return `<div class="card" style="cursor:pointer" onclick="openPowerSheet('${esc(r.id)}')">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div class="row-between">
         <div style="font-weight:700">${esc(mLabel)}</div>
         <div style="font-weight:800;font-size:1.05rem;color:var(--primary)">${fmtCurrency(ec + wc)}</div>
       </div>

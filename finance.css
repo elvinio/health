@@ -914,3 +914,15 @@
   font-size: .82rem; color: var(--muted); margin-top: 4px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+
+/* ── Utility classes (extracted from repeated inline styles) ── */
+.code-tag { background: var(--bg); padding: 1px 5px; border-radius: 4px; }
+.scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.hint { font-size: .72rem; color: var(--muted); margin-top: 2px; }
+.slider-labels { display: flex; justify-content: space-between; font-size: .65rem; color: var(--muted); margin-top: 1px; }
+.settings-section { padding-top: 4px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+.settings-hint { font-size: .8rem; color: var(--muted); margin-bottom: 12px; }
+.row-between { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.th-r { text-align: right; padding: 4px 6px; color: var(--muted); font-weight: 600; }
+.th-l { text-align: left; padding: 4px 6px; color: var(--muted); font-weight: 600; }
+.td-total { text-align: right; padding: 6px; border-top: 2px solid var(--border); }

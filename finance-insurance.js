@@ -720,7 +720,7 @@ function renderMortgageOverlayBody(m) {
       <div style="font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Projected Balance</div>
       ${projRows}
     </div>` : ''}
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <div class="row-between">
       <span style="font-size:.82rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Entries</span>
       <button class="btn btn-primary" style="font-size:.78rem;padding:5px 12px" onclick="openMortgageEntryFromOverlay('${m.id}')">+ Add Entry</button>
     </div>

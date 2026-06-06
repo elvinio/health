@@ -86,18 +86,18 @@ function renderEmailRulesSubTab() {
   function expCard({ p, i }) {
     return `
     <div style="background:var(--card);border-radius:12px;padding:14px 16px;margin-bottom:10px;border:1px solid var(--border)">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div class="row-between">
         <div style="font-weight:600;font-size:.95rem">${esc(p.name || 'Parser ' + (i + 1))}</div>
         <div style="display:flex;gap:8px">
           <button class="btn" style="font-size:.78rem;padding:4px 10px" onclick="openParserEditor(${i})">Edit</button>
           <button class="btn" style="font-size:.78rem;padding:4px 10px;color:var(--danger)" onclick="deleteParserAt(${i})">Delete</button>
         </div>
       </div>
-      <div style="font-size:.8rem;color:var(--muted);margin-bottom:4px">Subject: <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.subjectContains || '')}</code></div>
+      <div style="font-size:.8rem;color:var(--muted);margin-bottom:4px">Subject: <code class="code-tag">${esc(p.subjectContains || '')}</code></div>
       <div style="font-size:.78rem;color:var(--muted);display:grid;gap:2px;margin-top:4px">
-        <div>Amount: <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.amount && p.amount.regex || '')}</code> gr ${esc(String(p.amount && p.amount.group != null ? p.amount.group : 1))}</div>
-        <div>Date: <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.date && p.date.regex || '')}</code> <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.date && p.date.format || '')}</code></div>
-        <div>Desc: <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.desc && p.desc.regex || '')}</code> gr ${esc(String(p.desc && p.desc.group != null ? p.desc.group : 1))}</div>
+        <div>Amount: <code class="code-tag">${esc(p.amount && p.amount.regex || '')}</code> gr ${esc(String(p.amount && p.amount.group != null ? p.amount.group : 1))}</div>
+        <div>Date: <code class="code-tag">${esc(p.date && p.date.regex || '')}</code> <code class="code-tag">${esc(p.date && p.date.format || '')}</code></div>
+        <div>Desc: <code class="code-tag">${esc(p.desc && p.desc.regex || '')}</code> gr ${esc(String(p.desc && p.desc.group != null ? p.desc.group : 1))}</div>
       </div>
     </div>`;
   }
@@ -106,19 +106,19 @@ function renderEmailRulesSubTab() {
     const dt = p.datetime || {};
     return `
     <div style="background:var(--card);border-radius:12px;padding:14px 16px;margin-bottom:10px;border:1px solid var(--border)">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div class="row-between">
         <div style="font-weight:600;font-size:.95rem">${esc(p.name || 'Parser ' + (i + 1))}</div>
         <div style="display:flex;gap:8px">
           <button class="btn" style="font-size:.78rem;padding:4px 10px" onclick="openEventParserEditor(${i})">Edit</button>
           <button class="btn" style="font-size:.78rem;padding:4px 10px;color:var(--danger)" onclick="deleteParserAt(${i})">Delete</button>
         </div>
       </div>
-      <div style="font-size:.8rem;color:var(--muted);margin-bottom:4px">Subject: <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.subjectContains || '')}</code></div>
+      <div style="font-size:.8rem;color:var(--muted);margin-bottom:4px">Subject: <code class="code-tag">${esc(p.subjectContains || '')}</code></div>
       <div style="font-size:.78rem;color:var(--muted);display:grid;gap:2px;margin-top:4px">
-        <div>Title: <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.title && p.title.regex || '')}</code> gr ${esc(String(p.title && p.title.group != null ? p.title.group : 1))}</div>
-        <div>Datetime: <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(dt.regex || '')}</code> <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(dt.dateFormat || '')}</code></div>
+        <div>Title: <code class="code-tag">${esc(p.title && p.title.regex || '')}</code> gr ${esc(String(p.title && p.title.group != null ? p.title.group : 1))}</div>
+        <div>Datetime: <code class="code-tag">${esc(dt.regex || '')}</code> <code class="code-tag">${esc(dt.dateFormat || '')}</code></div>
         <div style="padding-left:4px;color:var(--muted)">date gr ${esc(String(dt.dateGroup || 1))} · start gr ${esc(String(dt.startTimeGroup || 2))} · end gr ${esc(String(dt.endTimeGroup || 3))}</div>
-        ${p.descItems && p.descItems.regex ? `<div>Items: <code style="background:var(--bg);padding:1px 5px;border-radius:4px">${esc(p.descItems.regex)}</code> name gr ${esc(String(p.descItems.nameGroup || 1))} qty gr ${esc(String(p.descItems.qtyGroup || 2))}</div>` : ''}
+        ${p.descItems && p.descItems.regex ? `<div>Items: <code class="code-tag">${esc(p.descItems.regex)}</code> name gr ${esc(String(p.descItems.nameGroup || 1))} qty gr ${esc(String(p.descItems.qtyGroup || 2))}</div>` : ''}
       </div>
     </div>`;
   }
