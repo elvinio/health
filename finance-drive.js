@@ -1,84 +1,9 @@
+// ── Google Drive token (declared first so it is always initialised before any
+// synchronous DOM setup below can throw and leave it in TDZ) ──────────────────
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
+let driveToken = null;
+
 // ── Import / Export ───────────────────────────────────────────────────────────
-// Quote-aware CSV line parser: handles fields wrapped in double quotes that may
-// contain commas or escaped ("") quotes. A plain split(',') corrupts any row
-// whose description contains a comma.
-function parseCsvLine(line) {
-  const out = [];
-  let field = '', inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (inQuotes) {
-      if (c === '"') {
-        if (line[i + 1] === '"') { field += '"'; i++; }
-        else inQuotes = false;
-      } else field += c;
-    } else if (c === '"') {
-      inQuotes = true;
-    } else if (c === ',') {
-      out.push(field); field = '';
-    } else field += c;
-  }
-  out.push(field);
-  return out;
-}
-
-function triggerImportExpenses() {
-  document.getElementById('mainMenu').classList.remove('open');
-  document.getElementById('importExpensesFile').click();
-}
-
-document.getElementById('importExpensesFile').addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    try {
-      const lines = ev.target.result.trim().split('\n');
-      if (lines.length < 2) { showToast('CSV is empty'); return; }
-      const headers = parseCsvLine(lines[0]).map(h => h.trim());
-      const required = ['id', 'date', 'desc', 'amount', 'cat', 'ac'];
-      if (!required.every(f => headers.includes(f))) {
-        showToast('CSV missing required columns'); return;
-      }
-      const curYear = String(new Date().getFullYear());
-      let added = 0, updated = 0;
-      lines.slice(1).forEach(line => {
-        if (!line.trim()) return;
-        const vals = parseCsvLine(line);
-        const row = {};
-        headers.forEach((h, i) => row[h] = (vals[i] || '').trim());
-        if (!row.id || !row.date || !row.desc || !row.amount || !row.cat || !row.ac) return;
-        const expense = {
-          id: row.id,
-          date: row.date,
-          desc: row.desc,
-          amount: parseFloat(row.amount),
-          cat: row.cat,
-          ac: row.ac,
-          _ts: row._ts ? parseInt(row._ts) : Date.now()
-        };
-        if (isNaN(expense.amount)) return;
-        const isCurrent = expense.date.startsWith(curYear + '-');
-        const store = isCurrent ? data.expenses : historyData.expenses;
-        const idx = store.findIndex(x => x.id === expense.id);
-        if (idx >= 0) {
-          if (expense._ts > (store[idx]._ts || 0)) { store[idx] = expense; updated++; }
-        } else {
-          store.push(expense); added++;
-        }
-      });
-      recalcBalances(data, data.expenses);
-      recalcMonthlyAgg(data, allExpenses());
-      saveData(data);
-      saveHistory(historyData);
-      renderAll();
-      showToast(`Imported: ${added} added, ${updated} updated`);
-    } catch (err) { showToast('Could not read CSV'); }
-  };
-  reader.readAsText(file);
-  e.target.value = '';
-});
-
 function confirmClearData() {
   document.getElementById('mainMenu').classList.remove('open');
   if (!confirm('Delete ALL data? This cannot be undone.')) return;
@@ -167,9 +92,6 @@ async function driveSyncHeader() {
 }
 
 // ── Google Drive ──────────────────────────────────────────────────────────────
-const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
-let driveToken = null;
-
 function openDriveMenu() {
   document.getElementById('mainMenu').classList.remove('open');
   document.getElementById('driveStatus').textContent = '';
