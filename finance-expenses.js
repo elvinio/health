@@ -1,18 +1,4 @@
 // ── Render: Expenses ─────────────────────────────────────────────────────────
-function balanceAtMonthStart(accountId, monthStr) {
-  const acc = data.accounts.find(a => a.id === accountId);
-  return allExpenses()
-    .filter(e => e.ac === accountId && e.date.slice(0, 7) < monthStr)
-    .reduce((s, e) => s + (e.cat === 'TopUp' ? e.amount : -e.amount), acc.startingBalance);
-}
-
-function balanceAtMonthEnd(accountId, monthStr) {
-  const acc = data.accounts.find(a => a.id === accountId);
-  return allExpenses()
-    .filter(e => e.ac === accountId && e.date.slice(0, 7) <= monthStr)
-    .reduce((s, e) => s + (e.cat === 'TopUp' ? e.amount : -e.amount), acc.startingBalance);
-}
-
 function renderExpenseList() {
   const el = document.getElementById('expenseList');
   if (!allExpenses().length) {
@@ -38,6 +24,7 @@ function renderExpenseList() {
   });
 
   const hidden = balanceHidden;
+  const emojiMap = parseCatEmojis();
   const statStyle = 'font-size:.7rem;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase';
   const valStyle = 'font-weight:700;color:#fff';
   el.innerHTML = Object.entries(byMonth).map(([month, dateGroups]) => {
@@ -60,7 +47,6 @@ function renderExpenseList() {
       headerRight = spendDiv;
     }
 
-    const emojiMap = parseCatEmojis();
     const dateRows = Object.entries(dateGroups).sort(([a], [b]) => b.localeCompare(a)).map(([date, exps]) => `
       <div class="date-group">
         <div class="date-label">${formatDate(date)}</div>
@@ -124,7 +110,13 @@ function openExpenseSheet(id, preAcct) {
     document.getElementById('expDesc').value = exp.desc;
     const catSel = document.getElementById('expCat');
     catSel.value = exp.cat;
-    if (catSel.value !== exp.cat) catSel.value = 'Other';
+    if (catSel.value !== exp.cat) {
+      const opt = document.createElement('option');
+      opt.value = exp.cat;
+      opt.textContent = exp.cat;
+      catSel.appendChild(opt);
+      catSel.value = exp.cat;
+    }
     document.getElementById('expDeleteBtn').style.display = '';
   } else {
     document.getElementById('expenseSheetTitle').textContent = 'Add Expense';

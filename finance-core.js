@@ -115,7 +115,7 @@ function defaultData() {
     ongoingExpenses: [],
     emailCatMap: [],       // [{ match: string, value: string }]
     emailCatDefault: 'Other',
-    netWorthSnapshots: [], // [{ key: 'YYYY-Qn', date, liquid, assets, cpf, debt, net, _ts }]
+    netWorthSnapshots: [], // [{ key: 'YYYY-MM-DD', date, liquid, assets, cpf, debt, net, _ts }]
     aiReport: null,        // { markdown, generatedAt, period }
     customAiPrompt: null,  // string | null — user-edited prompt template (null = use default)
     dependents: [],        // [{ id, name, relationship, birthYear, sex, _ts }]
@@ -177,6 +177,9 @@ function loadData() {
 }
 
 function saveData(d) {
+  if (Array.isArray(d._deletedIds) && d._deletedIds.length > 500) {
+    d._deletedIds = d._deletedIds.slice(-500);
+  }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
 }
 

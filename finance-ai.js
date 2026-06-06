@@ -501,48 +501,24 @@ function renderAiKpis() {
 function renderNetWorthChart() {
   const snaps = (data.netWorthSnapshots || []).slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   if (!snaps.length) return '';
-  const single = snaps.length < 2;
-  const short = n => (typeof fmtShort === 'function') ? fmtShort(Math.abs(n)) : '$' + Math.round(n);
-  const dateLbl = d => new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
-
-  const COL_W = 64, H = 150, PAD_L = 44, PAD_B = 28, PAD_T = 10, PAD_R = 12;
-  const svgW = PAD_L + snaps.length * COL_W + PAD_R;
-  const svgH = H + PAD_T + PAD_B;
   const vals = snaps.map(s => s.net);
   const lo = Math.min(0, ...vals), hi = Math.max(...vals, 1);
-  const range = (hi - lo) || 1;
-  const xPos = i => PAD_L + i * COL_W + COL_W / 2;
-  const yPos = v => PAD_T + H - ((v - lo) / range) * H;
+  const dateLbl = d => new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
 
-  const ticks = [0, .25, .5, .75, 1].map(f => ({ v: lo + range * f, y: yPos(lo + range * f) }));
-  const grid = ticks.map(({ v, y }) =>
-    `<line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${(svgW - PAD_R).toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1"/>` +
-    `<text x="${(PAD_L - 4).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--muted)">${short(v)}</text>`
-  ).join('');
-  const pts = vals.map((v, i) => [xPos(i), yPos(v)]);
-  const area = single ? '' : `M${pts[0][0].toFixed(1)},${yPos(lo).toFixed(1)} ` +
-    pts.map(p => `L${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ') +
-    ` L${pts[pts.length - 1][0].toFixed(1)},${yPos(lo).toFixed(1)} Z`;
-  const path = single ? '' : pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
-  const dots = pts.map(([cx, cy], i) =>
-    `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.5" fill="var(--primary)" stroke="#fff" stroke-width="1.5"/>` +
-    `<text x="${cx.toFixed(1)}" y="${(cy - 8).toFixed(1)}" text-anchor="middle" font-size="8" font-weight="700" fill="var(--primary)">${short(vals[i])}</text>`
-  ).join('');
-  const xLabels = snaps.map((s, i) =>
-    `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="8" fill="var(--muted)">${dateLbl(s.date)}</text>`
-  ).join('');
-  const hint = single ? `<div style="font-size:.72rem;color:var(--muted);margin-top:4px;padding:0 4px">Tap “Snapshot now” over time to build the trend.</div>` : '';
+  const xLabels = snaps.map(s => dateLbl(s.date));
+  const svg = lineChart({
+    height: 150, padT: 10, xLabels,
+    series: [{ values: vals, color: 'var(--primary)', valueLabels: true }],
+    yMin: lo, yMax: hi,
+    yFmt: v => fmtShort(Math.abs(v)),
+    area: 'var(--primary)',
+  });
 
-  return `<div class="chart-wrap" style="margin-top:14px;margin-bottom:0">
-    <div class="chart-title">Net Worth Trend</div>
-    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-      <svg width="${svgW}" height="${svgH}" style="display:block">
-        ${grid}
-        <path d="${area}" fill="var(--primary)" opacity="0.08"/>
-        <path d="${path}" fill="none" stroke="var(--primary)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-        ${dots}${xLabels}
-      </svg>
-    </div>
+  const hint = snaps.length < 2 ? `<div style=”font-size:.72rem;color:var(--muted);margin-top:4px;padding:0 4px”>Tap “Snapshot now” over time to build the trend.</div>` : '';
+
+  return `<div class=”chart-wrap” style=”margin-top:14px;margin-bottom:0”>
+    <div class=”chart-title”>Net Worth Trend</div>
+    <div style=”overflow-x:auto;-webkit-overflow-scrolling:touch”>${svg}</div>
     ${hint}
   </div>`;
 }
