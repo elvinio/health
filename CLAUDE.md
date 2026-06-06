@@ -272,8 +272,8 @@ Follow all five steps or the collection will be silently dropped during syncs an
 | `finance:driveHistoryFileId` | Drive file ID for history |
 | `finance:googleClientId` | OAuth2 client ID |
 | `finance:googleLoginHint` | Last signed-in Google email |
-| `finance:busApiKey` | LTA DataMall API key |
-| `finance:busProxyUrl` | Optional local CORS-proxy base URL for bus calls |
+| `finance:busApiKey` | LTA DataMall API key — **local-only, never synced to Drive** (secret) |
+| `finance:busProxyUrl` | Proxy base URL for bus calls (**required** — Apps Script or local; no public-proxy fallback) |
 | `finance:busStopCoords` | Cached lat/lng for `BUS_STOPS` (bus map) |
 | `finance:balanceHidden` | Bool — hide balance amounts |
 | `finance:lastAcct` | Last-used account ID |
@@ -365,7 +365,7 @@ Switched by `switchInsSubTab(tab)` (`finance-insurance.js`):
 
 - **Views** (`setEventView(mode)`): `list` (grouped by week), `calendar` (month grid), `bus` (real-time LTA arrivals), `busmap` (Leaflet interactive map), `notes` (free-form notes)
 - **Bus stops**: 6 hardcoded stops in `BUS_STOPS` array in `finance-core.js`
-- **External APIs**: LTA DataMall (`BUS_API_URL`, via `corsproxy.io` or an optional local proxy URL), Leaflet.js (loaded dynamically), Geolocation API
+- **External APIs**: LTA DataMall (`BUS_API_URL`, via a **required** proxy URL — Apps Script or local; `busProxyFetch` no longer falls back to the public `corsproxy.io`, so the `AccountKey` never transits a third party), Leaflet.js (loaded dynamically), Geolocation API
 - **Reminders**: browser notifications via `scheduleEventReminders()`
 
 ### Tax tab sub-tabs

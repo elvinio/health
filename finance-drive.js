@@ -561,7 +561,9 @@ async function driveSync() {
     }
 
     setDriveStatus('Uploading…');
-    merged.busApiKey = getBusApiKey() || merged.busApiKey || '';
+    // busApiKey is intentionally NOT synced to Drive — it is a secret and stays
+    // local-only (localStorage 'finance:busApiKey'). Not writing it here also
+    // scrubs any previously-uploaded key from the Drive file on the next sync.
     merged.busProxyUrl = localStorage.getItem(BUS_PROXY_URL_STORAGE) || merged.busProxyUrl || '';
     merged.busProxyToken = localStorage.getItem(BUS_PROXY_TOKEN_STORAGE) || merged.busProxyToken || '';
     if (uploadHistory) {
@@ -578,7 +580,6 @@ async function driveSync() {
     const now = new Date().toISOString();
     localStorage.setItem('finance:lastSync', now);
     data = merged;
-    if (merged.busApiKey) saveBusApiKey(merged.busApiKey);
     if (merged.busProxyUrl) localStorage.setItem(BUS_PROXY_URL_STORAGE, merged.busProxyUrl);
     if (merged.busProxyToken) localStorage.setItem(BUS_PROXY_TOKEN_STORAGE, merged.busProxyToken);
     historyData = mergedHistory;
