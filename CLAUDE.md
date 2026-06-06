@@ -30,6 +30,8 @@ Personal health and finance tools, all served as static files under `/health/`.
 | `fonts/material-symbols-outlined.woff2` | Icon font subset (~279KB, 29 icons) | — |
 | `finance-data-structure.md` | Full data schema reference | — |
 | `finance-import-format.md` | CSV/JSON import format spec | — |
+| `tests/harness.js` | Test harness — loads pure-logic files into a `vm` sandbox with browser stubs | — |
+| `tests/finance.test.js` | `node:test` suite for the pure logic | — |
 
 ### JS load order (plain `<script src>` tags, no ES modules)
 
@@ -39,6 +41,24 @@ finance-core.js → finance-drive.js → finance-expenses.js → finance-investm
 ```
 
 All files share a global scope. Each file may reference globals defined in files that load before it.
+
+---
+
+## Testing
+
+Pure logic has a minimal, dependency-free test suite under `tests/` using Node's built-in runner (`node:test`). No build step, no framework to install.
+
+```bash
+npm test                       # → node --test tests/*.test.js
+node --test tests/*.test.js    # equivalent
+```
+
+**How it works** — the app ships as plain `<script src>` files with no module exports, so they can't be `require()`d. `tests/harness.js` concatenates the **pure-logic** files (`finance-core`, `-investments`, `-insurance`, `-tax`, `-drive`), runs them once inside a Node `vm` sandbox with lightweight browser stubs (`document`, `localStorage`, `navigator`, …), and exposes the functions — plus `getData`/`setData`/`getHistory`/`setHistory` accessors for the globals — via `loadFinance()`.
+
+- UI-only files (`finance-app.js`, `-events.js`, `-gmail.js`, `-ai.js`, `-expenses.js`) are **not** loaded — their bottom-of-file init would run DOM rendering / SW registration on load. If a tested function grows a dependency on one of them, add the file to `FILES` in `harness.js`.
+- **Coverage:** `calcSGTax`, `getOngoingDueInfo` (recurring date math), `mergeData`, `mergeHistoryData`, `calcCpfProjection`, `calcRetirementPlan`.
+- **Gotchas when adding tests** (see `tests/README.md`): sandbox-returned values carry the vm realm's prototypes, so `assert.deepStrictEqual` fails on prototype identity — use the `plain()` JSON-round-trip helper; `calcSGTax` returns un-rounded floats — use the `closeTo()` tolerance helper.
+- These are dev-only files — **not** in the service-worker `ASSETS` list, so adding/changing tests does **not** require a `sw.js` cache bump.
 
 ---
 
