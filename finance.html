@@ -33,10 +33,6 @@
       <div class="dropdown-sep"></div>
       <button class="dropdown-item" id="quickSyncMenuItem" onclick="driveSyncHeader()" style="display:none"><span class="material-symbols-outlined" aria-hidden="true">sync</span> Quick Sync</button>
       <button class="dropdown-item" onclick="triggerImportEvents()">📅 Import Events</button>
-      <button class="dropdown-item" onclick="triggerImportExpenses()">💰 Import Expenses</button>
-      <button class="dropdown-item" onclick="pullHistory()">📥 Pull History</button>
-      <button class="dropdown-item" onclick="recalcAll()"><span class="material-symbols-outlined" aria-hidden="true">calculate</span> Recalculate</button>
-      <div class="dropdown-sep"></div>
       <button class="dropdown-item" onclick="openDriveMenu()">☁ Google Drive</button>
       <div class="dropdown-sep"></div>
       <button class="dropdown-item" onclick="openAllocationRatioSheet()">📊 Allocation Ratios</button>
@@ -44,7 +40,6 @@
       <button class="dropdown-item" onclick="openThemePicker()"><span class="material-symbols-outlined" aria-hidden="true">palette</span> Theme</button>
       <div class="dropdown-sep"></div>
       <button class="dropdown-item" onclick="refreshPwaCache()"><span class="material-symbols-outlined" aria-hidden="true">refresh</span> Refresh Cache</button>
-      <button class="dropdown-item danger" onclick="confirmClearData()"><span class="material-symbols-outlined" aria-hidden="true">delete</span> Clear all data</button>
       <div class="dropdown-sep"></div>
       <div id="swVersionLabel" style="padding:6px 16px;font-size:.72rem;color:var(--muted);pointer-events:none;user-select:none"></div>
     </div>
@@ -1067,7 +1062,6 @@
 <!-- Hidden file input for import -->
 <input type="file" id="historyImportFile" accept=".json" style="display:none">
 <input type="file" id="importEventsFile" accept=".json" style="display:none">
-<input type="file" id="importExpensesFile" accept=".csv" style="display:none">
 <input type="file" id="importParsersFile" accept=".json" style="display:none">
 
 <!-- Toast -->
