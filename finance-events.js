@@ -267,13 +267,19 @@ function busProxyFetch(target, apiKey, opts = {}) {
   if (!local) return Promise.reject(new Error('No bus proxy URL configured'));
   const token = localStorage.getItem(BUS_PROXY_TOKEN_STORAGE) || '';
   const base = local.replace(/\/$/, '');
-  const url = token
-    ? `${base}?token=${encodeURIComponent(token)}&url=${encodeURIComponent(target)}`
-    : `${base}?url=${encodeURIComponent(target)}`;
-  return fetch(url, {
-    ...opts,
-    headers: { AccountKey: apiKey, accept: 'application/json', ...opts.headers }
-  });
+  let url = `${base}?url=${encodeURIComponent(target)}`;
+  if (token) url += `&token=${encodeURIComponent(token)}`;
+  // The LTA AccountKey is normally held server-side by the proxy (Apps Script
+  // Script Properties). If the user supplied a key for a proxy that expects it,
+  // pass it as a query param — NEVER as a request header. A custom request
+  // header (AccountKey / Cache-Control) forces a CORS preflight (OPTIONS), which
+  // Apps Script web apps do not answer, so the request fails with "Failed to
+  // load". Sending only safelisted query params keeps it a simple GET.
+  if (apiKey) url += `&AccountKey=${encodeURIComponent(apiKey)}`;
+  // Strip any caller-supplied headers (e.g. Cache-Control) to avoid a preflight.
+  // Cache-busting is handled by a `_t` query param on the target URL instead.
+  const { headers, ...rest } = opts;
+  return fetch(url, rest);
 }
 
 async function fetchBusStop(stopCode, apiKey) {
