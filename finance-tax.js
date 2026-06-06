@@ -437,7 +437,7 @@ function renderSrsProjectionTable() {
 
     let srs = lastRecord.srsBalance;
     const startYear = parseInt(lastRecord.year) + 1;
-    const endYear = dobYear + 63;
+    const endYear = dobYear + 62;
 
     const rows = [];
     let transitionAge = null;
@@ -454,7 +454,7 @@ function renderSrsProjectionTable() {
     const finalBalance = rows[rows.length - 1].srs;
 
     return `<div style="background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;margin-bottom:12px;overflow-x:auto">
-      <div style="font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">SRS Balance to Age 63 — ${label}</div>
+      <div style="font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">SRS Balance to Age 62 — ${label}</div>
       <table style="width:100%;border-collapse:collapse;font-size:.8rem">
         <thead>
           <tr style="border-bottom:1px solid var(--border)">
@@ -472,12 +472,12 @@ function renderSrsProjectionTable() {
         </tbody>
         <tfoot>
           <tr style="border-top:2px solid var(--border);font-weight:700">
-            <td colspan="2" style="padding:6px 6px;font-size:.78rem">SRS at age 63</td>
+            <td colspan="2" style="padding:6px 6px;font-size:.78rem">SRS at age 62</td>
             <td style="text-align:right;padding:6px 6px;color:var(--green)">${fmtDollar(finalBalance)}</td>
           </tr>
         </tfoot>
       </table>
-      <div style="font-size:.7rem;color:var(--muted);margin-top:6px">Annual contribution $15,300 · Growth 4%/yr · Contributions stop at 55 · Balance grows until 63</div>
+      <div style="font-size:.7rem;color:var(--muted);margin-top:6px">Annual contribution $15,300 · Growth 4%/yr · Contributions stop at 55 · Balance grows until 62</div>
     </div>`;
   }
 
@@ -1002,7 +1002,7 @@ function calcRetirementPlan() {
   const retireAge = Math.round(s.retirementAge);
   const deathAge = Math.round(s.deathAge);
 
-  const physAssets = data.assets.reduce((sum, a) => sum + (isInvestable(a) && a.class !== 'CPF' ? currentValue(a) : 0), 0);
+  const physAssets = data.assets.reduce((sum, a) => sum + (isInvestable(a) && a.class !== 'CPF' && a.class !== 'SRS' ? currentValue(a) : 0), 0);
   const currentAssets = physAssets;
 
   const annualSavings = s.annualSavings != null ? s.annualSavings : 150000;
