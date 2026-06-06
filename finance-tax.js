@@ -877,14 +877,68 @@ function saveRetirementSettings(field, value) {
   renderRetirement();
 }
 
+// Projects SA (interest-only from last CPF record) → RA formation at 55 → CPF LIFE payout at 65.
+// No salary contributions are assumed — caller should keep records current.
+// Returns monthly payout in dollars, or 0 if projection is not possible.
+function calcCpfLifePayoutForPerson(dobStr, personRecords) {
+  if (!dobStr) return 0;
+  const dobYear = parseInt(dobStr.slice(0, 4));
+  if (!dobYear) return 0;
+
+  const s = data.cpfSettings || {};
+  const ersGrowthRate = parseFloat(s.ersGrowthRate) || 3.5;
+  const lifeExp = parseFloat(s.lifeExpectancy) || 85;
+  const mortalityFactor = parseFloat(s.mortalityFactor) || 1.35;
+  const currentYear = new Date().getFullYear();
+
+  const records = (personRecords || []).slice().sort((a, b) => a.year - b.year);
+  const lastRecord = records[records.length - 1];
+
+  let startYear, sa;
+  if (lastRecord) {
+    startYear = parseInt(lastRecord.year) + 1;
+    sa = lastRecord.saBalance || 0;
+  } else {
+    startYear = currentYear;
+    sa = 0;
+  }
+
+  const payoutStartYear = dobYear + 65;
+  const raFormYear = dobYear + 55;
+  // Can't reconstruct RA if records only start after age 55 (no raBalance field)
+  if (startYear > payoutStartYear || startYear > raFormYear) return 0;
+
+  const yearsTurn55 = Math.max(0, raFormYear - currentYear);
+  const frsAt55 = Math.round(CPF_FRS * Math.pow(1 + ersGrowthRate / 100, yearsTurn55));
+
+  let ra = 0;
+  for (let y = startYear; y <= payoutStartYear; y++) {
+    const age = y - dobYear;
+    if (age < 55) {
+      sa = sa * (1 + CPF_INT_SA);
+    } else if (age === 55) {
+      sa = sa * (1 + CPF_INT_SA);
+      ra = Math.min(sa, frsAt55);
+      sa = 0;
+    } else {
+      ra = ra * (1 + CPF_INT_RA);
+    }
+  }
+
+  return Math.round(ra * cpfLifeMonthlyFactor(lifeExp, mortalityFactor));
+}
+
 function calcRetirementPlan() {
   const s = data.retirementSettings;
   const cpfSet = data.cpfSettings;
 
   const dob = cpfSet.dateOfBirth ? new Date(cpfSet.dateOfBirth) : null;
+  const spouseDob = cpfSet.spouseDob ? new Date(cpfSet.spouseDob) : null;
   const now = new Date();
   const currentAge = dob ? Math.floor((now - dob) / (365.25 * 24 * 3600 * 1000)) : 35;
   const currentYear = now.getFullYear();
+  const hubDobYear = dob ? dob.getFullYear() : null;
+  const spouseDobYear = spouseDob ? spouseDob.getFullYear() : null;
 
   const r = s.investmentRate / 100;
   const g = s.inflationRate / 100;
@@ -900,17 +954,32 @@ function calcRetirementPlan() {
 
   const annualSavings = s.annualSavings != null ? s.annualSavings : 150000;
 
-  let cpfAnnualPayout = 0;
+  // Husband CPF LIFE: use actual projected RA balance (not ERS reference)
+  let hubCpfMonthly = 0;
   try {
     const cpfProj = calcCpfProjection();
-    cpfAnnualPayout = ((cpfProj.ersRefPayout || cpfProj.lifePayout) || 0) * 12;
-  } catch (e) { /* no DOB */ }
+    if (cpfProj) hubCpfMonthly = cpfProj.lifePayout || 0;
+  } catch (e) {}
+  const hubCpfAnnual = hubCpfMonthly * 12;
 
-  const PVA = (n, rate) => {
-    if (n <= 0) return 0;
-    if (Math.abs(rate) < 1e-9) return n;
-    return (1 - Math.pow(1 + rate, -n)) / rate;
-  };
+  // Wife CPF LIFE: project from her CPF records (SA interest-only growth → RA at 55 → payout at 65)
+  let wifeCpfMonthly = 0;
+  if (cpfSet.spouseDob) {
+    try {
+      const wifeRecords = (data.cpfRecords || []).filter(r => (r.forPerson || 'husband') === 'wife');
+      wifeCpfMonthly = calcCpfLifePayoutForPerson(cpfSet.spouseDob, wifeRecords);
+    } catch (e) {}
+  }
+  const wifeCpfAnnual = wifeCpfMonthly * 12;
+
+  // Express CPF start ages in terms of husband's age:
+  // Husband CPF always starts at husband age 65.
+  // Wife CPF starts when wife is 65 → husband's age = 65 + (wifeDobYear − hubDobYear).
+  // (Positive offset when wife is younger than husband.)
+  const hubCpfStartAge = 65;
+  const wifeCpfStartAge = (hubDobYear !== null && spouseDobYear !== null)
+    ? 65 + (spouseDobYear - hubDobYear)
+    : null;
 
   const rows = [];
   let assets = currentAssets;
@@ -946,7 +1015,9 @@ function calcRetirementPlan() {
     const yearsFromNow = age - currentAge;
     const inflFactor = Math.pow(1 + g, yearsFromNow);
     const withdrawalNom = W_real * inflFactor;
-    const cpfNom = age >= 65 ? cpfAnnualPayout : 0;
+    const rowHubCpf = age >= hubCpfStartAge ? hubCpfAnnual : 0;
+    const rowWifeCpf = (wifeCpfStartAge !== null && age >= wifeCpfStartAge) ? wifeCpfAnnual : 0;
+    const cpfNom = rowHubCpf + rowWifeCpf;
     const portfolioWithdrawal = Math.max(0, withdrawalNom - cpfNom);
     const investReturn = assets * r;
     const assetsStart = assets;
@@ -954,7 +1025,7 @@ function calcRetirementPlan() {
     rows.push({
       year: currentYear + yearsFromNow, age, phase: 'drawdown',
       assetsStart, investReturn,
-      cpf: cpfNom,
+      cpf: cpfNom, hubCpf: rowHubCpf, wifeCpf: rowWifeCpf,
       withdrawal: withdrawalNom,
       withdrawalReal: W_real,
       portfolioWithdrawal,
@@ -964,7 +1035,8 @@ function calcRetirementPlan() {
   }
 
   const endPortfolio = assets;
-  return { rows, W_real, cpfAnnualPayout, retirementPortfolio, endPortfolio, currentAge, currentAssets, annualSavings };
+  // cpfAnnualPayout kept for backward-compat (AI summary uses it)
+  return { rows, W_real, hubCpfAnnual, wifeCpfAnnual, wifeCpfStartAge, cpfAnnualPayout: hubCpfAnnual + wifeCpfAnnual, retirementPortfolio, endPortfolio, currentAge, currentAssets, annualSavings };
 }
 
 function renderRetirement() {
@@ -1050,15 +1122,16 @@ function renderRetirement() {
     return;
   }
 
-  const { rows, W_real, cpfAnnualPayout, retirementPortfolio, endPortfolio, annualSavings: planSavings } = plan;
+  const { rows, W_real, hubCpfAnnual, wifeCpfAnnual, wifeCpfStartAge, retirementPortfolio, endPortfolio, annualSavings: planSavings } = plan;
   const endColor = endPortfolio >= 0 ? 'var(--green,#27ae60)' : 'var(--red,#e74c3c)';
+  const hubCpfStartAge = 65;
 
   el.innerHTML += `
     <div class="ret-summary-grid">
       <div class="ret-summary-item">
         <div class="ret-summary-label">Portfolio at Retirement</div>
         <div class="ret-summary-value">${fmtDollar(retirementPortfolio)}</div>
-        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">investable assets − mortgage liability (home &amp; cash excluded)</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">investable assets − mortgage liability (CPF &amp; home excluded)</div>
       </div>
       <div class="ret-summary-item">
         <div class="ret-summary-label">Annual Savings (today's $)</div>
@@ -1071,9 +1144,15 @@ function renderRetirement() {
         <div style="font-size:.72rem;color:var(--muted);margin-top:2px">${(s.safeWithdrawalRate != null ? s.safeWithdrawalRate : 4.0).toFixed(1)}% of portfolio at retirement</div>
       </div>
       <div class="ret-summary-item">
-        <div class="ret-summary-label">CPF LIFE Payout / yr</div>
-        <div class="ret-summary-value">${fmtDollar(cpfAnnualPayout)}</div>
+        <div class="ret-summary-label">Husband CPF LIFE / yr</div>
+        <div class="ret-summary-value">${fmtDollar(hubCpfAnnual)}</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">starts husband age ${hubCpfStartAge} · based on projected RA</div>
       </div>
+      ${wifeCpfAnnual > 0 ? `<div class="ret-summary-item">
+        <div class="ret-summary-label">Wife CPF LIFE / yr</div>
+        <div class="ret-summary-value">${fmtDollar(wifeCpfAnnual)}</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:2px">starts husband age ${wifeCpfStartAge} · SA interest-only projection</div>
+      </div>` : ''}
       <div class="ret-summary-item">
         <div class="ret-summary-label">Monthly Spending (today's $)</div>
         <div class="ret-summary-value">${fmtDollar(W_real / 12)}</div>
@@ -1111,7 +1190,11 @@ function renderRetirement() {
           ${rows.map(row => {
             const isDrawdown = row.phase === 'drawdown';
             const phaseLabel = isDrawdown
-              ? (row.age >= 65 ? '<span style="color:var(--green,#27ae60)">Drawdown+CPF</span>' : '<span style="color:var(--red,#e74c3c)">Drawdown</span>')
+              ? (row.hubCpf > 0 && row.wifeCpf > 0
+                  ? '<span style="color:var(--green,#27ae60)">Drawdown+CPF×2</span>'
+                  : row.cpf > 0
+                    ? '<span style="color:var(--green,#27ae60)">Drawdown+CPF</span>'
+                    : '<span style="color:var(--red,#e74c3c)">Drawdown</span>')
               : '<span style="color:var(--primary)">Accumulation</span>';
             const endNeg = row.assetsEnd < 0 ? 'color:var(--red,#e74c3c)' : '';
             const savingsOrCpf = isDrawdown ? fmtDollar(row.cpf || 0) : `<span style="color:var(--green,#27ae60)">${fmtDollar(row.savings)}</span>`;
