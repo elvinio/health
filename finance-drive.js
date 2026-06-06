@@ -640,6 +640,8 @@ async function driveSync() {
 
     setDriveStatus('Uploading…');
     merged.busApiKey = getBusApiKey() || merged.busApiKey || '';
+    merged.busProxyUrl = localStorage.getItem(BUS_PROXY_URL_STORAGE) || merged.busProxyUrl || '';
+    merged.busProxyToken = localStorage.getItem(BUS_PROXY_TOKEN_STORAGE) || merged.busProxyToken || '';
     if (uploadHistory) {
       mergedHistory._updatedAt = Date.now();
       merged.historyUpdatedAt = mergedHistory._updatedAt;
@@ -655,6 +657,8 @@ async function driveSync() {
     localStorage.setItem('finance:lastSync', now);
     data = merged;
     if (merged.busApiKey) saveBusApiKey(merged.busApiKey);
+    if (merged.busProxyUrl) localStorage.setItem(BUS_PROXY_URL_STORAGE, merged.busProxyUrl);
+    if (merged.busProxyToken) localStorage.setItem(BUS_PROXY_TOKEN_STORAGE, merged.busProxyToken);
     historyData = mergedHistory;
     recalcBalances(data, allExpenses());
     recalcMonthlyAgg(data, allExpenses());
