@@ -240,17 +240,16 @@ function busTimeLabel(mins) {
 
 function busProxyFetch(target, apiKey, opts = {}) {
   const local = localStorage.getItem(BUS_PROXY_URL_STORAGE);
-  let url;
   if (local) {
     const token = localStorage.getItem(BUS_PROXY_TOKEN_STORAGE) || '';
     const base = local.replace(/\/$/, '');
-    url = token
+    const url = token
       ? `${base}?token=${encodeURIComponent(token)}&url=${encodeURIComponent(target)}`
       : `${base}?url=${encodeURIComponent(target)}`;
-  } else {
-    url = `https://corsproxy.io/?${encodeURIComponent(target)}`;
+    // Simple GET — no custom headers to avoid a CORS preflight that Apps Script can't handle.
+    return fetch(url);
   }
-  return fetch(url, {
+  return fetch(`https://corsproxy.io/?${encodeURIComponent(target)}`, {
     ...opts,
     headers: { AccountKey: apiKey, accept: 'application/json', ...opts.headers }
   });
