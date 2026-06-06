@@ -891,7 +891,7 @@ function calcRetirementPlan() {
   const retireAge = Math.round(s.retirementAge);
   const deathAge = Math.round(s.deathAge);
 
-  const physAssets = data.assets.reduce((sum, a) => sum + (isInvestable(a) ? currentValue(a) : 0), 0);
+  const physAssets = data.assets.reduce((sum, a) => sum + (isInvestable(a) && a.class !== 'CPF' ? currentValue(a) : 0), 0);
   const mortgageDebt = (data.mortgages || []).reduce((s, m) => {
     const bals = (m.entries || []).filter(e => e.type === 'balance').sort((a, b) => b.date.localeCompare(a.date));
     return s + (bals.length ? bals[0].amount : (m.principal || 0));
