@@ -476,7 +476,7 @@ function autoGenOngoingExpenses() {
   });
 
   if (anyAdded) {
-    recalcBalances(data, allExpenses());
+    recalcBalances(data, data.expenses);
     recalcMonthlyAgg(data, allExpenses());
     saveData(data);
     renderAll();
@@ -517,7 +517,7 @@ function manualGenOngoingExpenses() {
   });
 
   if (added > 0) {
-    recalcBalances(data, allExpenses());
+    recalcBalances(data, data.expenses);
     recalcMonthlyAgg(data, allExpenses());
     saveData(data);
     renderAll();

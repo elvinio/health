@@ -140,7 +140,7 @@ function saveAccountSettings() {
     taxPinUnlocked = false;
   }
 
-  recalcBalances(data, allExpenses());
+  recalcBalances(data, data.expenses);
   saveData(data);
   closeSheet();
   renderAll();
