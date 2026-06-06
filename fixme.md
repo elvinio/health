@@ -16,5 +16,4 @@ Actionable issues from the code review (full write-up in `finance-review.md`). G
 - [ ] **De-duplicate** asset-card markup (`renderInvestments` vs `renderAssetsSubTab`), bus API-setup UI (`renderBusPanel` vs `renderBusMapPanel`), and `autoGen`/`manualGen` recurring functions.
 - [ ] **Move repeated inline styles to CSS classes** in `finance.css` to shrink the JS and keep theming consistent.
 - [x] **`_deletedIds` grows unbounded** — cap or age out tombstones.
-- [ ] **Secret exposure:** bus path defaults to public `corsproxy.io` carrying the LTA `AccountKey` (`finance-events.js:240`), and `busApiKey` is written into the synced Drive file (`finance-drive.js:640`). Decide/flag intentionally; consider defaulting to the local proxy.
 - [ ] **No tests.** Consider a minimal harness for the pure logic (`mergeData`, `calcSGTax`, `calcCpfProjection`, `calcRetirementPlan`, recurring date math).
