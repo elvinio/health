@@ -407,12 +407,13 @@ Theme preference stored in `localStorage` under `finance:theme`.
 2. Enhance date inputs with DMY widget
 3. `renderAll()`
 4. Apply balance visibility from localStorage
-5. `autoGenOngoingExpenses()`
-6. `updateDriveSyncBtn()`
-7. `scheduleEventReminders()`
-8. Check URL params: `?add=1` → open expense sheet; `?addevent=1` → open event sheet
-9. Register service worker (`./sw.js`)
-10. Attach `refreshPwaCache()` handler
+5. `updateDriveSyncBtn()`
+6. `scheduleEventReminders()`
+7. Check URL params: `?add=1` → open expense sheet; `?addevent=1` → open event sheet
+8. Register service worker (`./sw.js`)
+9. Attach `refreshPwaCache()` handler
+
+> Recurring expenses are **never** auto-generated on startup — they are created only via the "Generate this month" button (`manualGenOngoingExpenses()`) on Expenses › Recurring.
 
 ### `renderAll()` call chain
 

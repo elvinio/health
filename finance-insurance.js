@@ -484,11 +484,6 @@ function genDueOngoingExpenses(today) {
   return { added, skipped };
 }
 
-function autoGenOngoingExpenses() {
-  if (!(data.ongoingExpenses || []).length) return;
-  genDueOngoingExpenses(new Date());
-}
-
 function manualGenOngoingExpenses() {
   if (!(data.ongoingExpenses || []).length) { showToast('No recurring expenses set up'); return; }
   const { added } = genDueOngoingExpenses(new Date());
