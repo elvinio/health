@@ -246,9 +246,6 @@ function setEventView(mode) {
   }
 }
 
-function getBusApiKey() { return localStorage.getItem(BUS_API_KEY_STORAGE) || ''; }
-function saveBusApiKey(key) { localStorage.setItem(BUS_API_KEY_STORAGE, key.trim()); }
-
 function busMinutes(isoStr) {
   if (!isoStr) return null;
   return Math.round((new Date(isoStr) - Date.now()) / 60000);
@@ -260,27 +257,6 @@ function busTimeLabel(mins) {
   return mins + ' min';
 }
 
-function busProxyFetch(target, apiKey, opts = {}) {
-  const local = localStorage.getItem(BUS_PROXY_URL_STORAGE);
-  // A proxy URL is required. We no longer fall back to the public corsproxy.io,
-  // which would route the LTA AccountKey through a third party.
-  if (!local) return Promise.reject(new Error('No bus proxy URL configured'));
-  const token = localStorage.getItem(BUS_PROXY_TOKEN_STORAGE) || '';
-  const base = local.replace(/\/$/, '');
-  let url = `${base}?url=${encodeURIComponent(target)}`;
-  if (token) url += `&token=${encodeURIComponent(token)}`;
-  // The LTA AccountKey is normally held server-side by the proxy (Apps Script
-  // Script Properties). If the user supplied a key for a proxy that expects it,
-  // pass it as a query param — NEVER as a request header. A custom request
-  // header (AccountKey / Cache-Control) forces a CORS preflight (OPTIONS), which
-  // Apps Script web apps do not answer, so the request fails with "Failed to
-  // load". Sending only safelisted query params keeps it a simple GET.
-  if (apiKey) url += `&AccountKey=${encodeURIComponent(apiKey)}`;
-  // Strip any caller-supplied headers (e.g. Cache-Control) to avoid a preflight.
-  // Cache-busting is handled by a `_t` query param on the target URL instead.
-  const { headers, ...rest } = opts;
-  return fetch(url, rest);
-}
 
 async function fetchAllBusStops() {
   const proxyUrl = localStorage.getItem(BUS_PROXY_URL_STORAGE);
@@ -298,27 +274,36 @@ async function fetchAllBusStops() {
 // bus map panel. `idPrefix` namespaces the input ids ('bus' vs 'busMap') and
 // `reloadFn` is the name of the render function to call after saving.
 function busApiSetupHtml(idPrefix, reloadFn) {
-  const apiKey = getBusApiKey();
   const proxyUrl = localStorage.getItem(BUS_PROXY_URL_STORAGE) || '';
+  const token = localStorage.getItem(BUS_PROXY_TOKEN_STORAGE) || '';
   return `<div class="bus-api-setup">
     <div style="font-weight:600;margin-bottom:4px">Bus API Setup</div>
-    <div style="font-size:.82rem;color:var(--muted);margin-bottom:8px">A proxy URL (Apps Script or local) is required — it forwards requests to LTA without exposing your key to a third party. The API key is optional: leave it blank if the proxy holds the key server-side, or enter it if your proxy expects it as a header.</div>
+    <div style="font-size:.82rem;color:var(--muted);margin-bottom:8px">Apps Script web app URL — the LTA API key lives in Script Properties server-side.</div>
     <div style="font-size:.78rem;color:var(--muted);margin-bottom:2px">Proxy URL</div>
     <input type="text" id="${idPrefix}ProxyUrlInput" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(proxyUrl)}" />
     <div style="font-size:.78rem;color:var(--muted);margin-top:8px;margin-bottom:2px">Proxy token <span style="opacity:.6">(optional — set PROXY_TOKEN in Script Properties)</span></div>
-    <input type="text" id="${idPrefix}ProxyTokenInput" placeholder="your-secret-token" value="${esc(localStorage.getItem(BUS_PROXY_TOKEN_STORAGE) || '')}" />
-    <div style="font-size:.78rem;color:var(--muted);margin-top:8px;margin-bottom:2px">LTA AccountKey <span style="opacity:.6">(optional — only if your proxy doesn't hold it)</span></div>
-    <input type="text" id="${idPrefix}ApiKeyInput" placeholder="LTA AccountKey (not needed with Apps Script proxy)" value="${esc(apiKey)}" />
+    <input type="text" id="${idPrefix}ProxyTokenInput" placeholder="your-secret-token" value="${esc(token)}" />
     <button class="btn btn-primary btn-block" style="margin-top:8px" onclick="
-      const k=document.getElementById('${idPrefix}ApiKeyInput').value.trim();
       const p=document.getElementById('${idPrefix}ProxyUrlInput').value.trim();
       const t=document.getElementById('${idPrefix}ProxyTokenInput').value.trim();
       localStorage.setItem(BUS_PROXY_URL_STORAGE,p);
       localStorage.setItem(BUS_PROXY_TOKEN_STORAGE,t);
-      if(k) saveBusApiKey(k);
       if(p) ${reloadFn}();
     ">Save &amp; Load</button>
   </div>`;
+}
+
+function showBusSettings() {
+  const panel = document.getElementById('busPanel');
+  if (panel) panel.innerHTML = busApiSetupHtml('bus', 'renderBusPanel');
+}
+
+function showBusMapSettings() {
+  stopLocationTracking();
+  if (busMapInstance) { busMapInstance.remove(); busMapInstance = null; }
+  busMapMarkers = []; busMapPrevPositions = {};
+  const panel = document.getElementById('busMapPanel');
+  if (panel) panel.innerHTML = busApiSetupHtml('busMap', 'renderBusMapPanel');
 }
 
 async function renderBusPanel() {
@@ -336,7 +321,7 @@ async function renderBusPanel() {
     panel.innerHTML = `<div class="bus-refresh-row">
       <span class="bus-last-updated" id="busLastUpdated">Fetching…</span>
       <div style="display:flex;gap:8px;align-items:center">
-        <button class="bus-refresh-btn" onclick="saveBusApiKey('');localStorage.removeItem(BUS_PROXY_URL_STORAGE);localStorage.removeItem(BUS_PROXY_TOKEN_STORAGE);renderBusPanel()" style="font-size:.75rem">Settings</button>
+        <button class="bus-refresh-btn" onclick="showBusSettings()" style="font-size:.75rem">Settings</button>
         <button class="bus-refresh-btn" onclick="renderBusPanel()">
           <span class="material-symbols-outlined" style="font-size:.9rem">refresh</span> Refresh
         </button>
@@ -410,33 +395,23 @@ function getBusMapCenter() {
   return BUS_MAP_DEFAULT;
 }
 
-async function fetchBusStopCoords(apiKey) {
+async function fetchBusStopCoords() {
   const cacheKey = 'finance:busStopCoords';
   const cached = JSON.parse(localStorage.getItem(cacheKey) || '{}');
   const missing = BUS_STOPS.map(s => s.code).filter(c => !cached[c]);
   if (!missing.length) return cached;
 
-  // Fire all pages in parallel (~21 pages × 500 stops covers the full LTA dataset).
-  // Much faster than the previous serial loop on first load.
-  const BASE = 'https://datamall2.mytransport.sg/ltaodataservice/BusStops';
-  const skips = Array.from({ length: 21 }, (_, i) => i * 500);
-  const pages = await Promise.allSettled(
-    skips.map(skip =>
-      busProxyFetch(`${BASE}?$skip=${skip}`, apiKey)
-        .then(r => r.json())
-        .catch(() => null)
-    )
-  );
+  const proxyUrl = localStorage.getItem(BUS_PROXY_URL_STORAGE);
+  if (!proxyUrl) throw new Error('No bus proxy URL configured');
+  const token = localStorage.getItem(BUS_PROXY_TOKEN_STORAGE) || '';
+  let url = `${proxyUrl.replace(/\/$/, '')}?action=BusStopCoords&stops=${encodeURIComponent(missing.join(','))}`;
+  if (token) url += `&token=${encodeURIComponent(token)}`;
 
-  pages.forEach(result => {
-    if (result.status !== 'fulfilled' || !result.value?.value?.length) return;
-    result.value.value.forEach(s => {
-      if (missing.includes(s.BusStopCode)) {
-        cached[s.BusStopCode] = { lat: s.Latitude, lng: s.Longitude, name: s.Description };
-      }
-    });
-  });
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(resp.status);
+  const data = await resp.json();
 
+  missing.forEach(code => { if (data[code]) cached[code] = data[code]; });
   localStorage.setItem(cacheKey, JSON.stringify(cached));
   return cached;
 }
@@ -471,12 +446,12 @@ function stopLocationTracking() {
   if (busMapLocationMarker) { busMapLocationMarker.remove(); busMapLocationMarker = null; }
 }
 
-async function placeBusStopMarkers(apiKey) {
+async function placeBusStopMarkers() {
   if (!busMapInstance) return;
   busMapStopMarkers.forEach(m => m.remove());
   busMapStopMarkers = [];
   let coords;
-  try { coords = await fetchBusStopCoords(apiKey); } catch { return; }
+  try { coords = await fetchBusStopCoords(); } catch { return; }
   BUS_STOPS.forEach(stop => {
     const c = coords[stop.code];
     if (!c) return;
@@ -516,7 +491,6 @@ function loadLeaflet(cb) {
 function renderBusMapPanel() {
   const panel = document.getElementById('busMapPanel');
   if (!panel || panel.style.display === 'none') return;
-  const apiKey = getBusApiKey();
   const proxyUrl = localStorage.getItem(BUS_PROXY_URL_STORAGE) || '';
 
   if (!proxyUrl) {
@@ -548,7 +522,7 @@ function renderBusMapPanel() {
     <div id="busMapContainer"></div>
     <div class="bus-refresh-row" style="margin-top:8px">
       <span class="bus-last-updated" id="busMapLastUpdated">Fetching…</span>
-      <button class="bus-refresh-btn" onclick="saveBusApiKey('');localStorage.removeItem(BUS_PROXY_URL_STORAGE);localStorage.removeItem(BUS_PROXY_TOKEN_STORAGE);busMapInstance=null;busMapMarkers=[];busMapPrevPositions={};renderBusMapPanel()" style="font-size:.75rem">Settings</button>
+      <button class="bus-refresh-btn" onclick="showBusMapSettings()" style="font-size:.75rem">Settings</button>
     </div>`;
 
   busMapPrevPositions = {};
@@ -564,7 +538,7 @@ function renderBusMapPanel() {
   setTimeout(() => busMapInstance.invalidateSize(), 50);
 
   startLocationTracking();
-  placeBusStopMarkers(apiKey);
+  placeBusStopMarkers();
   refreshBusMapMarkers();
 }
 
