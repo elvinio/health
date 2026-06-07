@@ -288,6 +288,7 @@ function busApiSetupHtml(idPrefix, reloadFn) {
       const t=document.getElementById('${idPrefix}ProxyTokenInput').value.trim();
       localStorage.setItem(BUS_PROXY_URL_STORAGE,p);
       localStorage.setItem(BUS_PROXY_TOKEN_STORAGE,t);
+      data.busProxyUrl=p; data.busProxyToken=t; data._busProxyTs=Date.now(); saveData(data);
       if(p) ${reloadFn}();
     ">Save &amp; Load</button>
   </div>`;
