@@ -81,7 +81,6 @@ const DRIVE_CLIENT_KEY = 'finance:googleClientId';
 const DRIVE_LOGIN_HINT_KEY = 'finance:googleLoginHint';
 const HISTORY_KEY = 'finance:v1:history';
 const DRIVE_HISTORY_FILE_KEY = 'finance:driveHistoryFileId';
-const BUS_API_KEY_STORAGE = 'finance:busApiKey';
 const BUS_PROXY_URL_STORAGE = 'finance:busProxyUrl';
 const BUS_PROXY_TOKEN_STORAGE = 'finance:busProxyToken';
 const BUS_STOPS = [
@@ -92,7 +91,6 @@ const BUS_STOPS = [
   { code: '92041', name: 'Opp Parkway',     services: ['15'] },
   { code: '82061', name: 'Eunos Station',   services: ['150', '155'] },
 ];
-const BUS_API_URL = 'https://datamall2.mytransport.sg/ltaodataservice/v3/BusArrival';
 let busPollingInterval = null;
 
 function defaultData() {
