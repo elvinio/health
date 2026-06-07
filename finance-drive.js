@@ -416,6 +416,12 @@ function mergeData(local, remote) {
   const retirementSettings = { ...RS_DEFAULTS, ...(retirementSettingsWinner || {}) };
   const retirementSettingsTs = Math.max(local._retirementSettingsTs || 0, remote._retirementSettingsTs || 0);
 
+  // busProxyUrl + busProxyToken: last-writer-wins via _busProxyTs
+  const busProxyWinner = (local._busProxyTs || 0) >= (remote._busProxyTs || 0) ? local : remote;
+  const busProxyUrl = busProxyWinner.busProxyUrl || '';
+  const busProxyToken = busProxyWinner.busProxyToken || '';
+  const busProxyTs = Math.max(local._busProxyTs || 0, remote._busProxyTs || 0);
+
   const merged = {
     accounts: [...accMap.values()],
     expenses: [...expMap.values()],
@@ -454,6 +460,9 @@ function mergeData(local, remote) {
     _customAiPromptTs: customAiPromptTs,
     retirementSettings,
     _retirementSettingsTs: retirementSettingsTs,
+    busProxyUrl,
+    busProxyToken,
+    _busProxyTs: busProxyTs,
   };
   recalcBalances(merged, merged.expenses);
   recalcMonthlyAgg(merged, merged.expenses);
@@ -564,8 +573,7 @@ async function driveSync() {
     // busApiKey is intentionally NOT synced to Drive — it is a secret and stays
     // local-only (localStorage 'finance:busApiKey'). Not writing it here also
     // scrubs any previously-uploaded key from the Drive file on the next sync.
-    merged.busProxyUrl = localStorage.getItem(BUS_PROXY_URL_STORAGE) || merged.busProxyUrl || '';
-    merged.busProxyToken = localStorage.getItem(BUS_PROXY_TOKEN_STORAGE) || merged.busProxyToken || '';
+    // busProxyUrl/Token use last-writer-wins via _busProxyTs (handled in mergeData).
     if (uploadHistory) {
       mergedHistory._updatedAt = Date.now();
       merged.historyUpdatedAt = mergedHistory._updatedAt;
@@ -582,6 +590,7 @@ async function driveSync() {
     data = merged;
     if (merged.busProxyUrl) localStorage.setItem(BUS_PROXY_URL_STORAGE, merged.busProxyUrl);
     if (merged.busProxyToken) localStorage.setItem(BUS_PROXY_TOKEN_STORAGE, merged.busProxyToken);
+    // Mirror back to localStorage so the app reads the winning value immediately.
     historyData = mergedHistory;
     recalcBalances(data, data.expenses);
     recalcMonthlyAgg(data, allExpenses());
