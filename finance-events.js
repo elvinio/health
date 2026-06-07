@@ -282,11 +282,16 @@ function busProxyFetch(target, apiKey, opts = {}) {
   return fetch(url, rest);
 }
 
-async function fetchBusStop(stopCode, apiKey) {
-  const target = `${BUS_API_URL}?BusStopCode=${stopCode}&_t=${Date.now()}`;
-  const resp = await busProxyFetch(target, apiKey, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
+async function fetchAllBusStops() {
+  const proxyUrl = localStorage.getItem(BUS_PROXY_URL_STORAGE);
+  if (!proxyUrl) throw new Error('No bus proxy URL configured');
+  const token = localStorage.getItem(BUS_PROXY_TOKEN_STORAGE) || '';
+  const stops = BUS_STOPS.map(s => s.code).join(',');
+  let url = `${proxyUrl.replace(/\/$/, '')}?action=BusArrival&stops=${encodeURIComponent(stops)}&_t=${Date.now()}`;
+  if (token) url += `&token=${encodeURIComponent(token)}`;
+  const resp = await fetch(url, { cache: 'no-store' });
   if (!resp.ok) throw new Error(resp.status);
-  return resp.json();
+  return resp.json(); // { stopCode: { Services: [...] }, ... }
 }
 
 // Shared Bus API-setup form markup, used by both the bus arrivals panel and the
@@ -319,7 +324,6 @@ function busApiSetupHtml(idPrefix, reloadFn) {
 async function renderBusPanel() {
   const panel = document.getElementById('busPanel');
   if (!panel || panel.style.display === 'none') return;
-  const apiKey = getBusApiKey();
   const proxyUrl = localStorage.getItem(BUS_PROXY_URL_STORAGE) || '';
 
   if (!proxyUrl) {
@@ -341,23 +345,22 @@ async function renderBusPanel() {
     <div id="busStopsContainer"><div style="color:var(--muted);text-align:center;padding:24px">Loading…</div></div>`;
   }
 
-  const results = await Promise.allSettled(
-    BUS_STOPS.map(stop => fetchBusStop(stop.code, apiKey))
-  );
+  let allData = {};
+  try { allData = await fetchAllBusStops(); } catch { allData = {}; }
 
   const cont = document.getElementById('busStopsContainer');
   if (!cont) return;
 
-  cont.innerHTML = BUS_STOPS.map((stop, i) => {
-    const result = results[i];
-    if (result.status === 'rejected') {
+  cont.innerHTML = BUS_STOPS.map(stop => {
+    const stopData = allData[stop.code];
+    if (!stopData || stopData.error) {
       return `<div class="bus-stop-card">
         <div class="bus-stop-header">${stop.name} <span style="font-weight:400;text-transform:none">(${stop.code})</span></div>
         <div style="color:var(--muted);font-size:.82rem">Failed to load</div>
       </div>`;
     }
     const serviceMap = {};
-    (result.value.Services || []).forEach(s => { serviceMap[s.ServiceNo] = s; });
+    (stopData.Services || []).forEach(s => { serviceMap[s.ServiceNo] = s; });
     const rows = stop.services.map(svc => {
       const s = serviceMap[svc];
       let chips = '';
@@ -576,22 +579,19 @@ function busMapSetCenter() {
 
 async function refreshBusMapMarkers() {
   if (!busMapInstance) return;
-  const apiKey = getBusApiKey();
-  if (!apiKey) return;
 
   // Remove old markers
   busMapMarkers.forEach(m => m.remove());
   busMapMarkers = [];
 
-  const results = await Promise.allSettled(
-    BUS_STOPS.map(stop => fetchBusStop(stop.code, apiKey))
-  );
+  let allData = {};
+  try { allData = await fetchAllBusStops(); } catch { allData = {}; }
 
   const seen = new Set();
-  BUS_STOPS.forEach((stop, i) => {
-    const res = results[i];
-    if (res.status !== 'fulfilled') return;
-    (res.value.Services || []).forEach(svc => {
+  BUS_STOPS.forEach(stop => {
+    const res = allData[stop.code];
+    if (!res || res.error) return;
+    (res.Services || []).forEach(svc => {
       if (!stop.services.includes(svc.ServiceNo)) return;
       [svc.NextBus, svc.NextBus2].forEach((nb, busIdx) => {
         if (!nb) return;

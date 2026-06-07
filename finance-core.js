@@ -92,7 +92,6 @@ const BUS_STOPS = [
   { code: '92041', name: 'Opp Parkway',     services: ['15'] },
   { code: '82061', name: 'Eunos Station',   services: ['150', '155'] },
 ];
-const BUS_API_URL = 'https://datamall2.mytransport.sg/ltaodataservice/v3/BusArrival';
 let busPollingInterval = null;
 
 function defaultData() {

@@ -14,26 +14,29 @@
  *        Who has access: Anyone (even anonymous)
  *   4. Copy the web app URL (ends in /exec).
  *   5. In the Finance PWA → Events → Bus or Bus Map:
- *        Leave the API Key field blank.
  *        Paste the web app URL into the Proxy URL field.
- *        Paste the same secret into the Proxy Token field.
  *
- * The PWA calls: GET {webAppUrl}?token=<secret>&url=<encodedLtaApiUrl>
- * This script checks the token, forwards the request to LTA with the stored
- * key, and returns the JSON. The browser never sees the LTA key.
+ * Bus arrival (new style — fetches all stops in one parallel batch):
+ *   GET {webAppUrl}?action=BusArrival&stops=83139,12345&token=<secret>
+ *   Returns: { "83139": { BusStopCode, Services: [...] }, "12345": { ... } }
  *
- * If PROXY_TOKEN is not set in Script Properties, the token check is skipped
- * (useful for initial testing).
+ * Generic proxy (legacy — used for BusStops coord lookup):
+ *   GET {webAppUrl}?url=<encodedLtaUrl>&token=<secret>
+ *
+ * If PROXY_TOKEN is not set in Script Properties, the token check is skipped.
  */
 
-var LTA_API_KEY_PROP = 'LTA_API_KEY';
+var LTA_API_KEY_PROP  = 'LTA_API_KEY';
 var PROXY_TOKEN_PROP  = 'PROXY_TOKEN';
-var ALLOWED_HOST = 'datamall2.mytransport.sg';
+var ALLOWED_HOST      = 'datamall2.mytransport.sg';
+var BUS_ARRIVAL_URL   = 'https://datamall2.mytransport.sg/ltaodataservice/v3/BusArrival';
 
 function doGet(e) {
   try {
+    var props = PropertiesService.getScriptProperties();
+
     // Token check — only enforced when PROXY_TOKEN is configured
-    var expectedToken = PropertiesService.getScriptProperties().getProperty(PROXY_TOKEN_PROP);
+    var expectedToken = props.getProperty(PROXY_TOKEN_PROP);
     if (expectedToken) {
       var providedToken = e.parameter && e.parameter.token;
       if (providedToken !== expectedToken) {
@@ -41,33 +44,79 @@ function doGet(e) {
       }
     }
 
-    var rawUrl = e.parameter && e.parameter.url;
-    if (!rawUrl) {
-      return jsonOut({ error: 'Missing url parameter' });
-    }
-
-    if (!rawUrl.startsWith('https://' + ALLOWED_HOST + '/')) {
-      return jsonOut({ error: 'Only LTA DataMall requests are proxied' });
-    }
-
-    var apiKey = PropertiesService.getScriptProperties().getProperty(LTA_API_KEY_PROP);
+    var apiKey = props.getProperty(LTA_API_KEY_PROP);
     if (!apiKey) {
       return jsonOut({ error: 'LTA_API_KEY not set in Script Properties' });
     }
 
-    var resp = UrlFetchApp.fetch(rawUrl, {
-      method: 'get',
-      headers: { AccountKey: apiKey, accept: 'application/json' },
-      muteHttpExceptions: true
-    });
+    var action = e.parameter && e.parameter.action;
 
-    return ContentService
-      .createTextOutput(resp.getContentText())
-      .setMimeType(ContentService.MimeType.JSON);
+    if (action === 'BusArrival') {
+      return handleBusArrival(e, apiKey);
+    }
+
+    // Legacy generic proxy (used for BusStops coord lookup)
+    return handleGenericProxy(e, apiKey);
 
   } catch (err) {
     return jsonOut({ error: err.message });
   }
+}
+
+function handleBusArrival(e, apiKey) {
+  var stopsParam = e.parameter && e.parameter.stops;
+  if (!stopsParam) {
+    return jsonOut({ error: 'Missing stops parameter' });
+  }
+
+  var stopCodes = stopsParam.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+  if (!stopCodes.length) {
+    return jsonOut({ error: 'No stop codes provided' });
+  }
+
+  var requests = stopCodes.map(function(code) {
+    return {
+      url: BUS_ARRIVAL_URL + '?BusStopCode=' + encodeURIComponent(code),
+      method: 'get',
+      headers: { AccountKey: apiKey, accept: 'application/json' },
+      muteHttpExceptions: true
+    };
+  });
+
+  var responses = UrlFetchApp.fetchAll(requests);
+
+  var result = {};
+  stopCodes.forEach(function(code, i) {
+    try {
+      var parsed = JSON.parse(responses[i].getContentText());
+      result[code] = parsed;
+    } catch (err) {
+      result[code] = { error: 'Parse error' };
+    }
+  });
+
+  return jsonOut(result);
+}
+
+function handleGenericProxy(e, apiKey) {
+  var rawUrl = e.parameter && e.parameter.url;
+  if (!rawUrl) {
+    return jsonOut({ error: 'Missing url parameter' });
+  }
+
+  if (!rawUrl.startsWith('https://' + ALLOWED_HOST + '/')) {
+    return jsonOut({ error: 'Only LTA DataMall requests are proxied' });
+  }
+
+  var resp = UrlFetchApp.fetch(rawUrl, {
+    method: 'get',
+    headers: { AccountKey: apiKey, accept: 'application/json' },
+    muteHttpExceptions: true
+  });
+
+  return ContentService
+    .createTextOutput(resp.getContentText())
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function jsonOut(obj) {
