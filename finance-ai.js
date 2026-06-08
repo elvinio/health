@@ -165,16 +165,18 @@ function buildAiSummary() {
     cat, budgetYTD: Math.round(monthly * monthsElapsed), actualYTD: catYTD[cat] || 0
   }));
 
-  // Assets with class + allocation share.
-  const assetSum = (data.assets || []).reduce((s, a) => s + currentValue(a), 0);
-  const investableSum = (data.assets || []).reduce((s, a) => s + (isInvestable(a) ? currentValue(a) : 0), 0);
+  // Assets with class + allocation share. CPF-class excluded — CPF is already
+  // captured via cpfRecords and computeNetWorth() excludes CPF-class assets too.
+  const nonCpfAssets = (data.assets || []).filter(a => assetClass(a) !== 'CPF');
+  const assetSum = nonCpfAssets.reduce((s, a) => s + currentValue(a), 0);
+  const investableSum = nonCpfAssets.reduce((s, a) => s + (isInvestable(a) ? currentValue(a) : 0), 0);
   const assetTotal = assetSum || 1;
-  const assets = (data.assets || []).map(a => {
+  const assets = nonCpfAssets.map(a => {
     const v = currentValue(a);
     return { name: a.name, class: assetClass(a), value: Math.round(v), share: Math.round((v / assetTotal) * 1000) / 10 };
   }).sort((x, y) => y.value - x.value);
   const byClass = {};
-  (data.assets || []).forEach(a => { const c = assetClass(a); byClass[c] = Math.round((byClass[c] || 0) + currentValue(a)); });
+  nonCpfAssets.forEach(a => { const c = assetClass(a); byClass[c] = Math.round((byClass[c] || 0) + currentValue(a)); });
 
   // Mortgages.
   const mortgages = (data.mortgages || []).map(m => ({
