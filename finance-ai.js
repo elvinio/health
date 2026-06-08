@@ -514,11 +514,11 @@ function renderNetWorthChart() {
     area: 'var(--primary)',
   });
 
-  const hint = snaps.length < 2 ? `<div style=”font-size:.72rem;color:var(--muted);margin-top:4px;padding:0 4px”>Tap “Snapshot now” over time to build the trend.</div>` : '';
+  const hint = snaps.length < 2 ? `<div style="font-size:.72rem;color:var(--muted);margin-top:4px;padding:0 4px">Tap "Snapshot now" over time to build the trend.</div>` : '';
 
-  return `<div class=”chart-wrap” style=”margin-top:14px;margin-bottom:0”>
-    <div class=”chart-title”>Net Worth Trend</div>
-    <div class=”scroll-x”>${svg}</div>
+  return `<div class="chart-wrap" style="margin-top:14px;margin-bottom:0">
+    <div class="chart-title">Net Worth Trend</div>
+    <div class="scroll-x">${svg}</div>
     ${hint}
   </div>`;
 }

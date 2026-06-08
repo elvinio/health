@@ -184,6 +184,7 @@ function deleteExpense() {
   const id = document.getElementById('expenseId').value;
   if (!id) return;
   if (!confirm('Delete this expense?')) return;
+  if (!data._deletedIds) data._deletedIds = [];
   data._deletedIds.push(id);
   const inCurrent = data.expenses.some(e => e.id === id);
   if (inCurrent) {

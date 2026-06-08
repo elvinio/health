@@ -718,6 +718,7 @@ document.getElementById('cpfEntryForm').addEventListener('submit', e => {
 function deleteCpfRecord() {
   const id = document.getElementById('cpfEntryId').value;
   if (!id || !confirm('Delete this CPF record?')) return;
+  if (!data._deletedIds) data._deletedIds = [];
   data._deletedIds.push(id);
   data.cpfRecords = (data.cpfRecords || []).filter(r => r.id !== id);
   saveData(data);
@@ -944,6 +945,7 @@ function deleteTaxRecord() {
   const id = document.getElementById('taxId').value;
   if (!id) return;
   if (!confirm('Delete this tax record?')) return;
+  if (!data._deletedIds) data._deletedIds = [];
   data._deletedIds.push(id);
   data.taxRecords = (data.taxRecords || []).filter(r => r.id !== id);
   saveData(data);

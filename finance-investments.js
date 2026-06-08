@@ -528,6 +528,7 @@ function deleteAsset() {
   const id = document.getElementById('assetId').value;
   if (!id) return;
   if (!confirm('Delete this asset and all its history?')) return;
+  if (!data._deletedIds) data._deletedIds = [];
   data._deletedIds.push(id);
   data.assets = data.assets.filter(a => a.id !== id);
   saveData(data);

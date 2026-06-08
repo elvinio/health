@@ -128,6 +128,7 @@ function deleteInsurance() {
   const id = document.getElementById('insuranceId').value;
   if (!id) return;
   if (!confirm('Delete this insurance policy?')) return;
+  if (!data._deletedIds) data._deletedIds = [];
   data._deletedIds.push(id);
   data.insurances = (data.insurances || []).filter(i => i.id !== id);
   saveData(data);
@@ -245,6 +246,7 @@ function deleteMedical() {
   const id = document.getElementById('medicalId').value;
   if (!id) return;
   if (!confirm('Delete this medical visit?')) return;
+  if (!data._deletedIds) data._deletedIds = [];
   data._deletedIds.push(id);
   data.medicalVisits = (data.medicalVisits || []).filter(x => x.id !== id);
   saveData(data);
@@ -645,6 +647,7 @@ function deleteMortgage() {
   const id = document.getElementById('mortgageId').value;
   if (!id) return;
   if (!confirm('Delete this mortgage and all its entries?')) return;
+  if (!data._deletedIds) data._deletedIds = [];
   data._deletedIds.push(id);
   data.mortgages = (data.mortgages || []).filter(x => x.id !== id);
   saveData(data);
