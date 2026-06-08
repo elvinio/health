@@ -67,13 +67,15 @@ document.getElementById('historyImportFile').addEventListener('change', e => {
     try {
       const d = JSON.parse(ev.target.result);
       if (!Array.isArray(d.expenses)) { showToast('Invalid history file'); return; }
-      historyData = { expenses: d.expenses, powerRecords: historyData.powerRecords || [], _updatedAt: d._updatedAt || Date.now() };
+      const deletedSet = new Set(data._deletedIds || []);
+      const importedExpenses = d.expenses.filter(e => !deletedSet.has(e.id));
+      historyData = { expenses: importedExpenses, powerRecords: historyData.powerRecords || [], _updatedAt: d._updatedAt || Date.now() };
       data.historyUpdatedAt = historyData._updatedAt;
       recalcMonthlyAgg(data, allExpenses());
       saveData(data);
       saveHistory(historyData);
       renderAll();
-      showToast(`Loaded ${d.expenses.length} history expenses`);
+      showToast(`Loaded ${importedExpenses.length} history expenses`);
     } catch { showToast('Could not read history file'); }
   };
   reader.readAsText(file);
