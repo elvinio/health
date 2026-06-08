@@ -67,6 +67,9 @@
       <span class="material-symbols-outlined" aria-hidden="true">history</span>Past
     </button>
   </div>
+  <div id="eventSearchBar" style="display:none;padding:8px 0 4px">
+    <input type="search" class="filter-search" id="eventSearchInput" placeholder="Search past events…" oninput="onEventSearch(this.value)">
+  </div>
   <div id="eventList"></div>
   <div id="eventCalendar" style="display:none"></div>
   <div id="busPanel" style="display:none"></div>
