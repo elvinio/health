@@ -157,6 +157,15 @@ function switchEventListSubTab(tab) {
     const btn = document.getElementById(`evListSubTab-${t}`);
     if (btn) btn.classList.toggle('active', t === tab);
   });
+  const searchBar = document.getElementById('eventSearchBar');
+  const searchInput = document.getElementById('eventSearchInput');
+  if (searchBar) searchBar.style.display = tab === 'past' ? '' : 'none';
+  if (tab !== 'past') { eventSearchQuery = ''; if (searchInput) searchInput.value = ''; }
+  renderEventList();
+}
+
+function onEventSearch(val) {
+  eventSearchQuery = val.trim().toLowerCase();
   renderEventList();
 }
 
@@ -199,11 +208,21 @@ function renderEventList() {
   };
 
   if (currentEventListSubTab === 'past') {
-    if (!past.length) {
-      el.innerHTML = `<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">history</span></div>No past events.</div>`;
+    const q = eventSearchQuery;
+    const filtered = q
+      ? past.filter(ev =>
+          ev.title.toLowerCase().includes(q) ||
+          (ev.description || '').toLowerCase().includes(q) ||
+          (ev.tags || []).some(t => t.toLowerCase().includes(q))
+        )
+      : past;
+    if (!filtered.length) {
+      el.innerHTML = q
+        ? `<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">search</span></div>No past events match "${esc(q)}".</div>`
+        : `<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">history</span></div>No past events.</div>`;
       return;
     }
-    el.innerHTML = renderWithWeekMarkers(past.slice().reverse());
+    el.innerHTML = renderWithWeekMarkers(filtered.slice().reverse());
   } else {
     if (!upcoming.length) {
       el.innerHTML = `<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">event</span></div>No upcoming events.<br>Tap + to add one.</div>`;
