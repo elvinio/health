@@ -67,13 +67,15 @@ document.getElementById('historyImportFile').addEventListener('change', e => {
     try {
       const d = JSON.parse(ev.target.result);
       if (!Array.isArray(d.expenses)) { showToast('Invalid history file'); return; }
-      historyData = { expenses: d.expenses, powerRecords: historyData.powerRecords || [], _updatedAt: d._updatedAt || Date.now() };
+      const deletedSet = new Set(data._deletedIds || []);
+      const importedExpenses = d.expenses.filter(e => !deletedSet.has(e.id));
+      historyData = { expenses: importedExpenses, powerRecords: historyData.powerRecords || [], _updatedAt: d._updatedAt || Date.now() };
       data.historyUpdatedAt = historyData._updatedAt;
       recalcMonthlyAgg(data, allExpenses());
       saveData(data);
       saveHistory(historyData);
       renderAll();
-      showToast(`Loaded ${d.expenses.length} history expenses`);
+      showToast(`Loaded ${importedExpenses.length} history expenses`);
     } catch { showToast('Could not read history file'); }
   };
   reader.readAsText(file);
@@ -230,18 +232,22 @@ function mergeData(local, remote) {
       assetMap.set(a.id, { ...a, history: [] });
     }
     assetMap.get(a.id).history.push(...(a.history || []));
-    // keep latest name and units
+    // keep latest name/class/units via LWW timestamp (_metaTs covers all three; fall back to _nameTs for pre-_metaTs records)
     const existing = assetMap.get(a.id);
     const localAsset = local.assets && local.assets.find(x => x.id === a.id);
     const remoteAsset = remote.assets && remote.assets.find(x => x.id === a.id);
-    const latestName = (localAsset && remoteAsset)
-      ? (localAsset._nameTs || 0) >= (remoteAsset._nameTs || 0) ? localAsset.name : remoteAsset.name
-      : (localAsset || remoteAsset || a).name;
-    existing.name = latestName;
-    if (localAsset && localAsset.units != null) existing.units = localAsset.units;
-    else if (remoteAsset && remoteAsset.units != null) existing.units = remoteAsset.units;
-    if (localAsset && localAsset.class != null) existing.class = localAsset.class;
-    else if (remoteAsset && remoteAsset.class != null) existing.class = remoteAsset.class;
+    if (localAsset && remoteAsset) {
+      const src = (localAsset._metaTs || localAsset._nameTs || 0) >= (remoteAsset._metaTs || remoteAsset._nameTs || 0)
+        ? localAsset : remoteAsset;
+      existing.name = src.name;
+      existing.class = src.class;
+      existing.units = src.units;
+    } else {
+      const src = localAsset || remoteAsset || a;
+      existing.name = src.name;
+      existing.class = src.class;
+      existing.units = src.units;
+    }
   });
   // Deduplicate history by _ts within each asset, sort ascending
   assetMap.forEach(a => {

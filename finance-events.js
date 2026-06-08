@@ -779,7 +779,7 @@ function openEventSheet(id) {
     document.getElementById('evTitle').value = ev.title;
     document.getElementById('evDesc').value = ev.description || '';
     document.getElementById('evDate').value = ev.startDate;
-    document.getElementById('evTime').value = timeObjTo24h(ev.startTime);
+    document.getElementById('evTime').value = ev.startTime ? timeObjTo24h(ev.startTime) : '';
     document.getElementById('evEndDate').value = ev.endDate || ev.startDate;
     if (ev.endTime) document.getElementById('evEndTime').value = timeObjTo24h(ev.endTime);
     document.getElementById('evReminder').value = ev.reminderHours;
@@ -871,7 +871,7 @@ function scheduleEventReminders() {
   const now = Date.now();
   const MAX_DELAY = 7 * 24 * 3600 * 1000;
   (data.events || []).forEach(ev => {
-    if (!ev.reminderHours) return;
+    if (!ev.reminderHours || !ev.startTime) return;
     const fireMs = eventToMs(ev) - ev.reminderHours * 3600 * 1000;
     const delay = fireMs - now;
     if (delay <= 0 || delay > MAX_DELAY) return;
