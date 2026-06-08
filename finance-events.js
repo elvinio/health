@@ -10,6 +10,7 @@ function eventToMs(ev) {
 function fmtEventDateTime(ev) {
   const ms = eventToMs(ev);
   const datePart = new Date(ms).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  if (!ev.startTime) return datePart;
   const min = String(ev.startTime.minute).padStart(2, '0');
   return `${datePart} at ${ev.startTime.hour}:${min} ${ev.startTime.ampm}`;
 }
@@ -96,8 +97,9 @@ function renderEventItem(ev) {
   const d = new Date(ms);
   const dayNum = d.getDate();
   const mon = d.toLocaleDateString(undefined, { month: 'short' });
-  const min = String(ev.startTime.minute).padStart(2, '0');
-  const timeFmt = `${ev.startTime.hour}:${min} ${ev.startTime.ampm}`;
+  const timeFmt = ev.startTime
+    ? `${ev.startTime.hour}:${String(ev.startTime.minute).padStart(2, '0')} ${ev.startTime.ampm}`
+    : 'All day';
   const weekday = d.toLocaleDateString(undefined, { weekday: 'short' });
   const tagBadges = (ev.tags || []).map(t => `<span class="event-tag-badge" style="background:${getTagColor(t)}">${esc(t)}</span>`).join('');
 
@@ -708,8 +710,9 @@ function showCalDay(dateStr) {
   const d = new Date(dateStr + 'T00:00:00');
   const dateLabel = d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
   const items = evs.map(ev => {
-    const min = String(ev.startTime.minute).padStart(2, '0');
-    const timeFmt = `${ev.startTime.hour}:${min} ${ev.startTime.ampm}`;
+    const timeFmt = ev.startTime
+      ? `${ev.startTime.hour}:${String(ev.startTime.minute).padStart(2, '0')} ${ev.startTime.ampm}`
+      : 'All day';
     const tagBadges = (ev.tags || []).map(t => `<span class="event-tag-badge">${esc(t)}</span>`).join('');
     return `<div class="event-item" onclick="openEventSheet('${ev.id}')">
       <div class="event-row">
