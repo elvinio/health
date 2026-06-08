@@ -414,7 +414,7 @@ Theme preference stored in `localStorage` under `finance:theme`.
 
 - **Bottom sheets**: `openSheet(id)` / `closeSheet()`. Each sheet has a `.sheet` div, handle, title, and form.
 - **Toast notifications**: `showToast(message, duration?)`.
-- **XSS safety**: always use `esc(str)` (defined in `finance-app.js`) when interpolating user data into innerHTML. ⚠️ `esc()` escapes only `& < > "` — it does **not** escape single quotes. Inline handlers built as `onclick="fn('${esc(x)}')"` are therefore still injectable if `x` contains a `'`. Prefer `data-*` attributes + event delegation, or extend `esc()` to cover `'` and `` ` ``, when wiring user-controlled values into single-quoted handlers. (Tracked in `fixme.md`.)
+- **XSS safety**: always use `esc(str)` (defined in `finance-app.js`) when interpolating user data into innerHTML. `esc()` escapes `& < > " '` and `` ` ``, so values passed through it are safe inside both double- and single-quoted inline handlers (e.g. `onclick="fn('${esc(x)}')"`). ⚠️ The remaining risk is interpolating user-controlled values **without** `esc()` — a few raw interpolations of app-generated values (uid/date slices) exist; route any new user-controlled value through `esc()`, or prefer `data-*` attributes + event delegation.
 - **IDs**: generated with `uid()` (short random alphanumeric strings).
 - **Formatting**: `fmtCurrency(n)` for dollar amounts, `fmt(n)` for plain numbers, `today()` for current date string.
 - **Empty states**: use the `.empty-state` + `.icon` pattern (see existing tabs for examples).
