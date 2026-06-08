@@ -838,6 +838,7 @@ document.getElementById('eventForm').addEventListener('submit', e => {
 function deleteEvent() {
   const id = document.getElementById('eventId').value;
   if (!id || !confirm('Delete this event?')) return;
+  if (!data._deletedIds) data._deletedIds = [];
   data._deletedIds.push(id);
   data.events = (data.events || []).filter(e => e.id !== id);
   saveData(data);
