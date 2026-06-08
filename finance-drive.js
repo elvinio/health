@@ -232,18 +232,22 @@ function mergeData(local, remote) {
       assetMap.set(a.id, { ...a, history: [] });
     }
     assetMap.get(a.id).history.push(...(a.history || []));
-    // keep latest name and units
+    // keep latest name/class/units via LWW timestamp (_metaTs covers all three; fall back to _nameTs for pre-_metaTs records)
     const existing = assetMap.get(a.id);
     const localAsset = local.assets && local.assets.find(x => x.id === a.id);
     const remoteAsset = remote.assets && remote.assets.find(x => x.id === a.id);
-    const latestName = (localAsset && remoteAsset)
-      ? (localAsset._nameTs || 0) >= (remoteAsset._nameTs || 0) ? localAsset.name : remoteAsset.name
-      : (localAsset || remoteAsset || a).name;
-    existing.name = latestName;
-    if (localAsset && localAsset.units != null) existing.units = localAsset.units;
-    else if (remoteAsset && remoteAsset.units != null) existing.units = remoteAsset.units;
-    if (localAsset && localAsset.class != null) existing.class = localAsset.class;
-    else if (remoteAsset && remoteAsset.class != null) existing.class = remoteAsset.class;
+    if (localAsset && remoteAsset) {
+      const src = (localAsset._metaTs || localAsset._nameTs || 0) >= (remoteAsset._metaTs || remoteAsset._nameTs || 0)
+        ? localAsset : remoteAsset;
+      existing.name = src.name;
+      existing.class = src.class;
+      existing.units = src.units;
+    } else {
+      const src = localAsset || remoteAsset || a;
+      existing.name = src.name;
+      existing.class = src.class;
+      existing.units = src.units;
+    }
   });
   // Deduplicate history by _ts within each asset, sort ascending
   assetMap.forEach(a => {

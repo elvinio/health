@@ -509,6 +509,7 @@ document.getElementById('assetForm').addEventListener('submit', e => {
     asset.name = name;
     asset.class = cls;
     asset.units = units;
+    asset._metaTs = Date.now();
     const last = asset.history[asset.history.length - 1];
     if (last && last.date === date) {
       if (last.value !== value) { last.value = value; last._ts = Date.now(); }
