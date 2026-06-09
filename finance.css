@@ -1022,7 +1022,7 @@
 .wiki-resume-contact { font-size: .88rem; color: var(--muted); margin-bottom: 12px; }
 .wiki-exp-block { margin-bottom: 14px; }
 .wiki-exp-header {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  display: flex; flex-direction: column; gap: 2px;
   margin-bottom: 6px;
 }
 .wiki-exp-company { font-weight: 700; font-size: .95rem; }
@@ -1080,6 +1080,7 @@
 .wiki-exp-edit-header {
   display: flex; align-items: flex-start; gap: 6px; margin-bottom: 8px;
 }
+.wiki-exp-edit-header .wiki-editor-row { flex-direction: column; }
 .wiki-exp-remove { align-self: center; }
 .wiki-proj-editor { padding-left: 4px; }
 .wiki-proj-edit-row {
@@ -1121,7 +1122,7 @@
   #resumePrintRoot .rp-contact { color: #555; font-size: .9em; margin-bottom: .5em; }
   #resumePrintRoot .rp-exp { margin-bottom: .8em; }
   #resumePrintRoot .rp-exp-header {
-    display: flex; justify-content: space-between;
+    display: flex; flex-direction: column;
     font-weight: 700; margin-bottom: .2em;
   }
   #resumePrintRoot .rp-period { font-weight: 400; color: #555; }
