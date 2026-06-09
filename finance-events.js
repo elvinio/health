@@ -464,12 +464,20 @@ function placeLocationMarker(lat, lng) {
   busMapLocationMarker.bindPopup('You are here');
 }
 
+const LAST_LOCATION_KEY = 'finance:lastLocation';
+
 function startLocationTracking(map) {
   if (map) locationMap = map;
   if (!navigator.geolocation || !locationMap) return;
   stopLocationTracking();
+  const cached = JSON.parse(localStorage.getItem(LAST_LOCATION_KEY) || 'null');
+  if (cached) placeLocationMarker(cached.lat, cached.lng);
   busMapLocationWatcher = navigator.geolocation.watchPosition(
-    pos => placeLocationMarker(pos.coords.latitude, pos.coords.longitude),
+    pos => {
+      const { latitude: lat, longitude: lng } = pos.coords;
+      localStorage.setItem(LAST_LOCATION_KEY, JSON.stringify({ lat, lng }));
+      placeLocationMarker(lat, lng);
+    },
     () => {}, { enableHighAccuracy: true, maximumAge: 10000 }
   );
 }
