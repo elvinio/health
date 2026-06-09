@@ -28,7 +28,7 @@ Personal health and finance tools, all served as static files under `/health/`.
 | `manifest.json` | PWA manifest (finance) | — |
 | `icons/` | PWA icons (192px, 512px) | — |
 | `fonts/material-symbols-outlined.css` | Self-hosted icon font CSS | — |
-| `fonts/material-symbols-outlined.woff2` | Icon font subset (~279KB, 29 icons) | — |
+| `fonts/material-symbols-outlined.woff2` | Icon font subset (~286KB, 31 icons) | — |
 | `finance-data-structure.md` | Full data schema reference | — |
 | `finance-import-format.md` | CSV/JSON import format spec | — |
 | `tests/harness.js` | Test harness — loads pure-logic files into a `vm` sandbox with browser stubs | — |
@@ -69,7 +69,7 @@ node --test tests/*.test.js    # equivalent
 
 ```js
 // sw.js line 1
-const CACHE = 'finance-v156';  // increment this number (current value as of this writing)
+const CACHE = 'finance-v157';  // increment this number (current value as of this writing)
 ```
 
 Current ASSETS list (20 files):
@@ -427,7 +427,7 @@ Switched by `switchInsSubTab(tab)` (`finance-insurance.js`):
 
 ### Events features
 
-- **Views** (`setEventView(mode)`): `list` (grouped by week), `calendar` (month grid), `bus` (real-time LTA arrivals), `busmap` (Leaflet interactive map), `notes` (free-form notes)
+- **Views** (`setEventView(mode)`): `list` (grouped by week), `calendar` (month grid), `bus` (real-time LTA arrivals), `busmap` (Leaflet interactive map), `rain` (NEA rain-radar overlay — last 24h cached via the lta-proxy Apps Script, live last-hour fallback without it; blue location dot; `RAIN_BOUNDS` georeference in finance-events.js), `notes` (free-form notes)
 - **Bus stops**: 6 hardcoded stops in `BUS_STOPS` array in `finance-core.js`
 - **External APIs**: LTA DataMall (`BUS_API_URL`, via a **required** proxy URL — Apps Script or local; `busProxyFetch` no longer falls back to the public `corsproxy.io`, so the `AccountKey` never transits a third party), Leaflet.js (loaded dynamically), Geolocation API
 - **Reminders**: browser notifications via `scheduleEventReminders()`
@@ -517,7 +517,7 @@ Rules stored in `data.emailParsers.parsers`. Two parser types:
 ## Material Symbols font (self-hosted subset)
 
 The icon font lives in `fonts/material-symbols-outlined.css` and `fonts/material-symbols-outlined.woff2`.
-It is a subset containing only the 29 icons currently used (~279KB vs ~1.5MB for the full font).
+It is a subset containing only the 31 icons currently used (~286KB vs ~1.5MB for the full font).
 Both files are pre-cached by the service worker so icons load instantly offline.
 
 **When you add a new icon**, re-run the subset to include it:
