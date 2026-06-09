@@ -57,7 +57,7 @@ node --test tests/*.test.js    # equivalent
 **How it works** — the app ships as plain `<script src>` files with no module exports, so they can't be `require()`d. `tests/harness.js` concatenates the **pure-logic** files (`finance-core`, `-investments`, `-insurance`, `-tax`, `-drive`), runs them once inside a Node `vm` sandbox with lightweight browser stubs (`document`, `localStorage`, `navigator`, …), and exposes the functions — plus `getData`/`setData`/`getHistory`/`setHistory` accessors for the globals — via `loadFinance()`.
 
 - UI-only files (`finance-app.js`, `-events.js`, `-gmail.js`, `-ai.js`, `-expenses.js`) are **not** loaded — their bottom-of-file init would run DOM rendering / SW registration on load. If a tested function grows a dependency on one of them, add the file to `FILES` in `harness.js`.
-- **Coverage:** `calcSGTax`, `getOngoingDueInfo` (recurring date math), `mergeData`, `mergeHistoryData`, `calcCpfProjection`, `calcRetirementPlan`.
+- **Coverage:** `calcSGTax`, `getOngoingDueInfo` (recurring date math), `mergeData`, `mergeHistoryData`, `mergeWikiData`, `calcCpfProjection`, `calcRetirementPlan`.
 - **Gotchas when adding tests** (see `tests/README.md`): sandbox-returned values carry the vm realm's prototypes, so `assert.deepStrictEqual` fails on prototype identity — use the `plain()` JSON-round-trip helper; `calcSGTax` returns un-rounded floats — use the `closeTo()` tolerance helper.
 - These are dev-only files — **not** in the service-worker `ASSETS` list, so adding/changing tests does **not** require a `sw.js` cache bump.
 
@@ -69,7 +69,7 @@ node --test tests/*.test.js    # equivalent
 
 ```js
 // sw.js line 1
-const CACHE = 'finance-v153';  // increment this number (current value as of this writing)
+const CACHE = 'finance-v155';  // increment this number (current value as of this writing)
 ```
 
 Current ASSETS list (20 files):
@@ -163,6 +163,7 @@ Two localStorage keys:
 |---|---|
 | `finance:v1` | All main data (see `defaultData()` below) |
 | `finance:v1:history` | Past-year expenses + all historyData collections (see below) |
+| `finance:v1:wiki` | Wiki tab collections — recipes, shoppingLists, resumes (see wikiData below) |
 
 `saveData(data)` / `loadData()` handle the main key. Always call `saveData(data)` after mutating `data`, then `renderAll()` to refresh the UI.
 
@@ -198,9 +199,9 @@ Two localStorage keys:
   allocationRatios: {},  // { Equities: 40, Bonds: 20, ... } target allocation % per class
   medicalVisits: [],     // { id, title, person, description, date, amount, paymentType, _ts }
   notes: [],             // { id, title, content, _updatedAt }
-  recipes: [],           // { id, title, ingredients, steps, notes, _updatedAt } — ingredients/steps/notes are multiline strings (one item per line)
-  shoppingLists: [],     // { id, title, items:[{id,text,checked}], _updatedAt }
-  resumes: [],           // { id, title, name, contact, summary, coreSkills, experience:[{id,company,period,projects:[{name,points}]}], education, pdfFont, pdfSize, _updatedAt }
+  wikiFileId: null,      // Drive file ID for the separate wiki file (recipes/shoppingLists/resumes); null = not linked. Lives in main file so it propagates to partners; entered/created via the Drive menu.
+  wikiUpdatedAt: 0,      // mirror of wikiData._updatedAt — sole signal driveSync uses to sync the wiki file (parallels historyUpdatedAt)
+  // recipes/shoppingLists/resumes USED to live here; they now live in wikiData (finance:v1:wiki) — see "wikiData" section below.
 }
 ```
 
@@ -299,6 +300,30 @@ Follow all five steps or the collection will be silently dropped during syncs an
    ```
    Omitting a collection here silently drops all its records from both localStorage and Drive on the next sync.
 
+---
+
+### wikiData — Wiki tab collections in their own file
+
+`wikiData` is a separate in-memory object (global in `finance-core.js`) backed by `finance:v1:wiki` in localStorage **and its own Drive file** `finance-elvis-wiki.json`. It holds the Wiki tab data so the main file doesn't bloat with recipe/resume text.
+
+**Shape:**
+```js
+{
+  recipes: [],       // { id, title, ingredients, steps, notes, _updatedAt } — multiline strings (one item per line)
+  shoppingLists: [], // { id, title, items:[{id,text,checked}], _updatedAt }
+  resumes: [],       // { id, title, name, contact, summary, coreSkills, experience:[{id,company,period,projects:[{name,points}]}], education, pdfFont, pdfSize, _updatedAt }
+  _updatedAt: number // last local write — drives Drive sync decisions
+}
+```
+
+**Key functions (`finance-core.js`):** `loadWiki()` / `saveWiki(w)` mirror `loadHistory`/`saveHistory`. `saveWiki` sets `w._updatedAt = Date.now()`, mirrors it to `data.wikiUpdatedAt`, and writes localStorage. **Always call `saveWiki(wikiData)` then `saveData(data)` together when mutating wikiData** — all Wiki CRUD in `finance-wiki.js` does this; deletes also push the id to `data._deletedIds`. `loadWiki()` runs a **one-time local migration**: if the main blob still has pre-split `recipes`/`shoppingLists`/`resumes`, it adopts them into wikiData, then scrubs them from the main blob.
+
+**File ID storage differs from history:** the wiki file ID lives **in the main file** (`data.wikiFileId`), not in a `localStorage` key. This means it auto-propagates to a partner via the normal main-file sync (no share-code change needed). `data.wikiUpdatedAt` is the sole signal `driveSync()` uses to decide whether to sync the wiki file (parallels `historyUpdatedAt`).
+
+**Menu:** the Drive panel (`#driveConnected` in `finance.html`) has a wiki file-ID input + **Link** (`linkWikiFile()`), **＋ Create file** (`createWikiFile()` — makes a new `finance-elvis-wiki.json` from local wikiData and links it), and **⟳ Sync wiki** (`forceSyncWiki()`).
+
+**Sync (no auto-creation):** `driveSync()` only syncs wiki when a file ID is known (`data.wikiFileId`, or adopted from `remote.wikiFileId` on a partner's first sync). If timestamps differ it downloads the remote wiki file, `mergeWikiData(local, remote)`, applies `_deletedIds`, uploads, and stamps `merged.wikiUpdatedAt`. `mergeWikiData(localW, remoteW)` is a union-by-ID merge per collection preferring higher `_updatedAt`; like `mergeHistoryData` it does **not** carry `_updatedAt` (the caller stamps it). Upload helper: `uploadWikiToDrive` (passes no `storageKey` — the ID is persisted into `data.wikiFileId` by callers).
+
 #### Other localStorage keys
 
 | Key | Purpose |
@@ -306,6 +331,7 @@ Follow all five steps or the collection will be silently dropped during syncs an
 | `finance:theme` | Active theme ('navy' / 'earth' / 'pastel') |
 | `finance:driveFileId` | Drive file ID for main data |
 | `finance:driveHistoryFileId` | Drive file ID for history |
+| *(wiki file ID)* | **Not** a localStorage key — stored in the main file as `data.wikiFileId` (see wikiData above) |
 | `finance:googleClientId` | OAuth2 client ID |
 | `finance:googleLoginHint` | Last signed-in Google email |
 | `finance:busApiKey` | LTA DataMall API key — **local-only, never synced to Drive** (secret) |
@@ -321,7 +347,7 @@ Follow all five steps or the collection will be silently dropped during syncs an
 
 ### Google Drive sync
 
-Two Drive files per user: `finance-elvis.json` (main) and `finance-elvis-history.json` (history).
+Three Drive files per user: `finance-elvis.json` (main), `finance-elvis-history.json` (history), and `finance-elvis-wiki.json` (wiki — recipes/shoppingLists/resumes; ID stored in the main file as `data.wikiFileId`, see wikiData section).
 
 **Merge strategy** (bidirectional, conflict-resolved):
 

@@ -168,7 +168,7 @@ function wikiBackBtn() {
 function renderRecipeList() {
   const el = document.getElementById('wikiSubContent-recipe');
   if (!el) return;
-  const recipes = (data.recipes || []).slice().sort((a, b) => (b._updatedAt || 0) - (a._updatedAt || 0));
+  const recipes = (wikiData.recipes || []).slice().sort((a, b) => (b._updatedAt || 0) - (a._updatedAt || 0));
   if (!recipes.length) {
     el.innerHTML = `<div class="empty-state"><div class="icon">🍳</div>No recipes yet.<br>Tap + to add one.</div>`;
     return;
@@ -191,7 +191,7 @@ function renderRecipeList() {
 function renderRecipeDetail(id) {
   const el = document.getElementById('wikiSubContent-recipe');
   if (!el) return;
-  const recipe = (data.recipes || []).find(r => r.id === id);
+  const recipe = (wikiData.recipes || []).find(r => r.id === id);
   if (!recipe) { closeWikiDetail(); return; }
 
   const ingLines = (recipe.ingredients || '').split('\n').filter(l => l.trim());
@@ -236,7 +236,7 @@ function openRecipeSheet(id) {
   document.getElementById('recipeSheetTitle').textContent = 'Add Recipe';
 
   if (id) {
-    const recipe = (data.recipes || []).find(r => r.id === id);
+    const recipe = (wikiData.recipes || []).find(r => r.id === id);
     if (!recipe) return;
     document.getElementById('recipeSheetTitle').textContent = 'Edit Recipe';
     document.getElementById('recipeId').value = id;
@@ -262,14 +262,14 @@ document.getElementById('recipeForm').addEventListener('submit', e => {
     _updatedAt: Date.now()
   };
   if (!recipe.title) return;
-  if (!data.recipes) data.recipes = [];
+  if (!wikiData.recipes) wikiData.recipes = [];
   if (id) {
-    const idx = data.recipes.findIndex(r => r.id === id);
-    if (idx >= 0) data.recipes[idx] = recipe; else data.recipes.push(recipe);
+    const idx = wikiData.recipes.findIndex(r => r.id === id);
+    if (idx >= 0) wikiData.recipes[idx] = recipe; else wikiData.recipes.push(recipe);
   } else {
-    data.recipes.push(recipe);
+    wikiData.recipes.push(recipe);
   }
-  saveData(data);
+  saveWiki(wikiData); saveData(data);
   closeSheet();
   if (wikiView && wikiView.type === 'recipe') wikiView.id = recipe.id;
   renderWiki();
@@ -281,8 +281,8 @@ function deleteRecipe() {
   if (!id || !confirm('Delete this recipe?')) return;
   if (!data._deletedIds) data._deletedIds = [];
   data._deletedIds.push(id);
-  data.recipes = (data.recipes || []).filter(r => r.id !== id);
-  saveData(data);
+  wikiData.recipes = (wikiData.recipes || []).filter(r => r.id !== id);
+  saveWiki(wikiData); saveData(data);
   closeSheet();
   wikiView = null;
   renderWiki();
@@ -296,7 +296,7 @@ function deleteRecipe() {
 function renderShoppingList() {
   const el = document.getElementById('wikiSubContent-shopping');
   if (!el) return;
-  const lists = (data.shoppingLists || []).slice().sort((a, b) => (b._updatedAt || 0) - (a._updatedAt || 0));
+  const lists = (wikiData.shoppingLists || []).slice().sort((a, b) => (b._updatedAt || 0) - (a._updatedAt || 0));
   if (!lists.length) {
     el.innerHTML = `<div class="empty-state"><div class="icon">📝</div>No shopping lists yet.<br>Tap + to add one.</div>`;
     return;
@@ -320,7 +320,7 @@ function renderShoppingList() {
 function renderShoppingDetail(id) {
   const el = document.getElementById('wikiSubContent-shopping');
   if (!el) return;
-  const sl = (data.shoppingLists || []).find(l => l.id === id);
+  const sl = (wikiData.shoppingLists || []).find(l => l.id === id);
   if (!sl) { closeWikiDetail(); return; }
 
   const itemsHtml = (sl.items || []).length
@@ -344,13 +344,13 @@ function renderShoppingDetail(id) {
 }
 
 function toggleShopItem(listId, itemId, checked) {
-  const sl = (data.shoppingLists || []).find(l => l.id === listId);
+  const sl = (wikiData.shoppingLists || []).find(l => l.id === listId);
   if (!sl) return;
   const item = (sl.items || []).find(i => i.id === itemId);
   if (!item) return;
   item.checked = checked;
   sl._updatedAt = Date.now();
-  saveData(data);
+  saveWiki(wikiData); saveData(data);
   // Re-render detail in place without going via wikiView
   renderShoppingDetail(listId);
 }
@@ -363,7 +363,7 @@ function openShoppingSheet(id) {
   document.getElementById('shoppingItemsEditor').innerHTML = '';
 
   if (id) {
-    const sl = (data.shoppingLists || []).find(l => l.id === id);
+    const sl = (wikiData.shoppingLists || []).find(l => l.id === id);
     if (!sl) return;
     document.getElementById('shoppingSheetTitle').textContent = 'Edit Shopping List';
     document.getElementById('shoppingId').value = id;
@@ -409,14 +409,14 @@ document.getElementById('shoppingForm').addEventListener('submit', e => {
     _updatedAt: Date.now()
   };
   if (!sl.title) return;
-  if (!data.shoppingLists) data.shoppingLists = [];
+  if (!wikiData.shoppingLists) wikiData.shoppingLists = [];
   if (id) {
-    const idx = data.shoppingLists.findIndex(l => l.id === id);
-    if (idx >= 0) data.shoppingLists[idx] = sl; else data.shoppingLists.push(sl);
+    const idx = wikiData.shoppingLists.findIndex(l => l.id === id);
+    if (idx >= 0) wikiData.shoppingLists[idx] = sl; else wikiData.shoppingLists.push(sl);
   } else {
-    data.shoppingLists.push(sl);
+    wikiData.shoppingLists.push(sl);
   }
-  saveData(data);
+  saveWiki(wikiData); saveData(data);
   closeSheet();
   if (wikiView && wikiView.type === 'shopping') wikiView.id = sl.id;
   renderWiki();
@@ -428,8 +428,8 @@ function deleteShoppingList() {
   if (!id || !confirm('Delete this shopping list?')) return;
   if (!data._deletedIds) data._deletedIds = [];
   data._deletedIds.push(id);
-  data.shoppingLists = (data.shoppingLists || []).filter(l => l.id !== id);
-  saveData(data);
+  wikiData.shoppingLists = (wikiData.shoppingLists || []).filter(l => l.id !== id);
+  saveWiki(wikiData); saveData(data);
   closeSheet();
   wikiView = null;
   renderWiki();
@@ -443,7 +443,7 @@ function deleteShoppingList() {
 function renderResumeList() {
   const el = document.getElementById('wikiSubContent-resume');
   if (!el) return;
-  const resumes = (data.resumes || []).slice().sort((a, b) => (b._updatedAt || 0) - (a._updatedAt || 0));
+  const resumes = (wikiData.resumes || []).slice().sort((a, b) => (b._updatedAt || 0) - (a._updatedAt || 0));
   if (!resumes.length) {
     el.innerHTML = `<div class="empty-state"><div class="icon">📄</div>No resumes yet.<br>Tap + to add one.</div>`;
     return;
@@ -464,7 +464,7 @@ function renderResumeList() {
 function renderResumeDetail(id) {
   const el = document.getElementById('wikiSubContent-resume');
   if (!el) return;
-  const resume = (data.resumes || []).find(r => r.id === id);
+  const resume = (wikiData.resumes || []).find(r => r.id === id);
   if (!resume) { closeWikiDetail(); return; }
 
   // Font options
@@ -552,17 +552,17 @@ function renderResumeDetail(id) {
 }
 
 function persistResumePdf(id) {
-  const resume = (data.resumes || []).find(r => r.id === id);
+  const resume = (wikiData.resumes || []).find(r => r.id === id);
   if (!resume) return;
   const fontEl = document.getElementById('resumePdfFont');
   const sizeEl = document.getElementById('resumePdfSize');
   if (fontEl) resume.pdfFont = fontEl.value;
   if (sizeEl) resume.pdfSize = sizeEl.value;
-  saveData(data);
+  saveWiki(wikiData); saveData(data);
 }
 
 function printResume(id) {
-  const resume = (data.resumes || []).find(r => r.id === id);
+  const resume = (wikiData.resumes || []).find(r => r.id === id);
   if (!resume) return;
 
   // Read + persist chosen font/size
@@ -572,7 +572,7 @@ function printResume(id) {
   const size = (sizeEl ? sizeEl.value : resume.pdfSize) || '11';
   if (fontEl) resume.pdfFont = font;
   if (sizeEl) resume.pdfSize = size;
-  saveData(data);
+  saveWiki(wikiData); saveData(data);
 
   // Build semantic HTML
   const expHtml = (resume.experience || []).map(exp => {
@@ -620,7 +620,7 @@ function openResumeSheet(id) {
   document.getElementById('resumeExpEditor').innerHTML = '';
 
   if (id) {
-    const resume = (data.resumes || []).find(r => r.id === id);
+    const resume = (wikiData.resumes || []).find(r => r.id === id);
     if (!resume) return;
     document.getElementById('resumeSheetTitle').textContent = 'Edit Resume';
     document.getElementById('resumeId').value = id;
@@ -703,19 +703,19 @@ document.getElementById('resumeForm').addEventListener('submit', e => {
     experience,
     education: document.getElementById('resumeEducation').value,
     // preserve pdf prefs if editing
-    pdfFont: (data.resumes || []).find(r => r.id === id)?.pdfFont || '',
-    pdfSize: (data.resumes || []).find(r => r.id === id)?.pdfSize || '',
+    pdfFont: (wikiData.resumes || []).find(r => r.id === id)?.pdfFont || '',
+    pdfSize: (wikiData.resumes || []).find(r => r.id === id)?.pdfSize || '',
     _updatedAt: Date.now()
   };
   if (!resume.title) return;
-  if (!data.resumes) data.resumes = [];
+  if (!wikiData.resumes) wikiData.resumes = [];
   if (id) {
-    const idx = data.resumes.findIndex(r => r.id === id);
-    if (idx >= 0) data.resumes[idx] = resume; else data.resumes.push(resume);
+    const idx = wikiData.resumes.findIndex(r => r.id === id);
+    if (idx >= 0) wikiData.resumes[idx] = resume; else wikiData.resumes.push(resume);
   } else {
-    data.resumes.push(resume);
+    wikiData.resumes.push(resume);
   }
-  saveData(data);
+  saveWiki(wikiData); saveData(data);
   closeSheet();
   if (wikiView && wikiView.type === 'resume') wikiView.id = resume.id;
   renderWiki();
@@ -727,8 +727,8 @@ function deleteResume() {
   if (!id || !confirm('Delete this resume?')) return;
   if (!data._deletedIds) data._deletedIds = [];
   data._deletedIds.push(id);
-  data.resumes = (data.resumes || []).filter(r => r.id !== id);
-  saveData(data);
+  wikiData.resumes = (wikiData.resumes || []).filter(r => r.id !== id);
+  saveWiki(wikiData); saveData(data);
   closeSheet();
   wikiView = null;
   renderWiki();

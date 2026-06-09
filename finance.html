@@ -923,6 +923,18 @@
       </div>
       <button class="btn btn-primary btn-block" onclick="driveSync()" id="driveSyncBtn">↕ Sync Now</button>
       <button class="btn btn-secondary btn-block" onclick="forceSyncHistory()" id="forceHistorySyncBtn" style="margin-top:8px">⟳ Force History Sync</button>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+        <div style="font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Wiki file (recipes · lists · résumés)</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="text" id="wikiFileIdInput" placeholder="Drive file ID…" style="flex:1;font-family:monospace;font-size:.78rem">
+          <button class="btn btn-secondary" style="padding:9px 14px;font-size:.85rem;white-space:nowrap" onclick="linkWikiFile()">Link</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn btn-secondary" style="flex:1" onclick="createWikiFile()">＋ Create file</button>
+          <button class="btn btn-secondary" style="flex:1" onclick="forceSyncWiki()" id="forceWikiSyncBtn">⟳ Sync wiki</button>
+        </div>
+        <p style="font-size:.75rem;color:var(--muted);margin-top:6px">Wiki data syncs to its own file. Enter an existing file ID (e.g. your partner's) and Link, or Create a new one. The ID is saved in your main file and shared automatically.</p>
+      </div>
       <div id="driveLastSync" style="text-align:center;font-size:.78rem;color:var(--muted);margin-top:8px"></div>
       <button onclick="driveDisconnect()" style="display:block;margin:12px auto 0;background:none;border:none;font-size:.82rem;color:var(--muted);cursor:pointer;text-decoration:underline">Disconnect</button>
     </div>

@@ -75,6 +75,7 @@ globalThis.__finance = {
   calcSGTax, calcCpfProjection, calcRetirementPlan, mergeData, getOngoingDueInfo,
   localDateStr, recalcBalances, recalcMonthlyAgg, defaultData, allExpenses,
   mergeHistoryData: (typeof mergeHistoryData !== 'undefined') ? mergeHistoryData : undefined,
+  mergeWikiData: (typeof mergeWikiData !== 'undefined') ? mergeWikiData : undefined,
   setData: (v) => { data = v; },
   getData: () => data,
   setHistory: (v) => { historyData = v; },
