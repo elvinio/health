@@ -1,4 +1,4 @@
-const CACHE = 'finance-v153';
+const CACHE = 'finance-v156';
 const EXT_CACHE = 'finance-ext-v1';
 const ASSETS = [
   '/health/finance.html',
@@ -11,8 +11,10 @@ const ASSETS = [
   '/health/finance-insurance.js',
   '/health/finance-tax.js',
   '/health/finance-ai.js',
+  '/health/finance-wiki.js',
   '/health/finance-app.js',
   '/health/finance-gmail.js',
+  '/health/fonts/eb-garamond.woff2',
   '/health/themes.css',
   '/health/icons/icon-192.png',
   '/health/icons/icon-512.png',

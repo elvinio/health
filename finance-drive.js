@@ -9,10 +9,13 @@ function confirmClearData() {
   if (!confirm('Delete ALL data? This cannot be undone.')) return;
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(HISTORY_KEY);
+  localStorage.removeItem(WIKI_KEY);
   data = defaultData();
   historyData = { expenses: [], powerRecords: [] };
+  wikiData = defaultWikiData();
   saveData(data);
   saveHistory(historyData);
+  saveWiki(wikiData);
   renderAll();
   showToast('All data cleared');
 }
@@ -103,7 +106,9 @@ function openDriveMenu() {
   if (fileId && clientId) {
     document.getElementById('driveSetup').style.display = 'none';
     document.getElementById('driveConnected').style.display = '';
-    document.getElementById('shareCodeDisplay').textContent = makeShareCode(clientId, fileId, localStorage.getItem(DRIVE_HISTORY_FILE_KEY) || '');
+    const wikiInp = document.getElementById('wikiFileIdInput');
+    if (wikiInp) wikiInp.value = data.wikiFileId || '';
+    document.getElementById('shareCodeDisplay').textContent = makeShareCode(clientId, fileId);
     const lastSync = localStorage.getItem('finance:lastSync');
     document.getElementById('driveLastSync').textContent = lastSync
       ? 'Last synced ' + new Date(lastSync).toLocaleString() : '';
@@ -127,9 +132,11 @@ function setDriveStatus(msg) {
   document.getElementById('driveStatus').textContent = msg;
 }
 
-// Share code = base64(clientId + "||" + fileId + "||" + historyFileId)
-function makeShareCode(clientId, fileId, historyFileId) {
-  return btoa(clientId + '||' + fileId + '||' + (historyFileId || ''));
+// Share code = base64(clientId + "||" + fileId). The history and wiki file IDs are
+// no longer included — they live in the main file (data.historyFileId / data.wikiFileId)
+// and propagate to a partner on their first main sync.
+function makeShareCode(clientId, fileId) {
+  return btoa(clientId + '||' + fileId);
 }
 
 function applyConnectCode() {
@@ -143,7 +150,9 @@ function applyConnectCode() {
     if (!clientId || !fileId) throw new Error('bad format');
     localStorage.setItem(DRIVE_CLIENT_KEY, clientId);
     localStorage.setItem(DRIVE_FILE_KEY, fileId);
-    if (historyFileId) localStorage.setItem(DRIVE_HISTORY_FILE_KEY, historyFileId);
+    // Backward-compat: older codes carried a 3rd part (history file ID). Adopt it into
+    // the main file. New codes omit it — the partner gets it from the main file on sync.
+    if (historyFileId) { data.historyFileId = historyFileId; saveData(data); }
     driveToken = null;
     updateDriveSyncBtn();
     openDriveMenu();
@@ -211,6 +220,24 @@ function mergeHistoryData(localH, remoteH) {
     if (!existing || (r._ts || 0) > (existing._ts || 0)) pwrMap.set(r.id, r);
   });
   return { expenses: [...expMap.values()], powerRecords: [...pwrMap.values()] };
+}
+
+// Union-by-id merge for the wiki file's collections, preferring the higher _updatedAt.
+// Does not carry _updatedAt — the caller stamps it before uploading (like mergeHistoryData).
+function mergeWikiData(localW, remoteW) {
+  const mergeColl = (name) => {
+    const map = new Map();
+    [...((remoteW && remoteW[name]) || []), ...((localW && localW[name]) || [])].forEach(r => {
+      const ex = map.get(r.id);
+      if (!ex || (r._updatedAt || 0) >= (ex._updatedAt || 0)) map.set(r.id, r);
+    });
+    return [...map.values()];
+  };
+  return {
+    recipes: mergeColl('recipes'),
+    shoppingLists: mergeColl('shoppingLists'),
+    resumes: mergeColl('resumes'),
+  };
 }
 
 function mergeData(local, remote) {
@@ -408,6 +435,16 @@ function mergeData(local, remote) {
     if (!ex || (n._updatedAt || 0) >= (ex._updatedAt || 0)) notesMap.set(n.id, n);
   });
 
+  // Wiki collections (recipes/shoppingLists/resumes) live in a separate Drive file
+  // now (see mergeWikiData / driveSync). Here we only carry the pointer + timestamp:
+  // prefer a non-empty file ID (lets a partner auto-adopt the ID from the main file),
+  // and keep the local wiki timestamp — driveSync overwrites wikiUpdatedAt after it
+  // merges/uploads the wiki file.
+  const wikiFileId = local.wikiFileId || remote.wikiFileId || null;
+  // History file ID also lives in the main file now — prefer a non-empty ID so a
+  // partner adopts it from whichever side has it. driveSync overrides after upload.
+  const historyFileId = local.historyFileId || remote.historyFileId || null;
+
   // Custom AI prompt: last-writer-wins via _customAiPromptTs
   const customAiPrompt = (local._customAiPromptTs || 0) >= (remote._customAiPromptTs || 0)
     ? (local.customAiPrompt ?? remote.customAiPrompt ?? null)
@@ -462,6 +499,9 @@ function mergeData(local, remote) {
     _allocationRatiosTs: allocationRatiosTs,
     medicalVisits: [...medicalMap.values()],
     notes: [...notesMap.values()],
+    wikiFileId,
+    wikiUpdatedAt: local.wikiUpdatedAt || 0,
+    historyFileId,
     customAiPrompt,
     _customAiPromptTs: customAiPromptTs,
     retirementSettings,
@@ -488,8 +528,10 @@ async function driveFirstSave() {
       historyData._updatedAt = Date.now();
       data.historyUpdatedAt = historyData._updatedAt;
     }
+    // Create the history file first so its ID can be embedded in the main file.
+    data.historyFileId = await uploadHistoryToDrive(token, null, historyData);
     await uploadToDrive(token, null, data);
-    await uploadHistoryToDrive(token, null, historyData);
+    saveData(data);
     localStorage.setItem('finance:lastSync', new Date().toISOString());
     renderAll();
     updateDriveSyncBtn();
@@ -513,12 +555,18 @@ async function driveSync() {
     const token = await getAccessToken(clientId);
 
     setDriveStatus('Downloading…');
-    const historyFileId = localStorage.getItem(DRIVE_HISTORY_FILE_KEY);
-    // Fire both downloads in parallel; history prefetch fails gracefully if not needed
+    // Fire downloads in parallel; prefetches fail gracefully if not needed.
+    // History + wiki file IDs live in the main file — prefetch with the locally-known
+    // ID (the common case); a partner that only has it on the remote downloads below.
+    const localHistoryFileId = data.historyFileId || null;
+    const localWikiFileId = data.wikiFileId || null;
     const remoteP = downloadFromDrive(token, fileId);
-    const remoteHistP = historyFileId
-      ? downloadFromDrive(token, historyFileId).catch(() => null)
-      : Promise.resolve(null);
+    const remoteHistPrefetch = localHistoryFileId
+      ? downloadFromDrive(token, localHistoryFileId).catch(() => null)
+      : null;
+    const remoteWikiPrefetch = localWikiFileId
+      ? downloadFromDrive(token, localWikiFileId).catch(() => null)
+      : null;
     const remote = await remoteP;
     if (!remote.accounts || !Array.isArray(remote.expenses) || !Array.isArray(remote.assets)) {
       throw new Error('Invalid backup format');
@@ -528,6 +576,12 @@ async function driveSync() {
     const curYear = String(new Date().getFullYear());
     const remoteHistFromMain = (remote.expenses || []).filter(e => e.date && !e.date.startsWith(curYear + '-'));
     remote.expenses = (remote.expenses || []).filter(e => e.date && e.date.startsWith(curYear + '-'));
+
+    // History file ID may come from local or be adopted from the remote main file
+    // (partner first sync), exactly like the wiki file ID.
+    const historyFileId = localHistoryFileId || remote.historyFileId || null;
+    const remoteHistP = remoteHistPrefetch
+      || (historyFileId ? downloadFromDrive(token, historyFileId).catch(() => null) : Promise.resolve(null));
 
     // Decide whether to use the already-in-flight history download
     const remoteHistTs = remote.historyUpdatedAt || 0;
@@ -554,13 +608,33 @@ async function driveSync() {
       uploadHistory = true;
     }
 
+    // Wiki: only sync to an explicitly-linked file (no auto-creation). The ID may
+    // come from local or be adopted from the remote main file (partner first sync).
+    const wikiFileId = localWikiFileId || remote.wikiFileId || null;
+    const remoteWikiP = remoteWikiPrefetch
+      || (wikiFileId ? downloadFromDrive(token, wikiFileId).catch(() => null) : Promise.resolve(null));
+    const remoteWikiTs = remote.wikiUpdatedAt || 0;
+    const localWikiTs = wikiData._updatedAt || 0;
+    let mergedWiki = wikiData;
+    let uploadWiki = false;
+    if (wikiFileId && localWikiTs !== remoteWikiTs) {
+      const dl = await remoteWikiP;
+      if (dl && (Array.isArray(dl.recipes) || Array.isArray(dl.shoppingLists) || Array.isArray(dl.resumes))) {
+        mergedWiki = mergeWikiData(wikiData, dl);
+      }
+      uploadWiki = true;
+    }
+
     setDriveStatus('Merging…');
     const merged = mergeData(data, remote);
 
-    // Apply deletedIds to history
+    // Apply deletedIds to history + wiki
     const deletedSet = new Set(merged._deletedIds);
     mergedHistory.expenses = mergedHistory.expenses.filter(e => !deletedSet.has(e.id));
     mergedHistory.powerRecords = (mergedHistory.powerRecords || []).filter(r => !deletedSet.has(r.id));
+    mergedWiki.recipes = (mergedWiki.recipes || []).filter(r => !deletedSet.has(r.id));
+    mergedWiki.shoppingLists = (mergedWiki.shoppingLists || []).filter(r => !deletedSet.has(r.id));
+    mergedWiki.resumes = (mergedWiki.resumes || []).filter(r => !deletedSet.has(r.id));
 
     // Cross-store dedup: if the same expense ID exists in both merged stores after a
     // cross-year-boundary edit, keep the copy with the higher _ts and drop the other.
@@ -580,15 +654,26 @@ async function driveSync() {
     // local-only (localStorage 'finance:busApiKey'). Not writing it here also
     // scrubs any previously-uploaded key from the Drive file on the next sync.
     // busProxyUrl/Token use last-writer-wins via _busProxyTs (handled in mergeData).
+    let effectiveHistoryFileId = historyFileId;
     if (uploadHistory) {
       mergedHistory._updatedAt = Date.now();
       merged.historyUpdatedAt = mergedHistory._updatedAt;
-      await uploadHistoryToDrive(token, historyFileId || null, mergedHistory);
+      // Capture the returned ID — on first upload (no file yet) Drive assigns a new one.
+      effectiveHistoryFileId = await uploadHistoryToDrive(token, historyFileId || null, mergedHistory);
     } else {
       // Nothing uploaded: keep our own local history timestamp. Adopting a remote
       // timestamp we never pulled would permanently mask the remote history.
       merged.historyUpdatedAt = localHistTs;
     }
+    merged.historyFileId = effectiveHistoryFileId || null;
+    if (uploadWiki) {
+      mergedWiki._updatedAt = Date.now();
+      merged.wikiUpdatedAt = mergedWiki._updatedAt;
+      await uploadWikiToDrive(token, wikiFileId, mergedWiki);
+    } else {
+      merged.wikiUpdatedAt = localWikiTs;
+    }
+    merged.wikiFileId = wikiFileId;
     await uploadToDrive(token, fileId, merged);
 
     const now = new Date().toISOString();
@@ -604,13 +689,15 @@ async function driveSync() {
     // paths set merged.historyUpdatedAt to historyData._updatedAt), so persist the
     // history blob directly without bumping its timestamp via saveHistory().
     historyData._updatedAt = merged.historyUpdatedAt;
+    wikiData = mergedWiki;
+    wikiData._updatedAt = merged.wikiUpdatedAt;
     saveData(data);
     localStorage.setItem(HISTORY_KEY, JSON.stringify(historyData));
+    localStorage.setItem(WIKI_KEY, JSON.stringify(wikiData));
     renderAll();
 
-    // Refresh share code in case history file ID was just created
     document.getElementById('shareCodeDisplay').textContent =
-      makeShareCode(clientId, fileId, localStorage.getItem(DRIVE_HISTORY_FILE_KEY) || '');
+      makeShareCode(clientId, fileId);
     document.getElementById('driveLastSync').textContent = 'Last synced ' + new Date(now).toLocaleString();
     setDriveStatus('Sync complete ✓');
     showToast('Sync complete');
@@ -626,7 +713,7 @@ async function driveSync() {
 async function forceSyncHistory() {
   const clientId = localStorage.getItem(DRIVE_CLIENT_KEY);
   const fileId = localStorage.getItem(DRIVE_FILE_KEY);
-  const historyFileId = localStorage.getItem(DRIVE_HISTORY_FILE_KEY);
+  const historyFileId = data.historyFileId;
   if (!clientId || !fileId) { showToast('Not connected to Drive'); return; }
   if (!historyFileId) { showToast('No history file linked — run a full sync first'); return; }
   const btn = document.getElementById('forceHistorySyncBtn');
@@ -675,6 +762,79 @@ async function forceSyncHistory() {
   }
 }
 
+// ── Wiki file (separate Drive file; ID stored in main file) ─────────────────────
+// Save the file ID typed into the menu. Blank unlinks. The ID rides in the main
+// file, so it propagates to a partner on the next main sync.
+function linkWikiFile() {
+  const v = (document.getElementById('wikiFileIdInput').value || '').trim();
+  data.wikiFileId = v || null;
+  saveData(data);
+  showToast(v ? 'Wiki file linked — tap Sync Now' : 'Wiki file unlinked');
+}
+
+// Create a brand-new wiki file from the current local wiki data and link it.
+async function createWikiFile() {
+  const clientId = localStorage.getItem(DRIVE_CLIENT_KEY);
+  if (!clientId) { showToast('Connect to Drive first'); return; }
+  if (data.wikiFileId && !confirm('A wiki file is already linked. Create a new one and replace the link?')) return;
+  setDriveStatus('Creating wiki file…');
+  try {
+    const token = await getAccessToken(clientId);
+    wikiData._updatedAt = Date.now();
+    const id = await uploadWikiToDrive(token, null, wikiData);
+    data.wikiFileId = id;
+    data.wikiUpdatedAt = wikiData._updatedAt;
+    saveData(data);
+    localStorage.setItem(WIKI_KEY, JSON.stringify(wikiData));
+    await uploadToDrive(token, localStorage.getItem(DRIVE_FILE_KEY), data);
+    const inp = document.getElementById('wikiFileIdInput');
+    if (inp) inp.value = id;
+    setDriveStatus('Wiki file created ✓');
+    showToast('Wiki file created & linked');
+  } catch (err) {
+    setDriveStatus('Error: ' + err.message);
+    showToast('Could not create wiki file');
+  }
+}
+
+async function forceSyncWiki() {
+  const clientId = localStorage.getItem(DRIVE_CLIENT_KEY);
+  const fileId = localStorage.getItem(DRIVE_FILE_KEY);
+  const wikiFileId = data.wikiFileId;
+  if (!clientId || !fileId) { showToast('Not connected to Drive'); return; }
+  if (!wikiFileId) { showToast('No wiki file linked — enter a file ID first'); return; }
+  const btn = document.getElementById('forceWikiSyncBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Syncing…'; }
+  setDriveStatus('Authenticating…');
+  try {
+    const token = await getAccessToken(clientId);
+    setDriveStatus('Downloading wiki…');
+    const remoteWiki = await downloadFromDrive(token, wikiFileId);
+    setDriveStatus('Merging wiki…');
+    const mergedWiki = mergeWikiData(wikiData, remoteWiki);
+    const deletedSet = new Set(data._deletedIds || []);
+    mergedWiki.recipes = mergedWiki.recipes.filter(r => !deletedSet.has(r.id));
+    mergedWiki.shoppingLists = mergedWiki.shoppingLists.filter(r => !deletedSet.has(r.id));
+    mergedWiki.resumes = mergedWiki.resumes.filter(r => !deletedSet.has(r.id));
+    setDriveStatus('Uploading wiki…');
+    mergedWiki._updatedAt = Date.now();
+    await uploadWikiToDrive(token, wikiFileId, mergedWiki);
+    data.wikiUpdatedAt = mergedWiki._updatedAt;
+    await uploadToDrive(token, fileId, data);
+    wikiData = mergedWiki;
+    saveData(data);
+    localStorage.setItem(WIKI_KEY, JSON.stringify(wikiData));
+    renderAll();
+    setDriveStatus('Wiki sync complete ✓');
+    showToast(`Wiki synced — ${mergedWiki.recipes.length + mergedWiki.shoppingLists.length + mergedWiki.resumes.length} items`);
+  } catch (err) {
+    setDriveStatus('Error: ' + err.message);
+    showToast('Wiki sync failed');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '⟳ Sync wiki'; }
+  }
+}
+
 async function uploadFileToDrive(token, fileId, payload, filename, storageKey) {
   const content = JSON.stringify(payload);
   const metadata = { name: filename, mimeType: 'application/json' };
@@ -702,8 +862,16 @@ async function uploadToDrive(token, fileId, payload) {
   return payload;
 }
 
+// History file ID lives in the main file (data.historyFileId) now, not localStorage,
+// so pass no storageKey — callers persist the returned ID into data.historyFileId.
 async function uploadHistoryToDrive(token, fileId, payload) {
-  return uploadFileToDrive(token, fileId, payload, 'finance-elvis-history.json', DRIVE_HISTORY_FILE_KEY);
+  return uploadFileToDrive(token, fileId, payload, 'finance-elvis-history.json', null);
+}
+
+// Wiki file ID lives in the main file (data.wikiFileId), not localStorage, so pass
+// no storageKey — callers persist the returned ID into data.wikiFileId themselves.
+async function uploadWikiToDrive(token, fileId, payload) {
+  return uploadFileToDrive(token, fileId, payload, 'finance-elvis-wiki.json', null);
 }
 
 async function downloadFromDrive(token, fileId) {

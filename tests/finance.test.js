@@ -202,6 +202,34 @@ test('mergeHistoryData: union by id across collections, higher _ts wins', () => 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// mergeWikiData — recipes / shoppingLists / resumes (separate wiki file)
+// ─────────────────────────────────────────────────────────────────────────────
+test('mergeWikiData: union by id across collections, higher _updatedAt wins', () => {
+  const local = {
+    recipes: [{ id: 'r1', title: 'Old', _updatedAt: 1 }],
+    shoppingLists: [{ id: 's1', title: 'List', _updatedAt: 2 }],
+    resumes: [],
+  };
+  const remote = {
+    recipes: [{ id: 'r1', title: 'New', _updatedAt: 5 }, { id: 'r2', title: 'Extra', _updatedAt: 1 }],
+    shoppingLists: [{ id: 's1', title: 'Stale', _updatedAt: 1 }],
+    resumes: [{ id: 'cv1', name: 'Me', _updatedAt: 1 }],
+  };
+  const m = F.mergeWikiData(local, remote);
+  assert.equal(m.recipes.find(r => r.id === 'r1').title, 'New');   // remote newer wins
+  assert.ok(m.recipes.find(r => r.id === 'r2'));                   // remote-only kept
+  assert.equal(m.shoppingLists.find(l => l.id === 's1').title, 'List'); // local newer wins
+  assert.ok(m.resumes.find(r => r.id === 'cv1'));                  // remote-only kept
+});
+
+test('mergeWikiData: tolerates missing collections', () => {
+  const m = F.mergeWikiData({ recipes: [{ id: 'r1', _updatedAt: 1 }] }, {});
+  assert.equal(m.recipes.length, 1);
+  assert.deepEqual(plain(m.shoppingLists), []);
+  assert.deepEqual(plain(m.resumes), []);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // calcCpfProjection — depends on global `data`
 // ─────────────────────────────────────────────────────────────────────────────
 test('calcCpfProjection: null when no date of birth', () => {

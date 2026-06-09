@@ -16,6 +16,7 @@ Personal health and finance tools, all served as static files under `/health/`.
 | `finance-insurance.js` | Insurance, medical visits, recurring expenses, mortgages | 816 |
 | `finance-tax.js` | Income tax, CPF projection, retirement planning, tax PIN | 1186 |
 | `finance-ai.js` | AI advisor — net-worth snapshots, savings/runway, consolidated summary builder, Drive push/fetch, Markdown report render | 582 |
+| `finance-wiki.js` | Wiki tab — Recipe, Shopping List, Resume CRUD; tap-to-view / swipe-to-edit gesture; resume PDF print | — |
 | `finance-app.js` | Analysis tab, `renderAll()`, theme picker, `esc()`, DMY widget, init sequence | 791 |
 | `finance-gmail.js` | Email parser rules (expense + event parsers) | 268 |
 | `apps-script/quarterly-report.gs` | Optional Google Apps Script — quarterly Claude API call → Drive report | — |
@@ -37,7 +38,7 @@ Personal health and finance tools, all served as static files under `/health/`.
 
 ```
 finance-core.js → finance-drive.js → finance-expenses.js → finance-investments.js
-→ finance-events.js → finance-insurance.js → finance-tax.js → finance-ai.js → finance-app.js → finance-gmail.js
+→ finance-events.js → finance-insurance.js → finance-tax.js → finance-ai.js → finance-wiki.js → finance-app.js → finance-gmail.js
 ```
 
 All files share a global scope. Each file may reference globals defined in files that load before it.
@@ -56,7 +57,7 @@ node --test tests/*.test.js    # equivalent
 **How it works** — the app ships as plain `<script src>` files with no module exports, so they can't be `require()`d. `tests/harness.js` concatenates the **pure-logic** files (`finance-core`, `-investments`, `-insurance`, `-tax`, `-drive`), runs them once inside a Node `vm` sandbox with lightweight browser stubs (`document`, `localStorage`, `navigator`, …), and exposes the functions — plus `getData`/`setData`/`getHistory`/`setHistory` accessors for the globals — via `loadFinance()`.
 
 - UI-only files (`finance-app.js`, `-events.js`, `-gmail.js`, `-ai.js`, `-expenses.js`) are **not** loaded — their bottom-of-file init would run DOM rendering / SW registration on load. If a tested function grows a dependency on one of them, add the file to `FILES` in `harness.js`.
-- **Coverage:** `calcSGTax`, `getOngoingDueInfo` (recurring date math), `mergeData`, `mergeHistoryData`, `calcCpfProjection`, `calcRetirementPlan`.
+- **Coverage:** `calcSGTax`, `getOngoingDueInfo` (recurring date math), `mergeData`, `mergeHistoryData`, `mergeWikiData`, `calcCpfProjection`, `calcRetirementPlan`.
 - **Gotchas when adding tests** (see `tests/README.md`): sandbox-returned values carry the vm realm's prototypes, so `assert.deepStrictEqual` fails on prototype identity — use the `plain()` JSON-round-trip helper; `calcSGTax` returns un-rounded floats — use the `closeTo()` tolerance helper.
 - These are dev-only files — **not** in the service-worker `ASSETS` list, so adding/changing tests does **not** require a `sw.js` cache bump.
 
@@ -68,18 +69,19 @@ node --test tests/*.test.js    # equivalent
 
 ```js
 // sw.js line 1
-const CACHE = 'finance-v119';  // increment this number (current value as of this writing)
+const CACHE = 'finance-v156';  // increment this number (current value as of this writing)
 ```
 
-Current ASSETS list (18 files):
+Current ASSETS list (20 files):
 ```
 /health/finance.html, /health/finance.css,
 /health/finance-core.js, /health/finance-drive.js, /health/finance-expenses.js,
 /health/finance-investments.js, /health/finance-events.js, /health/finance-insurance.js,
-/health/finance-tax.js, /health/finance-ai.js, /health/finance-app.js, /health/finance-gmail.js,
+/health/finance-tax.js, /health/finance-ai.js, /health/finance-wiki.js,
+/health/finance-app.js, /health/finance-gmail.js,
 /health/themes.css, /health/icons/icon-192.png, /health/icons/icon-512.png,
 /health/fonts/material-symbols-outlined.css, /health/fonts/material-symbols-outlined.woff2,
-/health/manifest.json
+/health/fonts/eb-garamond.woff2, /health/manifest.json
 ```
 
 Leaflet's CSS/JS are cached separately in `EXT_CACHE` (`finance-ext-v1`) on first fetch — they are versioned URLs (`leaflet@1.9.4`) and do not need a cache bump.
@@ -99,15 +101,23 @@ Same rule applies to `tracker.html` — bump the version in `sw-tracker.js` if t
 
 ### Tabs
 
-There are **5 top-level tabs** (there is no standalone Investments tab — assets live under Tax › Assets):
+There are **6 top-level tabs** (there is no standalone Investments tab — assets live under Tax › Assets):
 
 | Tab | `data-tab` | Icon | Page ID |
 |---|---|---|---|
 | Events | `events` | `event` | `page-events` |
+| Wiki | `wiki` | `description` | `page-wiki` |
 | Expenses | `expenses` | `credit_card` | `page-expenses` |
 | Analysis | `analysis` | `bar_chart` | `page-analysis` |
 | Insurance | `insurance` | `shield` | `page-insurance` |
 | Tax | `tax` | `receipt_long` | `page-tax` |
+
+**Wiki sub-tabs** (switched by `switchWikiSubTab(tab)` in `finance-wiki.js`):
+- `recipe` — Recipe list + tap-to-view detail with ingredients/steps/notes
+- `shopping` — Shopping list list + tap-to-view detail with checkbox items (`toggleShopItem`)
+- `resume` — Resume list + tap-to-view detail with read-only render, PDF font/size controls, and Print button (`printResume`); builds content into `#resumePrintRoot` and calls `window.print()`
+
+Interaction: each Wiki card is **tap to view** (opens in-place read-only detail; `wikiView={type,id}`) and **swipe left to edit** (reveals an Edit action button → opens edit sheet). Back button clears `wikiView`.
 
 Tab switching is driven by `data-tab` attributes and the `currentTab` variable (the click handler lives at the bottom of `finance-core.js`). Each tab maps to a `#page-{tab}` div. The FAB (`+` button, id `fabBtn`) action depends on `currentTab` **and the active sub-tab**; it is hidden on Analysis › AI/Expense and Tax › Retirement (see the `fabBtn` handler in `finance-core.js` and `renderAll()` in `finance-app.js`).
 
@@ -138,6 +148,9 @@ Tab switching is driven by `data-tab` attributes and the `currentTab` variable (
 | `customPromptSheet` | Edit the AI advisor prompt template |
 | `medicalSheet` | Add/edit medical visit |
 | `noteSheet` | Add/edit note |
+| `recipeSheet` | Add/edit recipe (title, ingredients, steps, notes) |
+| `shoppingSheet` | Add/edit shopping list (title + dynamic items with checkboxes) |
+| `resumeSheet` | Add/edit resume (name, contact, summary, skills, dynamic experience/projects, education) |
 | `powerSheet` | Add/edit utility (electricity/water) record |
 
 Modal overlays: `backdrop`, `mortgageOverlay`, `historyOverlay`, `driveOverlay`, plus the `taxPinOverlay` (PIN gate for the Tax tab).
@@ -150,6 +163,7 @@ Two localStorage keys:
 |---|---|
 | `finance:v1` | All main data (see `defaultData()` below) |
 | `finance:v1:history` | Past-year expenses + all historyData collections (see below) |
+| `finance:v1:wiki` | Wiki tab collections — recipes, shoppingLists, resumes (see wikiData below) |
 
 `saveData(data)` / `loadData()` handle the main key. Always call `saveData(data)` after mutating `data`, then `renderAll()` to refresh the UI.
 
@@ -184,7 +198,10 @@ Two localStorage keys:
   dependents: [],        // { id, name, relationship, birthYear, sex, _ts } — household, enriches AI analysis
   allocationRatios: {},  // { Equities: 40, Bonds: 20, ... } target allocation % per class
   medicalVisits: [],     // { id, title, person, description, date, amount, paymentType, _ts }
-  notes: []              // { id, title, content, _updatedAt }
+  notes: [],             // { id, title, content, _updatedAt }
+  wikiFileId: null,      // Drive file ID for the separate wiki file (recipes/shoppingLists/resumes); null = not linked. Lives in main file so it propagates to partners; entered/created via the Drive menu.
+  wikiUpdatedAt: 0,      // mirror of wikiData._updatedAt — sole signal driveSync uses to sync the wiki file (parallels historyUpdatedAt)
+  // recipes/shoppingLists/resumes USED to live here; they now live in wikiData (finance:v1:wiki) — see "wikiData" section below.
 }
 ```
 
@@ -219,6 +236,8 @@ Per-field sync timestamps (set on write, consumed by `mergeData` for last-writer
 - `saveHistory(h)` — sets `h._updatedAt = Date.now()`, mirrors it to `data.historyUpdatedAt`, writes to localStorage. **Always call `saveHistory` then `saveData(data)` together when mutating `historyData`.**
 
 `data.historyUpdatedAt` is stored in the main Drive file and is the sole signal `driveSync()` uses to decide whether to download/upload the history file. It must always equal `historyData._updatedAt` after any write.
+
+**History file ID lives in the main file** (`data.historyFileId`), not localStorage — same as `data.wikiFileId`. This keeps it out of the share code and lets a partner adopt it automatically from the main file on their first sync. (`driveSync()`/`forceSyncHistory()` read `data.historyFileId`; the upload helper passes no `storageKey` and callers persist the returned ID back into `data.historyFileId`.) The legacy `finance:driveHistoryFileId` localStorage key is migrated into the main file once on load by `loadData()`.
 
 #### Drive sync invariant — NEVER upload without merging first
 
@@ -283,13 +302,38 @@ Follow all five steps or the collection will be silently dropped during syncs an
    ```
    Omitting a collection here silently drops all its records from both localStorage and Drive on the next sync.
 
+---
+
+### wikiData — Wiki tab collections in their own file
+
+`wikiData` is a separate in-memory object (global in `finance-core.js`) backed by `finance:v1:wiki` in localStorage **and its own Drive file** `finance-elvis-wiki.json`. It holds the Wiki tab data so the main file doesn't bloat with recipe/resume text.
+
+**Shape:**
+```js
+{
+  recipes: [],       // { id, title, ingredients, steps, notes, _updatedAt } — multiline strings (one item per line)
+  shoppingLists: [], // { id, title, items:[{id,text,checked}], _updatedAt }
+  resumes: [],       // { id, title, name, contact, summary, coreSkills, experience:[{id,company,period,projects:[{name,points}]}], education, pdfFont, pdfSize, _updatedAt }
+  _updatedAt: number // last local write — drives Drive sync decisions
+}
+```
+
+**Key functions (`finance-core.js`):** `loadWiki()` / `saveWiki(w)` mirror `loadHistory`/`saveHistory`. `saveWiki` sets `w._updatedAt = Date.now()`, mirrors it to `data.wikiUpdatedAt`, and writes localStorage. **Always call `saveWiki(wikiData)` then `saveData(data)` together when mutating wikiData** — all Wiki CRUD in `finance-wiki.js` does this; deletes also push the id to `data._deletedIds`. `loadWiki()` runs a **one-time local migration**: if the main blob still has pre-split `recipes`/`shoppingLists`/`resumes`, it adopts them into wikiData, then scrubs them from the main blob.
+
+**File ID storage differs from history:** the wiki file ID lives **in the main file** (`data.wikiFileId`), not in a `localStorage` key. This means it auto-propagates to a partner via the normal main-file sync (no share-code change needed). `data.wikiUpdatedAt` is the sole signal `driveSync()` uses to decide whether to sync the wiki file (parallels `historyUpdatedAt`).
+
+**Menu:** the Drive panel (`#driveConnected` in `finance.html`) has a wiki file-ID input + **Link** (`linkWikiFile()`), **＋ Create file** (`createWikiFile()` — makes a new `finance-elvis-wiki.json` from local wikiData and links it), and **⟳ Sync wiki** (`forceSyncWiki()`).
+
+**Sync (no auto-creation):** `driveSync()` only syncs wiki when a file ID is known (`data.wikiFileId`, or adopted from `remote.wikiFileId` on a partner's first sync). If timestamps differ it downloads the remote wiki file, `mergeWikiData(local, remote)`, applies `_deletedIds`, uploads, and stamps `merged.wikiUpdatedAt`. `mergeWikiData(localW, remoteW)` is a union-by-ID merge per collection preferring higher `_updatedAt`; like `mergeHistoryData` it does **not** carry `_updatedAt` (the caller stamps it). Upload helper: `uploadWikiToDrive` (passes no `storageKey` — the ID is persisted into `data.wikiFileId` by callers).
+
 #### Other localStorage keys
 
 | Key | Purpose |
 |---|---|
 | `finance:theme` | Active theme ('navy' / 'earth' / 'pastel') |
 | `finance:driveFileId` | Drive file ID for main data |
-| `finance:driveHistoryFileId` | Drive file ID for history |
+| `finance:driveHistoryFileId` | **Legacy** — history file ID now lives in the main file as `data.historyFileId`; this key is migrated into it once on load and no longer written |
+| *(wiki / history file IDs)* | **Not** localStorage keys — stored in the main file as `data.wikiFileId` / `data.historyFileId` (see wikiData / historyData above) |
 | `finance:googleClientId` | OAuth2 client ID |
 | `finance:googleLoginHint` | Last signed-in Google email |
 | `finance:busApiKey` | LTA DataMall API key — **local-only, never synced to Drive** (secret) |
@@ -305,7 +349,7 @@ Follow all five steps or the collection will be silently dropped during syncs an
 
 ### Google Drive sync
 
-Two Drive files per user: `finance-elvis.json` (main) and `finance-elvis-history.json` (history).
+Three Drive files per user: `finance-elvis.json` (main), `finance-elvis-history.json` (history), and `finance-elvis-wiki.json` (wiki — recipes/shoppingLists/resumes; ID stored in the main file as `data.wikiFileId`, see wikiData section).
 
 **Merge strategy** (bidirectional, conflict-resolved):
 
@@ -324,7 +368,7 @@ Two Drive files per user: `finance-elvis.json` (main) and `finance-elvis-history
 - `expenses` and every other collection (`powerRecords`, …): union by ID, prefer higher `_ts`
 - Sync rule: **always download remote and merge before uploading** when a `historyFileId` is known and timestamps differ — never upload local without pulling remote first (see historyData section above)
 
-**Share code**: `makeShareCode(clientId, fileId, historyFileId)` encodes a base64 string the partner can paste via `applyConnectCode()` to share the same Drive files.
+**Share code**: `makeShareCode(clientId, fileId)` encodes `base64(clientId + "||" + fileId)` — just the OAuth client ID and the **main** file ID. The history and wiki file IDs are no longer included; they ride in the main file (`data.historyFileId` / `data.wikiFileId`) and propagate on the partner's first sync. `applyConnectCode()` parses 2 parts but still tolerates a legacy 3rd part (old history file ID), adopting it into `data.historyFileId`.
 
 ### AI Financial Advisor (`finance-ai.js`)
 
@@ -509,3 +553,17 @@ No changes needed to `fonts/material-symbols-outlined.css` or `finance.html`.
 
 > **Note**: pass the full icon **names** (not individual characters) as the `text` parameter.
 > Individual characters produce a much smaller file (~83KB) that omits the icon ligature glyphs.
+
+## EB Garamond font (self-hosted)
+
+`fonts/eb-garamond.woff2` is a self-hosted EB Garamond Regular subset used by the Resume PDF feature in the Wiki tab. It is pre-cached by the service worker.
+
+`@font-face` declaration lives in `finance.css`. Font is available as `'EB Garamond'` in the resume PDF font selector. If the file is missing, the selector falls back gracefully to the generic `serif` stack.
+
+To refresh the font file:
+```bash
+CSS=$(curl -sS -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" "https://fonts.googleapis.com/css2?family=EB+Garamond")
+URL=$(echo "$CSS" | grep -oP "url\(\Khttps://[^)]+\.woff2")
+curl -sS -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" "$URL" -o fonts/eb-garamond.woff2
+```
+Then bump the `sw.js` cache version.

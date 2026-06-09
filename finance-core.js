@@ -80,6 +80,7 @@ const DRIVE_FILE_KEY = 'finance:driveFileId';
 const DRIVE_CLIENT_KEY = 'finance:googleClientId';
 const DRIVE_LOGIN_HINT_KEY = 'finance:googleLoginHint';
 const HISTORY_KEY = 'finance:v1:history';
+const WIKI_KEY = 'finance:v1:wiki';
 const DRIVE_HISTORY_FILE_KEY = 'finance:driveHistoryFileId';
 const BUS_PROXY_URL_STORAGE = 'finance:busProxyUrl';
 const BUS_PROXY_TOKEN_STORAGE = 'finance:busProxyToken';
@@ -121,6 +122,9 @@ function defaultData() {
     allocationRatios: {},  // { Equities: 40, Bonds: 20, ... } target allocation %
     medicalVisits: [],     // [{ id, title, person, description, date, amount, paymentType, _ts }]
     notes: [],             // [{ id, title, content, _updatedAt }]
+    wikiFileId: null,      // Drive file ID for the separate wiki file (recipes/shoppingLists/resumes); null = not linked
+    wikiUpdatedAt: 0,      // mirror of wikiData._updatedAt — drives wiki Drive sync decisions
+    historyFileId: null,   // Drive file ID for finance-elvis-history.json. Lives in the main file (not localStorage) so it propagates to a partner and is kept out of the share code.
   };
 }
 
@@ -163,6 +167,14 @@ function loadData() {
     if (!d.allocationRatios) d.allocationRatios = {};
     if (!d.medicalVisits) d.medicalVisits = [];
     if (!d.notes) d.notes = [];
+    if (!('wikiFileId' in d)) d.wikiFileId = null;
+    if (typeof d.wikiUpdatedAt !== 'number') d.wikiUpdatedAt = 0;
+    // History file ID moved from localStorage into the main file; migrate it once.
+    if (!('historyFileId' in d) || !d.historyFileId) {
+      d.historyFileId = localStorage.getItem(DRIVE_HISTORY_FILE_KEY) || d.historyFileId || null;
+    }
+    // Wiki collections (recipes/shoppingLists/resumes) used to live here; they now
+    // live in wikiData (finance:v1:wiki). loadWiki() migrates + scrubs any legacy copies.
     if (d.expenseCats) d.expenseCats = d.expenseCats.replace(/\bMisc\b/g, 'Income Tax');
     d.expenses.forEach(e => { if (e.cat === 'Misc') e.cat = 'Income Tax'; });
     if (d.budgets && d.budgets['Misc'] !== undefined) {
@@ -200,6 +212,51 @@ function saveHistory(h) {
   localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
 }
 
+function defaultWikiData() {
+  return { recipes: [], shoppingLists: [], resumes: [], _updatedAt: 0 };
+}
+
+// Wiki lives in its own localStorage key (and its own Drive file). The main file
+// only carries data.wikiFileId + data.wikiUpdatedAt to coordinate the sync.
+function loadWiki() {
+  let w = null;
+  try { w = JSON.parse(localStorage.getItem(WIKI_KEY)); } catch { w = null; }
+  const firstRun = !w || typeof w !== 'object';
+  if (firstRun) w = defaultWikiData();
+  if (!Array.isArray(w.recipes)) w.recipes = [];
+  if (!Array.isArray(w.shoppingLists)) w.shoppingLists = [];
+  if (!Array.isArray(w.resumes)) w.resumes = [];
+  if (typeof w._updatedAt !== 'number') w._updatedAt = 0;
+  // One-time local migration: adopt wiki collections that pre-split builds stored
+  // inside the main blob, so existing local data keeps showing after the upgrade.
+  if (firstRun && typeof data !== 'undefined' && data) {
+    const r = data.recipes, s = data.shoppingLists, m = data.resumes;
+    if ((r && r.length) || (s && s.length) || (m && m.length)) {
+      w.recipes = r || [];
+      w.shoppingLists = s || [];
+      w.resumes = m || [];
+      w._updatedAt = Date.now();
+      localStorage.setItem(WIKI_KEY, JSON.stringify(w));
+    }
+  }
+  // Scrub legacy copies out of the main blob so wiki data lives in one place only.
+  if (typeof data !== 'undefined' && data) {
+    let scrub = false;
+    ['recipes', 'shoppingLists', 'resumes'].forEach(k => { if (k in data) { delete data[k]; scrub = true; } });
+    data.wikiUpdatedAt = w._updatedAt;
+    if (scrub) saveData(data);
+  }
+  return w;
+}
+
+function saveWiki(w) {
+  w = w || wikiData;
+  w._updatedAt = Date.now();
+  wikiData = w;
+  if (typeof data !== 'undefined' && data) data.wikiUpdatedAt = w._updatedAt;
+  localStorage.setItem(WIKI_KEY, JSON.stringify(w));
+}
+
 function recalcBalances(d, expenses) {
   const exps = expenses !== undefined ? expenses : d.expenses;
   d.accounts.forEach(acc => {
@@ -223,6 +280,7 @@ function recalcMonthlyAgg(d, expenses) {
 
 let data = loadData();
 let historyData = loadHistory();
+let wikiData = loadWiki();
 
 function allExpenses() {
   return [...historyData.expenses, ...data.expenses];
@@ -406,6 +464,11 @@ document.getElementById('fabBtn').addEventListener('click', () => {
   }
   else if (currentTab === 'analysis') {
     if (currentAnalysisSubTab === 'power') openPowerSheet(null);
+  }
+  else if (currentTab === 'wiki') {
+    if (currentWikiSubTab === 'recipe') openRecipeSheet(null);
+    else if (currentWikiSubTab === 'shopping') openShoppingSheet(null);
+    else if (currentWikiSubTab === 'resume') openResumeSheet(null);
   }
   else if (currentTab === 'tax') {
     if (currentTaxSubTab === 'cpf') openCpfEntrySheet(null);
