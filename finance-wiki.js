@@ -475,14 +475,19 @@ function renderResumeDetail(id) {
     { value: "'EB Garamond',serif",              label: 'EB Garamond' },
   ];
   const sizeOptions = ['10', '11', '12', '13'];
+  const marginOptions = ['0.5cm', '1cm', '1.5cm', '2cm', '2.5cm', '3cm'];
   const curFont = resume.pdfFont || fontOptions[0].value;
   const curSize = resume.pdfSize || '11';
+  const curMargin = resume.pdfMargin || '1.5cm';
 
   const fontSelect = `<select id="resumePdfFont" class="wiki-pdf-select" onchange="persistResumePdf('${esc(id)}')">
     ${fontOptions.map(f => `<option value="${esc(f.value)}"${f.value === curFont ? ' selected' : ''}>${esc(f.label)}</option>`).join('')}
   </select>`;
   const sizeSelect = `<select id="resumePdfSize" class="wiki-pdf-select" onchange="persistResumePdf('${esc(id)}')">
     ${sizeOptions.map(s => `<option value="${s}"${s === curSize ? ' selected' : ''}>${s}pt</option>`).join('')}
+  </select>`;
+  const marginSelect = `<select id="resumePdfMargin" class="wiki-pdf-select" onchange="persistResumePdf('${esc(id)}')">
+    ${marginOptions.map(m => `<option value="${m}"${m === curMargin ? ' selected' : ''}>${m}</option>`).join('')}
   </select>`;
 
   // Build experience section
@@ -546,6 +551,9 @@ function renderResumeDetail(id) {
         <div class="wiki-pdf-row">
           <label class="wiki-pdf-label">Size</label>${sizeSelect}
         </div>
+        <div class="wiki-pdf-row">
+          <label class="wiki-pdf-label">Margin</label>${marginSelect}
+        </div>
         <button class="btn btn-primary wiki-pdf-btn" onclick="printResume('${esc(id)}')">🖨 Print / Save PDF</button>
       </div>
     </div>`;
@@ -556,8 +564,10 @@ function persistResumePdf(id) {
   if (!resume) return;
   const fontEl = document.getElementById('resumePdfFont');
   const sizeEl = document.getElementById('resumePdfSize');
+  const marginEl = document.getElementById('resumePdfMargin');
   if (fontEl) resume.pdfFont = fontEl.value;
   if (sizeEl) resume.pdfSize = sizeEl.value;
+  if (marginEl) resume.pdfMargin = marginEl.value;
   saveWiki(wikiData); saveData(data);
 }
 
@@ -565,13 +575,16 @@ function printResume(id) {
   const resume = (wikiData.resumes || []).find(r => r.id === id);
   if (!resume) return;
 
-  // Read + persist chosen font/size
+  // Read + persist chosen font/size/margin
   const fontEl = document.getElementById('resumePdfFont');
   const sizeEl = document.getElementById('resumePdfSize');
+  const marginEl = document.getElementById('resumePdfMargin');
   const font = (fontEl ? fontEl.value : resume.pdfFont) || 'Helvetica,Arial,sans-serif';
   const size = (sizeEl ? sizeEl.value : resume.pdfSize) || '11';
+  const margin = (marginEl ? marginEl.value : resume.pdfMargin) || '1.5cm';
   if (fontEl) resume.pdfFont = font;
   if (sizeEl) resume.pdfSize = size;
+  if (marginEl) resume.pdfMargin = margin;
   saveWiki(wikiData); saveData(data);
 
   // Build semantic HTML
@@ -609,7 +622,16 @@ function printResume(id) {
   root.style.setProperty('--resume-font', font);
   root.style.setProperty('--resume-size', size + 'pt');
 
+  // Inject @page margin + zero out the element's own margin so only @page applies
+  const styleEl = document.createElement('style');
+  styleEl.id = 'rp-margin-style';
+  styleEl.textContent = `@page { margin: ${margin}; } #resumePrintRoot { margin: 0 !important; }`;
+  document.head.appendChild(styleEl);
+
   window.print();
+
+  const cleanup = () => { styleEl.remove(); window.removeEventListener('afterprint', cleanup); };
+  window.addEventListener('afterprint', cleanup);
 }
 
 function openResumeSheet(id) {
@@ -705,6 +727,7 @@ document.getElementById('resumeForm').addEventListener('submit', e => {
     // preserve pdf prefs if editing
     pdfFont: (wikiData.resumes || []).find(r => r.id === id)?.pdfFont || '',
     pdfSize: (wikiData.resumes || []).find(r => r.id === id)?.pdfSize || '',
+    pdfMargin: (wikiData.resumes || []).find(r => r.id === id)?.pdfMargin || '',
     _updatedAt: Date.now()
   };
   if (!resume.title) return;
