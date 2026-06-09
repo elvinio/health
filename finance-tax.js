@@ -269,51 +269,6 @@ function _calcCpfProjection() {
   return { points, lifePayout, frsRefPayout, ersRefPayout, projFRS, projERS, yearsToRetire, retireYear, retireAge, dobYear, ra65, frsOAretire, ersOAretire, frsRaFromSA, frsRaFromOA, ersRaFromSA, ersRaFromOA, oa55pre, sa55pre, frsAt55, ersAt55, yearsTurn55, saStart: lastRecord ? (lastRecord.saBalance || 0) : 0 };
 }
 
-function renderCpfChart(proj) {
-  const { points } = proj;
-  if (points.length < 2) return '';
-
-  const OA_COLOR = '#2980b9', SA_COLOR = '#e67e22', MA_COLOR = '#27ae60', RA_COLOR = '#8e44ad';
-
-  // X-axis: every 2nd year + always show last point
-  const xLabels = points.map((p, i) =>
-    (i % 2 === 0 || i === points.length - 1) ? String(p.year) : ''
-  );
-
-  // Milestone vertical lines at age 55, CPF LIFE 65, and retirement
-  const milestones = points.reduce((acc, p, i) => {
-    if (p.age === 55 || p.age === proj.retireAge || p.age === 65) {
-      const label = p.age === 55 ? 'Age 55' : p.age === 65 ? 'CPF LIFE 65' : `Retire ${p.age}`;
-      acc.push({ index: i, label });
-    }
-    return acc;
-  }, []);
-
-  const svg = lineChart({
-    colW: 52, height: 160, padT: 16, xLabels, milestones,
-    series: [
-      { values: points.map(p => p.oa), color: OA_COLOR, strokeWidth: 2, dotR: 2.5 },
-      { values: points.map(p => p.sa), color: SA_COLOR, dash: '4 3', strokeWidth: 2, dotR: 2.5 },
-      { values: points.map(p => p.ma), color: MA_COLOR, dash: '2 2', strokeWidth: 2, dotR: 2.5 },
-      { values: points.map(p => p.ra), color: RA_COLOR, strokeWidth: 2, dotR: 2.5 },
-    ],
-  });
-
-  const legend = `<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;padding:0 4px;font-size:.75rem;color:var(--text)">
-    <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:14px;height:3px;background:${OA_COLOR};border-radius:2px"></span>OA</span>
-    <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:14px;height:3px;background:${SA_COLOR};border-radius:2px"></span>SA</span>
-    <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:14px;height:3px;background:${MA_COLOR};border-radius:2px"></span>MA</span>
-    <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:14px;height:3px;background:${RA_COLOR};border-radius:2px"></span>RA (from 55)</span>
-  </div>`;
-
-  return `<div class="chart-wrap">
-    <div class="chart-title">CPF Balance Projection</div>
-    <div class="scroll-x">${svg}</div>
-    ${legend}
-    <div style="font-size:.72rem;color:var(--muted);margin-top:4px;padding:0 4px">Rates: OA 2.5% · SA/RA/MA 4% · No contribution after retirement age. BHS cap $${CPF_BHS.toLocaleString()} · FRS 2026: $${CPF_FRS.toLocaleString()} · ERS 2026: $${CPF_ERS.toLocaleString()} (projected to your age 55 using ERS growth rate).</div>
-  </div>`;
-}
-
 // Projects SA to age 55 for 'husband' or 'wife' using the same logic as the CPF tab SA table.
 // Returns { rows, topupType, topupAmount, dobYear } or null if DOB not set.
 function calcSaProjectionRows(person) {
@@ -490,7 +445,6 @@ function renderCpf() {
 
   const s = data.cpfSettings || {};
   const records = (data.cpfRecords || []).slice().sort((a, b) => b.year - a.year);
-  const proj = calcCpfProjection();
 
   const hasDOB = !!s.dateOfBirth;
   const dobDisplay = hasDOB
@@ -520,7 +474,7 @@ function renderCpf() {
           <span style="font-size:.72rem;color:var(--muted)">Retirement Age</span>
           <span id="cpfRetireAgeVal" style="${sliderLblStyle}">${retireAgeVal} yrs</span>
         </div>
-        <input type="range" id="cpfRetireAgeSlider" min="55" max="65" step="1" value="${retireAgeVal}" oninput="updateCpfSlider(this,'cpfRetireAgeVal',' yrs');saveCpfAssumptions()" style="width:100%;accent-color:var(--primary)">
+        <input type="range" id="cpfRetireAgeSlider" min="55" max="65" step="1" value="${retireAgeVal}" oninput="updateCpfSlider(this,'cpfRetireAgeVal',' yrs')" onchange="saveCpfAssumptions()" style="width:100%;accent-color:var(--primary)">
         <div class="slider-labels"><span>55</span><span>65</span></div>
       </div>
       <div>
@@ -528,7 +482,7 @@ function renderCpf() {
           <span style="font-size:.72rem;color:var(--muted)">Life Expectancy</span>
           <span id="cpfLifeExpVal" style="${sliderLblStyle}">${lifeExp} yrs</span>
         </div>
-        <input type="range" id="cpfLifeExpSlider" min="82" max="92" step="1" value="${lifeExp}" oninput="updateCpfSlider(this,'cpfLifeExpVal',' yrs');saveCpfAssumptions()" style="width:100%;accent-color:var(--primary)">
+        <input type="range" id="cpfLifeExpSlider" min="82" max="92" step="1" value="${lifeExp}" oninput="updateCpfSlider(this,'cpfLifeExpVal',' yrs')" onchange="saveCpfAssumptions()" style="width:100%;accent-color:var(--primary)">
         <div class="slider-labels"><span>82</span><span>92</span></div>
       </div>
       <div>
@@ -536,7 +490,7 @@ function renderCpf() {
           <span style="font-size:.72rem;color:var(--muted)">ERS Growth / yr</span>
           <span id="cpfErsGrowthVal" style="${sliderLblStyle}">${ersGrowth}%</span>
         </div>
-        <input type="range" id="cpfErsGrowthSlider" min="1" max="5" step="0.5" value="${ersGrowth}" oninput="updateCpfSlider(this,'cpfErsGrowthVal','%');saveCpfAssumptions()" style="width:100%;accent-color:var(--primary)">
+        <input type="range" id="cpfErsGrowthSlider" min="1" max="5" step="0.5" value="${ersGrowth}" oninput="updateCpfSlider(this,'cpfErsGrowthVal','%')" onchange="saveCpfAssumptions()" style="width:100%;accent-color:var(--primary)">
         <div class="slider-labels"><span>1%</span><span>5%</span></div>
       </div>
       <div>
@@ -544,7 +498,7 @@ function renderCpf() {
           <span style="font-size:.72rem;color:var(--muted)">Mortality Credit</span>
           <span id="cpfMortFactorVal" style="${sliderLblStyle}">${mortFactor}×</span>
         </div>
-        <input type="range" id="cpfMortFactorSlider" min="1" max="1.5" step="0.05" value="${mortFactor}" oninput="updateCpfSlider(this,'cpfMortFactorVal','×');saveCpfAssumptions()" style="width:100%;accent-color:var(--primary)">
+        <input type="range" id="cpfMortFactorSlider" min="1" max="1.5" step="0.05" value="${mortFactor}" oninput="updateCpfSlider(this,'cpfMortFactorVal','×')" onchange="saveCpfAssumptions()" style="width:100%;accent-color:var(--primary)">
         <div class="slider-labels"><span>1.00×</span><span>1.50×</span></div>
       </div>
       <div style="grid-column:span 2">
@@ -552,7 +506,7 @@ function renderCpf() {
           <span style="font-size:.72rem;color:var(--muted)">Monthly Mortgage (OA deduction until 65)</span>
           <span id="cpfMortgageVal" style="${sliderLblStyle}">$${Number(mortgage).toLocaleString()}</span>
         </div>
-        <input type="range" id="cpfMortgageSlider" min="3000" max="5000" step="100" value="${mortgage}" oninput="updateCpfSlider(this,'cpfMortgageVal','','$');saveCpfAssumptions()" style="width:100%;accent-color:var(--primary)">
+        <input type="range" id="cpfMortgageSlider" min="3000" max="5000" step="100" value="${mortgage}" oninput="updateCpfSlider(this,'cpfMortgageVal','','$')" onchange="saveCpfAssumptions()" style="width:100%;accent-color:var(--primary)">
         <div class="slider-labels"><span>$3,000</span><span>$5,000</span></div>
       </div>
     </div>
@@ -572,26 +526,9 @@ function renderCpf() {
   </details>`;
 
   const srsHtml = renderSrsProjectionTable();
-  let milestoneHtml = '';
-  if (proj && proj.lifePayout > 0) {
-    milestoneHtml = `${assumptionsCard}${explanationCard}${renderSaProjectionTables()}${srsHtml}`;
-  } else {
-    milestoneHtml = srsHtml;
-  }
-
-  let ra55Html = '';
-  if (proj) {
-    const pt55 = proj.points.find(p => p.age === 55);
-    if (pt55) {
-      ra55Html = `<div style="background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 16px;margin-bottom:12px">
-        <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Age 55 Milestone (${pt55.year})</div>
-        <div style="font-size:.9rem;margin-top:5px"><span style="font-weight:700">RA formed: ${fmtDollar(pt55.ra)}</span> <span style="color:var(--muted);font-size:.8rem">(SA transferred, up to projected FRS ${fmtDollar(proj.frsAt55)})</span></div>
-        <div style="font-size:.82rem;color:var(--muted);margin-top:2px">OA: ${fmtDollar(pt55.oa)} · SA remaining: ${fmtDollar(pt55.sa)}</div>
-      </div>`;
-    }
-  }
-
-  const chart = proj ? renderCpfChart(proj) : '';
+  const milestoneHtml = hasDOB
+    ? `${assumptionsCard}${explanationCard}${renderSaProjectionTables()}${srsHtml}`
+    : srsHtml;
 
   const addBtn = `<div style="display:flex;justify-content:flex-end;margin:8px 0 12px">
     <button class="btn btn-primary" style="font-size:.82rem;padding:7px 14px" onclick="openCpfEntrySheet(null)">+ Add Record</button>
@@ -618,7 +555,7 @@ function renderCpf() {
     }).join('');
   }
 
-  el.innerHTML = settingsBar + milestoneHtml + chart + ra55Html +
+  el.innerHTML = settingsBar + milestoneHtml +
     `<div class="section-heading">Recorded Balances</div>` + addBtn + listHtml;
 }
 
