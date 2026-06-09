@@ -124,6 +124,7 @@ function defaultData() {
     notes: [],             // [{ id, title, content, _updatedAt }]
     wikiFileId: null,      // Drive file ID for the separate wiki file (recipes/shoppingLists/resumes); null = not linked
     wikiUpdatedAt: 0,      // mirror of wikiData._updatedAt — drives wiki Drive sync decisions
+    historyFileId: null,   // Drive file ID for finance-elvis-history.json. Lives in the main file (not localStorage) so it propagates to a partner and is kept out of the share code.
   };
 }
 
@@ -168,6 +169,10 @@ function loadData() {
     if (!d.notes) d.notes = [];
     if (!('wikiFileId' in d)) d.wikiFileId = null;
     if (typeof d.wikiUpdatedAt !== 'number') d.wikiUpdatedAt = 0;
+    // History file ID moved from localStorage into the main file; migrate it once.
+    if (!('historyFileId' in d) || !d.historyFileId) {
+      d.historyFileId = localStorage.getItem(DRIVE_HISTORY_FILE_KEY) || d.historyFileId || null;
+    }
     // Wiki collections (recipes/shoppingLists/resumes) used to live here; they now
     // live in wikiData (finance:v1:wiki). loadWiki() migrates + scrubs any legacy copies.
     if (d.expenseCats) d.expenseCats = d.expenseCats.replace(/\bMisc\b/g, 'Income Tax');

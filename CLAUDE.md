@@ -69,7 +69,7 @@ node --test tests/*.test.js    # equivalent
 
 ```js
 // sw.js line 1
-const CACHE = 'finance-v155';  // increment this number (current value as of this writing)
+const CACHE = 'finance-v156';  // increment this number (current value as of this writing)
 ```
 
 Current ASSETS list (20 files):
@@ -237,6 +237,8 @@ Per-field sync timestamps (set on write, consumed by `mergeData` for last-writer
 
 `data.historyUpdatedAt` is stored in the main Drive file and is the sole signal `driveSync()` uses to decide whether to download/upload the history file. It must always equal `historyData._updatedAt` after any write.
 
+**History file ID lives in the main file** (`data.historyFileId`), not localStorage — same as `data.wikiFileId`. This keeps it out of the share code and lets a partner adopt it automatically from the main file on their first sync. (`driveSync()`/`forceSyncHistory()` read `data.historyFileId`; the upload helper passes no `storageKey` and callers persist the returned ID back into `data.historyFileId`.) The legacy `finance:driveHistoryFileId` localStorage key is migrated into the main file once on load by `loadData()`.
+
 #### Drive sync invariant — NEVER upload without merging first
 
 `driveSync()` (`finance-drive.js`) uses this rule: **if a `historyFileId` is known and timestamps differ, always download the remote history file and merge it into local before uploading.** Uploading local history without first pulling remote will silently overwrite records that only exist on the remote (e.g. power records added on a partner's device).
@@ -330,8 +332,8 @@ Follow all five steps or the collection will be silently dropped during syncs an
 |---|---|
 | `finance:theme` | Active theme ('navy' / 'earth' / 'pastel') |
 | `finance:driveFileId` | Drive file ID for main data |
-| `finance:driveHistoryFileId` | Drive file ID for history |
-| *(wiki file ID)* | **Not** a localStorage key — stored in the main file as `data.wikiFileId` (see wikiData above) |
+| `finance:driveHistoryFileId` | **Legacy** — history file ID now lives in the main file as `data.historyFileId`; this key is migrated into it once on load and no longer written |
+| *(wiki / history file IDs)* | **Not** localStorage keys — stored in the main file as `data.wikiFileId` / `data.historyFileId` (see wikiData / historyData above) |
 | `finance:googleClientId` | OAuth2 client ID |
 | `finance:googleLoginHint` | Last signed-in Google email |
 | `finance:busApiKey` | LTA DataMall API key — **local-only, never synced to Drive** (secret) |
@@ -366,7 +368,7 @@ Three Drive files per user: `finance-elvis.json` (main), `finance-elvis-history.
 - `expenses` and every other collection (`powerRecords`, …): union by ID, prefer higher `_ts`
 - Sync rule: **always download remote and merge before uploading** when a `historyFileId` is known and timestamps differ — never upload local without pulling remote first (see historyData section above)
 
-**Share code**: `makeShareCode(clientId, fileId, historyFileId)` encodes a base64 string the partner can paste via `applyConnectCode()` to share the same Drive files.
+**Share code**: `makeShareCode(clientId, fileId)` encodes `base64(clientId + "||" + fileId)` — just the OAuth client ID and the **main** file ID. The history and wiki file IDs are no longer included; they ride in the main file (`data.historyFileId` / `data.wikiFileId`) and propagate on the partner's first sync. `applyConnectCode()` parses 2 parts but still tolerates a legacy 3rd part (old history file ID), adopting it into `data.historyFileId`.
 
 ### AI Financial Advisor (`finance-ai.js`)
 
