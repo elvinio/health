@@ -737,6 +737,8 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     if (busPollingInterval)    { clearInterval(busPollingInterval);    busPollingInterval    = null; }
     if (busMapPollingInterval) { clearInterval(busMapPollingInterval); busMapPollingInterval = null; }
+    if (rainPollingInterval)   { clearInterval(rainPollingInterval);   rainPollingInterval   = null; }
+    if (rainAnimTimer)         rainToggleAnim(); // stops the loop and resets the play icon
     stopLocationTracking();
   } else if (currentTab === 'events') {
     if (eventViewMode === 'bus' && !busPollingInterval) {
@@ -746,6 +748,10 @@ document.addEventListener('visibilitychange', () => {
       startLocationTracking();
       refreshBusMapMarkers();
       busMapPollingInterval = setInterval(refreshBusMapMarkers, 30000);
+    } else if (eventViewMode === 'rain' && !rainPollingInterval) {
+      startLocationTracking();
+      refreshRainFrames();
+      rainPollingInterval = setInterval(refreshRainFrames, 300000);
     }
   }
 });

@@ -241,16 +241,20 @@ function setEventView(mode) {
   document.getElementById('evViewCal').classList.toggle('active', mode === 'calendar');
   document.getElementById('evViewBus').classList.toggle('active', mode === 'bus');
   document.getElementById('evViewBusMap').classList.toggle('active', mode === 'busmap');
+  document.getElementById('evViewRain').classList.toggle('active', mode === 'rain');
   document.getElementById('evViewNotes').classList.toggle('active', mode === 'notes');
   document.getElementById('eventListSubTabs').style.display = mode === 'list' ? '' : 'none';
   document.getElementById('eventList').style.display = mode === 'list' ? '' : 'none';
   document.getElementById('eventCalendar').style.display = mode === 'calendar' ? '' : 'none';
   document.getElementById('busPanel').style.display = mode === 'bus' ? '' : 'none';
   document.getElementById('busMapPanel').style.display = mode === 'busmap' ? '' : 'none';
+  document.getElementById('rainPanel').style.display = mode === 'rain' ? '' : 'none';
   document.getElementById('notesPanel').style.display = mode === 'notes' ? '' : 'none';
   if (busPollingInterval) { clearInterval(busPollingInterval); busPollingInterval = null; }
   if (busMapPollingInterval) { clearInterval(busMapPollingInterval); busMapPollingInterval = null; }
-  if (mode !== 'busmap') stopLocationTracking();
+  if (rainPollingInterval) { clearInterval(rainPollingInterval); rainPollingInterval = null; }
+  if (rainAnimTimer) rainToggleAnim(); // stops the loop and resets the play icon
+  if (mode !== 'busmap' && mode !== 'rain') stopLocationTracking();
   renderEventTagFilterPills();
   if (mode === 'notes') renderNotesList();
   if (mode === 'calendar') renderEventCalendar();
@@ -263,6 +267,13 @@ function setEventView(mode) {
       if (eventViewMode !== 'busmap') return;
       renderBusMapPanel();
       busMapPollingInterval = setInterval(refreshBusMapMarkers, 30000);
+    });
+  }
+  if (mode === 'rain') {
+    loadLeaflet(function() {
+      if (eventViewMode !== 'rain') return;
+      renderRainPanel();
+      rainPollingInterval = setInterval(refreshRainFrames, 300000);
     });
   }
 }
@@ -310,7 +321,7 @@ function busApiSetupHtml(idPrefix, reloadFn) {
       localStorage.setItem(BUS_PROXY_URL_STORAGE,p);
       localStorage.setItem(BUS_PROXY_TOKEN_STORAGE,t);
       data.busProxyUrl=p; data.busProxyToken=t; data._busProxyTs=Date.now(); saveData(data);
-      if(p) ${reloadFn}();
+      ${reloadFn}();
     ">Save &amp; Load</button>
   </div>`;
 }
@@ -323,6 +334,7 @@ function showBusSettings() {
 function showBusMapSettings() {
   stopLocationTracking();
   if (busMapInstance) { busMapInstance.remove(); busMapInstance = null; }
+  locationMap = null;
   busMapMarkers = []; busMapPrevPositions = {};
   const panel = document.getElementById('busMapPanel');
   if (panel) panel.innerHTML = busApiSetupHtml('busMap', 'renderBusMapPanel');
@@ -404,6 +416,7 @@ let busMapMarkers = [];
 let busMapPrevPositions = {};
 let busMapLocationMarker = null;
 let busMapLocationWatcher = null;
+let locationMap = null; // map the blue location dot is attached to (bus map or rain map)
 let busMapStopMarkers = [];
 const BUS_MAP_DEFAULT = [1.3201, 103.9024];
 const BUS_MAP_CENTER_KEY = 'busMapCenter';
@@ -439,7 +452,7 @@ async function fetchBusStopCoords() {
 }
 
 function placeLocationMarker(lat, lng) {
-  if (!busMapInstance) return;
+  if (!locationMap) return;
   if (busMapLocationMarker) busMapLocationMarker.remove();
   const icon = L.divIcon({
     className: '',
@@ -447,12 +460,13 @@ function placeLocationMarker(lat, lng) {
     iconSize: [16, 16],
     iconAnchor: [8, 8]
   });
-  busMapLocationMarker = L.marker([lat, lng], { icon, zIndexOffset: 1000 }).addTo(busMapInstance);
+  busMapLocationMarker = L.marker([lat, lng], { icon, zIndexOffset: 1000 }).addTo(locationMap);
   busMapLocationMarker.bindPopup('You are here');
 }
 
-function startLocationTracking() {
-  if (!navigator.geolocation || !busMapInstance) return;
+function startLocationTracking(map) {
+  if (map) locationMap = map;
+  if (!navigator.geolocation || !locationMap) return;
   stopLocationTracking();
   busMapLocationWatcher = navigator.geolocation.watchPosition(
     pos => placeLocationMarker(pos.coords.latitude, pos.coords.longitude),
@@ -523,7 +537,7 @@ function renderBusMapPanel() {
   // If map already initialised, just refresh markers and re-check size
   if (busMapInstance) {
     setTimeout(() => busMapInstance.invalidateSize(), 50);
-    startLocationTracking();
+    startLocationTracking(busMapInstance);
     refreshBusMapMarkers();
     return;
   }
@@ -559,7 +573,7 @@ function renderBusMapPanel() {
   });
   setTimeout(() => busMapInstance.invalidateSize(), 50);
 
-  startLocationTracking();
+  startLocationTracking(busMapInstance);
   placeBusStopMarkers();
   refreshBusMapMarkers();
 }
@@ -627,6 +641,181 @@ async function refreshBusMapMarkers() {
   if (upd) upd.textContent =
     'Updated ' + new Date().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit' }) +
     ' · ' + busMapMarkers.length + (busMapMarkers.length === 1 ? ' bus' : ' buses');
+}
+
+// ── Rain Radar ───────────────────────────────────────────────────────────────
+let rainMapInstance = null;
+let rainOverlay = null;
+let rainFrames = [];        // sorted SGT slot keys (yyyyMMddHHmm), oldest first
+let rainFrameIdx = 0;
+let rainFrameCache = new Map(); // slot key → data: URI (proxy) or direct URL (live)
+let rainPollingInterval = null;
+let rainAnimTimer = null;
+let rainUsingProxy = false;
+
+// Fixed georeference of the NEA radar PNG (same extent every frame) —
+// SW / NE corners from the checkweather-sg / rain-geojson-sg projects.
+const RAIN_BOUNDS = [[1.156, 103.565], [1.475, 104.13]];
+const RAIN_IMG_URL = key => `https://www.weather.gov.sg/files/rainarea/50km/v2/dpsri_70km_${key}0000dBR.dpsri.png`;
+
+// 12 most recent SGT 5-min slots (oldest first), one slot back for publish lag.
+// weather.gov.sg itself only retains ~1h; the Apps Script cache extends to 24h.
+function rainSlotKeysLastHour() {
+  const slots = [];
+  const base = Math.floor((Date.now() + 8 * 3600000) / 300000) * 300000 - 300000;
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(base - i * 300000);
+    slots.push(d.getUTCFullYear() +
+      String(d.getUTCMonth() + 1).padStart(2, '0') +
+      String(d.getUTCDate()).padStart(2, '0') +
+      String(d.getUTCHours()).padStart(2, '0') +
+      String(d.getUTCMinutes()).padStart(2, '0'));
+  }
+  return slots;
+}
+
+function rainFrameTimeLabel(key) {
+  return `${key.slice(6, 8)}/${key.slice(4, 6)} ${key.slice(8, 10)}:${key.slice(10, 12)}`;
+}
+
+function showRainSettings() {
+  stopLocationTracking();
+  if (rainAnimTimer) { clearInterval(rainAnimTimer); rainAnimTimer = null; }
+  if (rainMapInstance) { rainMapInstance.remove(); rainMapInstance = null; rainOverlay = null; }
+  locationMap = null;
+  const panel = document.getElementById('rainPanel');
+  if (panel) panel.innerHTML = busApiSetupHtml('rain', 'renderRainPanel');
+}
+
+function renderRainPanel() {
+  const panel = document.getElementById('rainPanel');
+  if (!panel || panel.style.display === 'none') return;
+
+  if (rainMapInstance) {
+    setTimeout(() => rainMapInstance.invalidateSize(), 50);
+    startLocationTracking(rainMapInstance);
+    refreshRainFrames();
+    return;
+  }
+
+  panel.innerHTML = `
+    <div class="rain-controls">
+      <button class="bus-refresh-btn" id="rainPlayBtn" title="Play loop" onclick="rainToggleAnim()">
+        <span class="material-symbols-outlined" style="font-size:.95rem">play_arrow</span>
+      </button>
+      <input type="range" id="rainSlider" class="rain-slider" min="0" max="0" value="0" oninput="rainShowFrame(this.value)">
+      <span class="rain-frame-label" id="rainFrameLabel">—</span>
+    </div>
+    <div id="rainMapContainer"></div>
+    <div class="bus-refresh-row" style="margin-top:8px">
+      <span class="bus-last-updated" id="rainLastUpdated">Fetching…</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="bus-refresh-btn" onclick="showRainSettings()" style="font-size:.75rem">Settings</button>
+        <button class="bus-refresh-btn" onclick="refreshRainFrames()">
+          <span class="material-symbols-outlined" style="font-size:.9rem">refresh</span> Refresh
+        </button>
+      </div>
+    </div>`;
+
+  rainMapInstance = L.map('rainMapContainer', { zoomControl: true }).setView([1.3521, 103.82], 11);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a> · Radar © <a href="https://www.nea.gov.sg/weather/rain-areas">NEA</a>',
+    maxZoom: 19, minZoom: 10
+  }).addTo(rainMapInstance);
+  setTimeout(() => rainMapInstance.invalidateSize(), 50);
+
+  startLocationTracking(rainMapInstance);
+  refreshRainFrames();
+}
+
+async function refreshRainFrames() {
+  if (!rainMapInstance) return;
+  const wasAtLatest = !rainFrames.length || rainFrameIdx >= rainFrames.length - 1;
+
+  let frames = null;
+  const proxyUrl = localStorage.getItem(BUS_PROXY_URL_STORAGE) || '';
+  if (proxyUrl) {
+    try {
+      const token = localStorage.getItem(BUS_PROXY_TOKEN_STORAGE) || '';
+      let url = `${proxyUrl.replace(/\/$/, '')}?action=RainList&_t=${Date.now()}`;
+      if (token) url += `&token=${encodeURIComponent(token)}`;
+      const resp = await fetch(url, { cache: 'no-store' });
+      if (resp.ok) {
+        const json = await resp.json();
+        if (Array.isArray(json.frames) && json.frames.length) frames = json.frames;
+      }
+    } catch {}
+  }
+  rainUsingProxy = !!frames;
+  rainFrames = frames || rainSlotKeysLastHour();
+
+  const keep = new Set(rainFrames);
+  [...rainFrameCache.keys()].forEach(k => { if (!keep.has(k)) rainFrameCache.delete(k); });
+
+  const slider = document.getElementById('rainSlider');
+  if (slider) slider.max = rainFrames.length - 1;
+  const upd = document.getElementById('rainLastUpdated');
+  if (upd) upd.textContent = rainUsingProxy
+    ? `${rainFrames.length} frames cached (up to 24h)`
+    : 'Live: last hour only — add the rain cache to your Apps Script proxy for 24h';
+
+  rainShowFrame(wasAtLatest ? rainFrames.length - 1 : Math.min(rainFrameIdx, rainFrames.length - 1));
+}
+
+async function rainFrameSrc(key) {
+  if (rainFrameCache.has(key)) return rainFrameCache.get(key);
+  let src;
+  if (rainUsingProxy) {
+    const proxyUrl = localStorage.getItem(BUS_PROXY_URL_STORAGE) || '';
+    const token = localStorage.getItem(BUS_PROXY_TOKEN_STORAGE) || '';
+    let url = `${proxyUrl.replace(/\/$/, '')}?action=RainImg&t=${key}`;
+    if (token) url += `&token=${encodeURIComponent(token)}`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(resp.status);
+    const json = await resp.json();
+    if (!json.png) throw new Error(json.error || 'No image');
+    src = 'data:image/png;base64,' + json.png;
+  } else {
+    src = RAIN_IMG_URL(key); // image overlays load cross-origin images directly
+  }
+  if (rainFrameCache.size >= 300) rainFrameCache.clear();
+  rainFrameCache.set(key, src);
+  return src;
+}
+
+async function rainShowFrame(idx) {
+  if (!rainFrames.length || !rainMapInstance) return;
+  idx = Math.max(0, Math.min(rainFrames.length - 1, Number(idx) || 0));
+  rainFrameIdx = idx;
+  const key = rainFrames[idx];
+  const slider = document.getElementById('rainSlider');
+  if (slider && Number(slider.value) !== idx) slider.value = idx;
+  const label = document.getElementById('rainFrameLabel');
+  if (label) label.textContent = rainFrameTimeLabel(key);
+
+  let src;
+  try { src = await rainFrameSrc(key); } catch { return; }
+  if (rainFrameIdx !== idx || !rainMapInstance) return; // user scrubbed on while fetching
+  if (!rainOverlay) rainOverlay = L.imageOverlay(src, RAIN_BOUNDS, { opacity: 0.65 }).addTo(rainMapInstance);
+  else rainOverlay.setUrl(src);
+
+  // Prefetch neighbours so scrubbing/animation stays smooth
+  if (rainUsingProxy) {
+    if (idx > 0) rainFrameSrc(rainFrames[idx - 1]).catch(() => {});
+    if (idx < rainFrames.length - 1) rainFrameSrc(rainFrames[idx + 1]).catch(() => {});
+  }
+}
+
+function rainToggleAnim() {
+  const btn = document.getElementById('rainPlayBtn');
+  if (rainAnimTimer) {
+    clearInterval(rainAnimTimer);
+    rainAnimTimer = null;
+    if (btn) btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:.95rem">play_arrow</span>';
+    return;
+  }
+  rainAnimTimer = setInterval(() => rainShowFrame((rainFrameIdx + 1) % rainFrames.length), 500);
+  if (btn) btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:.95rem">pause</span>';
 }
 
 function calPrev() {

@@ -1,3 +1,11 @@
+# Apps Script deployments
+
+Two scripts live in this folder:
+
+- `quarterly-report.gs` — quarterly AI finance report (below).
+- `lta-proxy.gs` — bus arrivals proxy **and** the rain-radar cache (see
+  "Rain radar cache" at the end; full setup steps are in the file header).
+
 # Quarterly AI finance report
 
 Two ways to turn your finance data into an AI report that the PWA displays on the
@@ -52,3 +60,33 @@ the report to Drive for the app to fetch.
   the script must use the **same Google account**.
 - Keep the summary small: it already contains only aggregates (no raw transactions),
   which keeps both the API cost and what leaves your device to a minimum.
+
+# Rain radar cache (`lta-proxy.gs`)
+
+The Events › Rain view overlays NEA's rain-radar PNG on a map. weather.gov.sg
+publishes a frame every 5 minutes but only keeps ~1 hour; the proxy script
+extends that to **24 hours** by caching frames in your Drive.
+
+- A 5-minute trigger (`cacheRainFrame`) saves each frame as
+  `<YYYYMMDDHHMM>.png` (SGT slot key) into a Drive folder named
+  `rain-radar-cache`, and trashes frames older than 24h (~288 small PNGs at
+  steady state).
+- The PWA reuses the **same proxy URL/token** you already configured for the
+  bus views — no new setting. Without the cache, the Rain view still works in
+  live mode (last hour straight from weather.gov.sg).
+
+Setup, if you already deployed `lta-proxy.gs` for buses:
+
+1. Paste the updated `lta-proxy.gs` over your existing project's code.
+2. Run `cacheRainFrame` once in the editor — re-authorise when prompted
+   (the rain feature adds the Drive scope).
+3. Run `installRainTrigger` once (installs/replaces the every-5-min trigger).
+4. **Deploy → Manage deployments → edit → New version** so the new
+   `RainList` / `RainImg` actions go live on the same `/exec` URL.
+
+Endpoints (token optional, as for the bus actions):
+
+```
+GET {url}?action=RainList&token=…          → { "frames": ["202606090800", …] }
+GET {url}?action=RainImg&t=202606090800&token=… → { "t": "…", "png": "<base64>" }
+```
