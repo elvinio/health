@@ -589,6 +589,8 @@ function renderAll() {
       if (currentTaxSubTab === 'cpf') renderCpf();
       else if (currentTaxSubTab === 'assets') renderAssetsSubTab();
       else if (currentTaxSubTab === 'retirement') renderRetirement();
+    } else if (currentTab === 'wiki') {
+      renderWiki();
     }
   } catch (err) {
     console.error('[renderAll] tab=' + currentTab, err);

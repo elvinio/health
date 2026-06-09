@@ -922,6 +922,198 @@
 .slider-labels { display: flex; justify-content: space-between; font-size: .65rem; color: var(--muted); margin-top: 1px; }
 .settings-section { padding-top: 4px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
 .settings-hint { font-size: .8rem; color: var(--muted); margin-bottom: 12px; }
+
+/* ── EB Garamond (self-hosted) ── */
+@font-face {
+  font-family: 'EB Garamond';
+  font-style: normal;
+  font-weight: 400;
+  src: url(fonts/eb-garamond.woff2) format('woff2');
+  font-display: swap;
+}
+
+/* ── Wiki sub-tabs ── */
+.wiki-sub-tabs {
+  display: flex; border-bottom: 2px solid var(--border); margin-bottom: 12px; margin-top: 10px;
+}
+.wiki-sub-tab {
+  display: flex; align-items: center; gap: 4px; padding: 8px 16px;
+  font-size: .82rem; font-weight: 600; color: var(--muted);
+  background: none; border: none; border-bottom: 2px solid transparent;
+  margin-bottom: -2px; cursor: pointer; transition: color .15s, border-color .15s; white-space: nowrap;
+}
+.wiki-sub-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+/* ── Wiki card (swipe-to-edit pattern) ── */
+.wiki-card {
+  position: relative; overflow: hidden;
+  border-radius: var(--radius); margin-bottom: 10px;
+  background: var(--card); box-shadow: var(--shadow);
+}
+.wiki-card-actions {
+  position: absolute; right: 0; top: 0; bottom: 0;
+  display: flex; align-items: stretch;
+  background: var(--primary);
+}
+.wiki-action-btn {
+  background: none; border: none; color: #fff;
+  font-size: .85rem; font-weight: 700; padding: 0 20px;
+  cursor: pointer; white-space: nowrap;
+}
+.wiki-card-fg {
+  position: relative; z-index: 1;
+  background: var(--card);
+  padding: 14px 16px;
+  transition: transform .2s ease;
+  cursor: pointer;
+}
+.wiki-card-title { font-weight: 600; font-size: .95rem; }
+.wiki-card-meta  { font-size: .78rem; color: var(--muted); margin-top: 3px; }
+
+/* ── Wiki detail view ── */
+.wiki-detail { padding-bottom: 24px; }
+.wiki-back-btn {
+  background: none; border: none; color: var(--primary); font-size: .9rem; font-weight: 600;
+  cursor: pointer; padding: 4px 0 12px; display: inline-block; font-family: inherit;
+}
+.wiki-detail-header {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  margin-bottom: 16px;
+}
+.wiki-detail-title { font-size: 1.25rem; font-weight: 800; flex: 1; }
+.wiki-detail-edit-btn { font-size: .82rem; padding: 6px 14px; white-space: nowrap; }
+.wiki-detail-section { margin-bottom: 18px; }
+.wiki-detail-section-title {
+  font-size: .72rem; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px;
+}
+.wiki-detail-list { padding-left: 20px; }
+.wiki-detail-list li { font-size: .92rem; line-height: 1.6; margin-bottom: 2px; }
+.wiki-detail-empty { font-size: .88rem; color: var(--muted); font-style: italic; }
+.wiki-detail-notes { font-size: .9rem; line-height: 1.6; color: var(--muted); }
+
+/* ── Shopping list detail ── */
+.wiki-shop-items { display: flex; flex-direction: column; gap: 6px; }
+.wiki-shop-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: var(--card); border-radius: 10px;
+  cursor: pointer; font-size: .92rem; transition: background .1s;
+}
+.wiki-shop-item input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; flex-shrink: 0; }
+.wiki-shop-item.checked span { text-decoration: line-through; color: var(--muted); }
+
+/* ── Resume detail view ── */
+.wiki-resume-name { font-size: 1.4rem; font-weight: 800; margin-bottom: 2px; }
+.wiki-resume-contact { font-size: .88rem; color: var(--muted); margin-bottom: 12px; }
+.wiki-exp-block { margin-bottom: 14px; }
+.wiki-exp-header {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  margin-bottom: 6px;
+}
+.wiki-exp-company { font-weight: 700; font-size: .95rem; }
+.wiki-exp-period  { font-size: .82rem; color: var(--muted); white-space: nowrap; }
+.wiki-exp-project { margin-bottom: 8px; }
+.wiki-exp-proj-name { font-size: .88rem; font-weight: 600; color: var(--primary); margin-bottom: 2px; }
+.wiki-exp-project ul { padding-left: 18px; }
+.wiki-exp-project ul li { font-size: .88rem; line-height: 1.55; }
+
+/* ── PDF controls ── */
+.wiki-pdf-controls {
+  margin-top: 20px; padding: 14px 16px;
+  background: var(--card); border-radius: var(--radius);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.wiki-pdf-row { display: flex; align-items: center; gap: 10px; }
+.wiki-pdf-label { font-size: .82rem; font-weight: 600; color: var(--muted); min-width: 40px; }
+.wiki-pdf-select {
+  flex: 1; padding: 8px 10px; border-radius: 8px;
+  border: 1.5px solid var(--border); background: var(--bg); color: var(--text);
+  font-size: .88rem; font-family: inherit; outline: none;
+}
+.wiki-pdf-select:focus { border-color: var(--primary-light); }
+.wiki-pdf-btn { width: 100%; }
+
+/* ── Dynamic editor rows (shopping items, resume experience/projects) ── */
+.wiki-editor-row {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 6px;
+}
+.wiki-editor-input {
+  flex: 1; padding: 9px 10px; border-radius: 8px;
+  border: 1.5px solid var(--border); background: var(--card); color: var(--text);
+  font-size: .9rem; font-family: inherit; outline: none;
+}
+.wiki-editor-input:focus { border-color: var(--primary-light); }
+.wiki-editor-textarea {
+  width: 100%; padding: 8px 10px; border-radius: 8px;
+  border: 1.5px solid var(--border); background: var(--card); color: var(--text);
+  font-size: .88rem; font-family: inherit; outline: none; resize: vertical;
+  margin-bottom: 4px;
+}
+.wiki-editor-textarea:focus { border-color: var(--primary-light); }
+.wiki-editor-remove {
+  background: none; border: none; color: var(--red);
+  font-size: 1rem; cursor: pointer; padding: 4px 6px; border-radius: 6px;
+  line-height: 1; flex-shrink: 0; font-family: inherit;
+}
+.wiki-editor-remove:active { background: var(--bg); }
+
+/* Resume experience block in editor */
+.wiki-exp-edit-block {
+  border: 1.5px solid var(--border); border-radius: 10px;
+  padding: 10px 12px; margin-bottom: 10px; background: var(--bg);
+}
+.wiki-exp-edit-header {
+  display: flex; align-items: flex-start; gap: 6px; margin-bottom: 8px;
+}
+.wiki-exp-remove { align-self: center; }
+.wiki-proj-editor { padding-left: 4px; }
+.wiki-proj-edit-row {
+  display: flex; flex-direction: column; gap: 4px;
+  margin-bottom: 8px; padding: 8px; background: var(--card); border-radius: 8px;
+}
+.wiki-proj-edit-row .wiki-editor-remove { align-self: flex-end; }
+.wiki-add-proj-btn {
+  background: none; border: 1.5px dashed var(--border); color: var(--muted);
+  font-size: .82rem; padding: 6px 12px; border-radius: 8px; cursor: pointer;
+  font-family: inherit; width: 100%; margin-top: 2px;
+}
+.wiki-add-proj-btn:active { background: var(--bg); }
+.wiki-shop-check { width: 18px; height: 18px; flex-shrink: 0; cursor: pointer; }
+
+/* ── Resume print styles ── */
+#resumePrintRoot { display: none; }
+
+@media print {
+  body > * { display: none !important; }
+  #resumePrintRoot {
+    display: block !important;
+    font-family: var(--resume-font, Helvetica, Arial, sans-serif);
+    font-size: var(--resume-size, 11pt);
+    color: #000;
+    margin: 1.5cm 2cm;
+    line-height: 1.5;
+  }
+  #resumePrintRoot h1 {
+    font-size: 2em; font-weight: 800; margin-bottom: .1em; border-bottom: 2px solid #000; padding-bottom: .2em;
+  }
+  #resumePrintRoot h2 {
+    font-size: 1.2em; font-weight: 700; margin-top: 1em; margin-bottom: .3em;
+    border-bottom: 1px solid #ccc; padding-bottom: .1em;
+  }
+  #resumePrintRoot p { margin: .2em 0; }
+  #resumePrintRoot ul { padding-left: 1.4em; margin: .3em 0; }
+  #resumePrintRoot li { margin-bottom: .15em; }
+  #resumePrintRoot .rp-contact { color: #555; font-size: .9em; margin-bottom: .5em; }
+  #resumePrintRoot .rp-exp { margin-bottom: .8em; }
+  #resumePrintRoot .rp-exp-header {
+    display: flex; justify-content: space-between;
+    font-weight: 700; margin-bottom: .2em;
+  }
+  #resumePrintRoot .rp-period { font-weight: 400; color: #555; }
+  #resumePrintRoot .rp-project { margin-left: 1em; margin-bottom: .4em; }
+  #resumePrintRoot .rp-proj-name { font-weight: 600; font-style: italic; }
+}
 .row-between { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .th-r { text-align: right; padding: 4px 6px; color: var(--muted); font-weight: 600; }
 .th-l { text-align: left; padding: 4px 6px; color: var(--muted); font-weight: 600; }

@@ -121,6 +121,9 @@ function defaultData() {
     allocationRatios: {},  // { Equities: 40, Bonds: 20, ... } target allocation %
     medicalVisits: [],     // [{ id, title, person, description, date, amount, paymentType, _ts }]
     notes: [],             // [{ id, title, content, _updatedAt }]
+    recipes: [],           // [{ id, title, ingredients, steps, notes, _updatedAt }]
+    shoppingLists: [],     // [{ id, title, items:[{id,text,checked}], _updatedAt }]
+    resumes: [],           // [{ id, title, name, contact, summary, coreSkills, experience:[{id,company,period,projects:[{name,points}]}], education, pdfFont, pdfSize, _updatedAt }]
   };
 }
 
@@ -163,6 +166,9 @@ function loadData() {
     if (!d.allocationRatios) d.allocationRatios = {};
     if (!d.medicalVisits) d.medicalVisits = [];
     if (!d.notes) d.notes = [];
+    if (!d.recipes) d.recipes = [];
+    if (!d.shoppingLists) d.shoppingLists = [];
+    if (!d.resumes) d.resumes = [];
     if (d.expenseCats) d.expenseCats = d.expenseCats.replace(/\bMisc\b/g, 'Income Tax');
     d.expenses.forEach(e => { if (e.cat === 'Misc') e.cat = 'Income Tax'; });
     if (d.budgets && d.budgets['Misc'] !== undefined) {
@@ -406,6 +412,11 @@ document.getElementById('fabBtn').addEventListener('click', () => {
   }
   else if (currentTab === 'analysis') {
     if (currentAnalysisSubTab === 'power') openPowerSheet(null);
+  }
+  else if (currentTab === 'wiki') {
+    if (currentWikiSubTab === 'recipe') openRecipeSheet(null);
+    else if (currentWikiSubTab === 'shopping') openShoppingSheet(null);
+    else if (currentWikiSubTab === 'resume') openResumeSheet(null);
   }
   else if (currentTab === 'tax') {
     if (currentTaxSubTab === 'cpf') openCpfEntrySheet(null);

@@ -20,6 +20,7 @@
 <!-- Tabs -->
 <div class="tabs">
   <button class="tab active" data-tab="events" aria-label="Events"><span class="material-symbols-outlined" aria-hidden="true">event</span></button>
+  <button class="tab" data-tab="wiki" aria-label="Wiki"><span class="material-symbols-outlined" aria-hidden="true">description</span></button>
   <button class="tab" data-tab="expenses" aria-label="Expenses"><span class="material-symbols-outlined" aria-hidden="true">credit_card</span></button>
   <button class="tab" data-tab="analysis" aria-label="Analysis"><span class="material-symbols-outlined" aria-hidden="true">bar_chart</span></button>
   <button class="tab" data-tab="insurance" aria-label="Insurance"><span class="material-symbols-outlined" aria-hidden="true">shield</span></button>
@@ -75,6 +76,18 @@
   <div id="busPanel" style="display:none"></div>
   <div id="busMapPanel" style="display:none"></div>
   <div id="notesPanel" style="display:none"></div>
+</div>
+
+<!-- Wiki Page -->
+<div class="page" id="page-wiki">
+  <div class="wiki-sub-tabs">
+    <button class="wiki-sub-tab active" id="wikiSubTab-recipe" onclick="switchWikiSubTab('recipe')">🍳 Recipe</button>
+    <button class="wiki-sub-tab" id="wikiSubTab-shopping" onclick="switchWikiSubTab('shopping')">📝 Shopping</button>
+    <button class="wiki-sub-tab" id="wikiSubTab-resume" onclick="switchWikiSubTab('resume')">📄 Resume</button>
+  </div>
+  <div id="wikiSubContent-recipe"></div>
+  <div id="wikiSubContent-shopping" style="display:none"></div>
+  <div id="wikiSubContent-resume" style="display:none"></div>
 </div>
 
 <!-- Expenses Page -->
@@ -1057,6 +1070,99 @@
   </form>
 </div>
 
+<!-- Recipe Sheet -->
+<div class="sheet" id="recipeSheet" role="dialog" aria-modal="true" aria-labelledby="recipeSheetTitle">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="recipeSheetTitle">Add Recipe</div>
+  <form id="recipeForm">
+    <input type="hidden" id="recipeId">
+    <div class="field">
+      <label for="recipeTitle">Title</label>
+      <input type="text" id="recipeTitle" placeholder="Recipe name" required>
+    </div>
+    <div class="field">
+      <label for="recipeIngredients">Ingredients <span style="font-weight:400;font-size:.8rem;color:var(--muted)">(one per line)</span></label>
+      <textarea id="recipeIngredients" rows="5" placeholder="2 cups flour&#10;1 egg&#10;…" style="resize:vertical"></textarea>
+    </div>
+    <div class="field">
+      <label for="recipeSteps">Steps <span style="font-weight:400;font-size:.8rem;color:var(--muted)">(one per line)</span></label>
+      <textarea id="recipeSteps" rows="6" placeholder="Preheat oven to 180°C&#10;Mix dry ingredients&#10;…" style="resize:vertical"></textarea>
+    </div>
+    <div class="field">
+      <label for="recipeNotes">Notes</label>
+      <textarea id="recipeNotes" rows="3" placeholder="Tips, variations…" style="resize:vertical"></textarea>
+    </div>
+    <div class="btn-row">
+      <button type="submit" class="btn btn-primary btn-block">Save</button>
+      <button type="button" class="btn btn-secondary" id="recipeDeleteBtn" style="display:none;min-width:60px" onclick="deleteRecipe()">Delete</button>
+    </div>
+  </form>
+</div>
+
+<!-- Shopping List Sheet -->
+<div class="sheet" id="shoppingSheet" role="dialog" aria-modal="true" aria-labelledby="shoppingSheetTitle">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="shoppingSheetTitle">Add Shopping List</div>
+  <form id="shoppingForm">
+    <input type="hidden" id="shoppingId">
+    <div class="field">
+      <label for="shoppingTitle">List title</label>
+      <input type="text" id="shoppingTitle" placeholder="e.g. Weekly Groceries" required>
+    </div>
+    <div class="field">
+      <label>Items</label>
+      <div id="shoppingItemsEditor" style="margin-bottom:8px"></div>
+      <button type="button" class="btn btn-secondary" style="font-size:.82rem;padding:7px 14px" onclick="addShoppingItemRow('',false,null)">+ Add item</button>
+    </div>
+    <div class="btn-row">
+      <button type="submit" class="btn btn-primary btn-block">Save</button>
+      <button type="button" class="btn btn-secondary" id="shoppingDeleteBtn" style="display:none;min-width:60px" onclick="deleteShoppingList()">Delete</button>
+    </div>
+  </form>
+</div>
+
+<!-- Resume Sheet -->
+<div class="sheet" id="resumeSheet" role="dialog" aria-modal="true" aria-labelledby="resumeSheetTitle">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="resumeSheetTitle">Add Resume</div>
+  <form id="resumeForm">
+    <input type="hidden" id="resumeId">
+    <div class="field">
+      <label for="resumeDocTitle">Document title</label>
+      <input type="text" id="resumeDocTitle" placeholder="e.g. Software Engineer Resume" required>
+    </div>
+    <div class="field">
+      <label for="resumeName">Full name</label>
+      <input type="text" id="resumeName" placeholder="Your name">
+    </div>
+    <div class="field">
+      <label for="resumeContact">Contact line</label>
+      <input type="text" id="resumeContact" placeholder="email · phone · LinkedIn">
+    </div>
+    <div class="field">
+      <label for="resumeSummary">Summary</label>
+      <textarea id="resumeSummary" rows="3" placeholder="Brief professional summary…" style="resize:vertical"></textarea>
+    </div>
+    <div class="field">
+      <label for="resumeCoreSkills">Core Skills <span style="font-weight:400;font-size:.8rem;color:var(--muted)">(one per line)</span></label>
+      <textarea id="resumeCoreSkills" rows="4" placeholder="JavaScript&#10;Python&#10;…" style="resize:vertical"></textarea>
+    </div>
+    <div class="field">
+      <label>Experience</label>
+      <div id="resumeExpEditor" style="margin-bottom:8px"></div>
+      <button type="button" class="btn btn-secondary" style="font-size:.82rem;padding:7px 14px" onclick="addResumeExpBlock(null)">+ Add experience</button>
+    </div>
+    <div class="field">
+      <label for="resumeEducation">Education <span style="font-weight:400;font-size:.8rem;color:var(--muted)">(one per line)</span></label>
+      <textarea id="resumeEducation" rows="3" placeholder="B.Sc. Computer Science, NUS, 2018&#10;…" style="resize:vertical"></textarea>
+    </div>
+    <div class="btn-row">
+      <button type="submit" class="btn btn-primary btn-block">Save</button>
+      <button type="button" class="btn btn-secondary" id="resumeDeleteBtn" style="display:none;min-width:60px" onclick="deleteResume()">Delete</button>
+    </div>
+  </form>
+</div>
+
 <!-- Allocation Ratio Sheet -->
 <div class="sheet" id="allocationRatioSheet" role="dialog" aria-modal="true" aria-labelledby="allocationRatioSheet-title">
   <div class="sheet-handle"></div>
@@ -1078,6 +1184,9 @@
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
+<!-- Resume print root — hidden on screen; @media print shows only this -->
+<div id="resumePrintRoot" aria-hidden="true"></div>
+
 <script src="finance-core.js"></script>
 <script src="finance-drive.js"></script>
 <script src="finance-expenses.js"></script>
@@ -1086,6 +1195,7 @@
 <script src="finance-insurance.js"></script>
 <script src="finance-tax.js"></script>
 <script src="finance-ai.js"></script>
+<script src="finance-wiki.js"></script>
 <script src="finance-app.js"></script>
 <script src="finance-gmail.js"></script>
 </body>

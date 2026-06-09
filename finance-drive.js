@@ -408,6 +408,30 @@ function mergeData(local, remote) {
     if (!ex || (n._updatedAt || 0) >= (ex._updatedAt || 0)) notesMap.set(n.id, n);
   });
 
+  // Recipes: union by id, prefer higher _updatedAt, exclude deleted
+  const recipesMap = new Map();
+  [...(remote.recipes || []), ...(local.recipes || [])].forEach(r => {
+    if (deletedIds.has(r.id)) return;
+    const ex = recipesMap.get(r.id);
+    if (!ex || (r._updatedAt || 0) >= (ex._updatedAt || 0)) recipesMap.set(r.id, r);
+  });
+
+  // Shopping lists: union by id, prefer higher _updatedAt, exclude deleted
+  const shoppingMap = new Map();
+  [...(remote.shoppingLists || []), ...(local.shoppingLists || [])].forEach(r => {
+    if (deletedIds.has(r.id)) return;
+    const ex = shoppingMap.get(r.id);
+    if (!ex || (r._updatedAt || 0) >= (ex._updatedAt || 0)) shoppingMap.set(r.id, r);
+  });
+
+  // Resumes: union by id, prefer higher _updatedAt, exclude deleted
+  const resumesMap = new Map();
+  [...(remote.resumes || []), ...(local.resumes || [])].forEach(r => {
+    if (deletedIds.has(r.id)) return;
+    const ex = resumesMap.get(r.id);
+    if (!ex || (r._updatedAt || 0) >= (ex._updatedAt || 0)) resumesMap.set(r.id, r);
+  });
+
   // Custom AI prompt: last-writer-wins via _customAiPromptTs
   const customAiPrompt = (local._customAiPromptTs || 0) >= (remote._customAiPromptTs || 0)
     ? (local.customAiPrompt ?? remote.customAiPrompt ?? null)
@@ -462,6 +486,9 @@ function mergeData(local, remote) {
     _allocationRatiosTs: allocationRatiosTs,
     medicalVisits: [...medicalMap.values()],
     notes: [...notesMap.values()],
+    recipes: [...recipesMap.values()],
+    shoppingLists: [...shoppingMap.values()],
+    resumes: [...resumesMap.values()],
     customAiPrompt,
     _customAiPromptTs: customAiPromptTs,
     retirementSettings,
