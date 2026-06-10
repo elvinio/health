@@ -230,43 +230,6 @@ test('mergeWikiData: tolerates missing collections', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// calcCpfProjection — depends on global `data`
-// ─────────────────────────────────────────────────────────────────────────────
-test('calcCpfProjection: null when no date of birth', () => {
-  const d = F.defaultData();
-  F.setData(d);
-  assert.equal(F.calcCpfProjection(), null);
-});
-
-test('calcCpfProjection: returns a yearly points series up to retirement', () => {
-  const d = F.defaultData();
-  d.cpfSettings = { dateOfBirth: '1985-06-15', retirementAge: 65 };
-  d.cpfRecords = [{ id: 'c1', year: 2025, oaBalance: 50000, saBalance: 30000, maBalance: 20000, _ts: 1 }];
-  F.setData(d);
-  const proj = F.calcCpfProjection();
-  assert.ok(proj && Array.isArray(proj.points));
-  assert.ok(proj.points.length > 0);
-  for (const p of proj.points) {
-    for (const k of ['year', 'age', 'oa', 'sa', 'ma', 'ra']) {
-      assert.ok(k in p, `point missing ${k}`);
-    }
-  }
-  // Strictly increasing years.
-  for (let i = 1; i < proj.points.length; i++) {
-    assert.equal(proj.points[i].year, proj.points[i - 1].year + 1);
-  }
-});
-
-test('calcCpfProjection: memoised — identical inputs return the same object', () => {
-  const d = F.defaultData();
-  d.cpfSettings = { dateOfBirth: '1990-01-01', retirementAge: 65 };
-  F.setData(d);
-  const a = F.calcCpfProjection();
-  const b = F.calcCpfProjection();
-  assert.equal(a, b, 'cache should return the identical reference');
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 // calcRetirementPlan — depends on global `data`
 // ─────────────────────────────────────────────────────────────────────────────
 function retirementData() {

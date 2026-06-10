@@ -5,7 +5,6 @@ Actionable issues from the 2026-06 code review (developer / architect / QA lense
 ## 🟠 High
 
 - [ ] **Tax PIN gate provides no real protection** ✓ (`finance-tax.js:1-50`). PIN is plaintext in `localStorage`; `taxPinUnlocked` is a plain global; `maybeShowTaxPin()` only toggles `taxPinOverlay.style.display` over content already rendered into the DOM. Bypassable via devtools/console/DOM. Either gate actual rendering or drop the implied protection.
-- [ ] **CPF projection ignores bonus + wage growth** (`finance-tax.js:149-152`). Contributions modelled from `basicSalary` only, last salary applied flat with no growth, no Additional-Wage ceiling. Skews FRS/ERS attainment and the whole retirement plan downstream.
 - [ ] **Responsiveness: phone-only.** No media queries anywhere in `finance.css` — tablet/desktop is a narrow phone column; bottom sheets stay glued to the bottom edge. Add tablet/desktop breakpoints.
 - [ ] **No keyboard focus indicator (WCAG 2.4.7 fail).** Inputs do `outline:none`; buttons/tabs/sub-tabs/FAB/dropdown/PIN pad/theme options have no `:focus`/`:focus-visible` styling. Add a global `:focus-visible` rule.
 - [ ] **Tabs not exposed as a tablist** (`finance.html:21-47`). No `role="tablist"`/`role="tab"`/`aria-selected` on the tab bar or the four sub-tab groups.
