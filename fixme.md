@@ -2,16 +2,8 @@
 
 Actionable issues from the 2026-06 code review (developer / architect / QA lenses). Grouped by severity. Check off as resolved. Findings marked **✓** were verified against source during the review.
 
-## 🔴 Critical
-
-- [ ] **Net Worth chart renders broken — curly quotes in HTML/SVG attributes** ✓ (`finance-ai.js:517-523`). Markup uses `”`/`“` (U+201D/U+201C) instead of `"` (`class=”chart-wrap”`, `style=”…”`). Browsers don't parse these as quoted attributes, so classes/styles drop and the chart section of the AI card is malformed. Live via `renderNetWorthChart()` → `renderAiReport()` (`:544`). Introduced by the #122 inline-style refactor. Replace all curly quotes with straight `"`.
-
 ## 🟠 High
 
-- [ ] **History import resurrects deleted records** ✓ (`finance-drive.js:70`). The `historyImportFile` handler replaces `historyData.expenses` wholesale and sets a fresh `_updatedAt` with **no filter against `data._deletedIds`** — a previously-deleted expense in the file comes back and propagates to the partner on next sync. Apply the `_deletedIds` filter on import.
-- [ ] **Asset `units`/`class` sync loses partner edits** ✓ (`finance-drive.js:241-244`). Unlike `name` (which compares `_nameTs`), `units`/`class` use "local-non-null-wins" — a partner's update is silently dropped if your stale value is non-null. Add `_unitsTs`/`_classTs` (or reuse a timestamp comparison).
-- [ ] **Timeless event blanks the whole Events tab** ✓ (`finance-events.js:13`, also `:99-100`, `:711-712`). `eventToMs()` guards `!ev.startTime`, but `fmtEventDateTime()` and the item/calendar renderers dereference `ev.startTime.minute`/`.hour`/`.ampm` unguarded. One all-day event without a `startTime` object throws and `renderAll()`'s full-tab `innerHTML` rebuild blanks the tab. Null-guard all event renderers.
-- [ ] **Inconsistent `data._deletedIds.push` guarding** ✓ (pattern). `deleteNote` (`finance-events.js:962`) and `deleteOngoing` (`finance-insurance.js:359`) guard `if (!data._deletedIds) data._deletedIds = []`; `deleteEvent` (`finance-events.js:838`), `deleteCpfRecord` (`finance-tax.js:721`), `deleteTaxRecord` (`:947`), `deleteInsurance`, `deleteMedical`, `deleteAsset`, `deleteMortgage`, `deleteExpense` do not — they throw on legacy/imported data missing the field. Centralize the guard.
 - [ ] **Tax PIN gate provides no real protection** ✓ (`finance-tax.js:1-50`). PIN is plaintext in `localStorage`; `taxPinUnlocked` is a plain global; `maybeShowTaxPin()` only toggles `taxPinOverlay.style.display` over content already rendered into the DOM. Bypassable via devtools/console/DOM. Either gate actual rendering or drop the implied protection.
 - [ ] **CPF projection ignores bonus + wage growth** (`finance-tax.js:149-152`). Contributions modelled from `basicSalary` only, last salary applied flat with no growth, no Additional-Wage ceiling. Skews FRS/ERS attainment and the whole retirement plan downstream.
 - [ ] **Responsiveness: phone-only.** No media queries anywhere in `finance.css` — tablet/desktop is a narrow phone column; bottom sheets stay glued to the bottom edge. Add tablet/desktop breakpoints.
