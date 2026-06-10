@@ -10,15 +10,11 @@ const CONFIG = {
   HISTORY_CUTOFF: '2015-01',   // 10-year history floor — never ingest older than this
 };
 
-// API key stored in Script Properties (not hardcoded).
-// Run setApiKey('YOUR_KEY') once in the Apps Script editor console, then never touch it again.
+// API key — set it once in the Apps Script UI, never in source:
+//   Apps Script editor → Project Settings (⚙) → Script Properties → Add property
+//   Property name : DATA_GOV_API_KEY
+//   Value         : <your key>
 // Get a free key at https://data.gov.sg (required since Dec 2025 for rate-limited access).
-function setApiKey(key) {
-  if (!key) throw new Error('Pass your data.gov.sg API key as the argument: setApiKey("your-key-here")');
-  PropertiesService.getScriptProperties().setProperty('DATA_GOV_API_KEY', key);
-  Logger.log('API key saved to Script Properties.');
-}
-
 function getApiKey() {
   return PropertiesService.getScriptProperties().getProperty('DATA_GOV_API_KEY') || '';
 }
