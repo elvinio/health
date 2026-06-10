@@ -208,75 +208,70 @@ async function getAccessToken(clientId) {
 }
 
 // ── Merge logic ───────────────────────────────────────────────────────────────
+// Union-by-id merge of two arrays; local wins on ties (>=).
+// Pass deletedIds to filter tombstoned records.
+function unionById(localArr, remoteArr, tsField, deletedIds) {
+  const map = new Map();
+  [...(remoteArr || []), ...(localArr || [])].forEach(item => {
+    if (deletedIds && deletedIds.has(item.id)) return;
+    const ex = map.get(item.id);
+    if (!ex || (item[tsField] || 0) >= (ex[tsField] || 0)) map.set(item.id, item);
+  });
+  return [...map.values()];
+}
+
+// Last-writer-wins: pick the field value from whichever side has the newer tsField.
+// Uses ?? so explicit null/'' values from the winning side are preserved.
+function lww(local, remote, field, tsField, fallback) {
+  return (local[tsField] || 0) >= (remote[tsField] || 0)
+    ? (local[field] ?? remote[field] ?? fallback)
+    : (remote[field] ?? local[field] ?? fallback);
+}
+
+function lwwTs(local, remote, tsField) {
+  return Math.max(local[tsField] || 0, remote[tsField] || 0);
+}
+
 function mergeHistoryData(localH, remoteH) {
-  const expMap = new Map();
-  [...(remoteH.expenses || []), ...(localH.expenses || [])].forEach(e => {
-    const existing = expMap.get(e.id);
-    if (!existing || (e._ts || 0) > (existing._ts || 0)) expMap.set(e.id, e);
-  });
-  const pwrMap = new Map();
-  [...(remoteH.powerRecords || []), ...(localH.powerRecords || [])].forEach(r => {
-    const existing = pwrMap.get(r.id);
-    if (!existing || (r._ts || 0) > (existing._ts || 0)) pwrMap.set(r.id, r);
-  });
-  return { expenses: [...expMap.values()], powerRecords: [...pwrMap.values()] };
+  return {
+    expenses:     unionById(localH.expenses,     remoteH.expenses,     '_ts'),
+    powerRecords: unionById(localH.powerRecords, remoteH.powerRecords, '_ts'),
+  };
 }
 
 // Union-by-id merge for the wiki file's collections, preferring the higher _updatedAt.
 // Does not carry _updatedAt — the caller stamps it before uploading (like mergeHistoryData).
 function mergeWikiData(localW, remoteW) {
-  const mergeColl = (name) => {
-    const map = new Map();
-    [...((remoteW && remoteW[name]) || []), ...((localW && localW[name]) || [])].forEach(r => {
-      const ex = map.get(r.id);
-      if (!ex || (r._updatedAt || 0) >= (ex._updatedAt || 0)) map.set(r.id, r);
-    });
-    return [...map.values()];
-  };
+  const l = localW || {}, r = remoteW || {};
   return {
-    recipes: mergeColl('recipes'),
-    shoppingLists: mergeColl('shoppingLists'),
-    resumes: mergeColl('resumes'),
+    recipes:       unionById(l.recipes,       r.recipes,       '_updatedAt'),
+    shoppingLists: unionById(l.shoppingLists, r.shoppingLists, '_updatedAt'),
+    resumes:       unionById(l.resumes,       r.resumes,       '_updatedAt'),
   };
 }
 
 function mergeData(local, remote) {
   const deletedIds = new Set([...(local._deletedIds || []), ...(remote._deletedIds || [])]);
 
-  // Expenses: union by id, prefer higher _ts for same id, exclude deleted
-  const expMap = new Map();
-  [...(remote.expenses || []), ...(local.expenses || [])].forEach(e => {
-    if (deletedIds.has(e.id)) return;
-    const existing = expMap.get(e.id);
-    if (!existing || (e._ts || 0) > (existing._ts || 0)) expMap.set(e.id, e);
-  });
-
   // Assets: union by id, merge history by _ts, exclude deleted
+  const localAssetMap = new Map((local.assets || []).map(a => [a.id, a]));
+  const remoteAssetMap = new Map((remote.assets || []).map(a => [a.id, a]));
   const assetMap = new Map();
   [...(remote.assets || []), ...(local.assets || [])].forEach(a => {
     if (deletedIds.has(a.id)) return;
-    if (!assetMap.has(a.id)) {
-      assetMap.set(a.id, { ...a, history: [] });
-    }
+    if (!assetMap.has(a.id)) assetMap.set(a.id, { ...a, history: [] });
     assetMap.get(a.id).history.push(...(a.history || []));
     // keep latest name/class/units via LWW timestamp (_metaTs covers all three; fall back to _nameTs for pre-_metaTs records)
-    const existing = assetMap.get(a.id);
-    const localAsset = local.assets && local.assets.find(x => x.id === a.id);
-    const remoteAsset = remote.assets && remote.assets.find(x => x.id === a.id);
-    if (localAsset && remoteAsset) {
-      const src = (localAsset._metaTs || localAsset._nameTs || 0) >= (remoteAsset._metaTs || remoteAsset._nameTs || 0)
-        ? localAsset : remoteAsset;
-      existing.name = src.name;
-      existing.class = src.class;
-      existing.units = src.units;
-    } else {
-      const src = localAsset || remoteAsset || a;
-      existing.name = src.name;
-      existing.class = src.class;
-      existing.units = src.units;
-    }
+    const merged = assetMap.get(a.id);
+    const la = localAssetMap.get(a.id);
+    const ra = remoteAssetMap.get(a.id);
+    const src = la && ra
+      ? ((la._metaTs || la._nameTs || 0) >= (ra._metaTs || ra._nameTs || 0) ? la : ra)
+      : (la || ra || a);
+    merged.name = src.name;
+    merged.class = src.class;
+    merged.units = src.units;
   });
-  // Deduplicate history by _ts within each asset, sort ascending
   assetMap.forEach(a => {
     const seen = new Set();
     a.history = a.history
@@ -284,97 +279,11 @@ function mergeData(local, remote) {
       .sort((a, b) => (a._ts || 0) - (b._ts || 0));
   });
 
-  // Accounts: by id, prefer higher _updatedAt
-  const accMap = new Map();
-  [...(remote.accounts || []), ...(local.accounts || [])].forEach(a => {
-    const existing = accMap.get(a.id);
-    if (!existing || (a._updatedAt || 0) >= (existing._updatedAt || 0)) accMap.set(a.id, a);
-  });
-
-  const eventMap = new Map();
-  [...(remote.events || []), ...(local.events || [])].forEach(ev => {
-    if (deletedIds.has(ev.id)) return;
-    const existing = eventMap.get(ev.id);
-    if (!existing || (ev._ts || 0) > (existing._ts || 0)) eventMap.set(ev.id, ev);
-  });
-
-  const taxMap = new Map();
-  [...(remote.taxRecords || []), ...(local.taxRecords || [])].forEach(r => {
-    if (deletedIds.has(r.id)) return;
-    const existing = taxMap.get(r.id);
-    if (!existing || (r._ts || 0) > (existing._ts || 0)) taxMap.set(r.id, r);
-  });
-
-  // termDates: prefer whichever side was saved most recently
-  const termDates = (local._termDatesTs || 0) >= (remote._termDatesTs || 0)
-    ? (local.termDates || remote.termDates || {})
-    : (remote.termDates || local.termDates || {});
-  const termDatesTs = Math.max(local._termDatesTs || 0, remote._termDatesTs || 0);
-
-  // eventTags: prefer whichever side was saved most recently
-  const eventTags = (local._eventTagsTs || 0) >= (remote._eventTagsTs || 0)
-    ? (local.eventTags || remote.eventTags || [])
-    : (remote.eventTags || local.eventTags || []);
-  const eventTagsTs = Math.max(local._eventTagsTs || 0, remote._eventTagsTs || 0);
-
-  // expenseCats: prefer whichever side was saved most recently
-  const expenseCats = (local._expenseCatsTs || 0) >= (remote._expenseCatsTs || 0)
-    ? (local.expenseCats ?? remote.expenseCats ?? '')
-    : (remote.expenseCats ?? local.expenseCats ?? '');
-  const expenseCatsTs = Math.max(local._expenseCatsTs || 0, remote._expenseCatsTs || 0);
-
-  // emailParsers: prefer whichever side was saved most recently
-  const emailParsers = (local._emailParsersTs || 0) >= (remote._emailParsersTs || 0)
-    ? (local.emailParsers || remote.emailParsers || null)
-    : (remote.emailParsers || local.emailParsers || null);
-  const emailParsersTs = Math.max(local._emailParsersTs || 0, remote._emailParsersTs || 0);
-
-  // emailCatMap + emailCatDefault: prefer whichever side was saved most recently
-  const emailCatMap = (local._emailCatMapTs || 0) >= (remote._emailCatMapTs || 0)
-    ? (local.emailCatMap || remote.emailCatMap || [])
-    : (remote.emailCatMap || local.emailCatMap || []);
-  const emailCatDefault = (local._emailCatMapTs || 0) >= (remote._emailCatMapTs || 0)
-    ? (local.emailCatDefault || remote.emailCatDefault || 'Other')
-    : (remote.emailCatDefault || local.emailCatDefault || 'Other');
-  const emailCatMapTs = Math.max(local._emailCatMapTs || 0, remote._emailCatMapTs || 0);
-
-  // CPF records: union by id, prefer higher _ts, exclude deleted
-  const cpfMap = new Map();
-  [...(remote.cpfRecords || []), ...(local.cpfRecords || [])].forEach(r => {
-    if (deletedIds.has(r.id)) return;
-    const ex = cpfMap.get(r.id);
-    if (!ex || (r._ts || 0) > (ex._ts || 0)) cpfMap.set(r.id, r);
-  });
-
-  // CPF settings: last-writer-wins via _cpfSettingsTs
-  const cpfSettings = (local._cpfSettingsTs || 0) >= (remote._cpfSettingsTs || 0)
-    ? (local.cpfSettings || remote.cpfSettings || { dateOfBirth: '' })
-    : (remote.cpfSettings || local.cpfSettings || { dateOfBirth: '' });
-  const cpfSettingsTs = Math.max(local._cpfSettingsTs || 0, remote._cpfSettingsTs || 0);
-
-  // Insurances: union by id, prefer higher _updatedAt, exclude deleted
-  const insMap = new Map();
-  [...(remote.insurances || []), ...(local.insurances || [])].forEach(i => {
-    if (deletedIds.has(i.id)) return;
-    const existing = insMap.get(i.id);
-    if (!existing || (i._updatedAt || 0) >= (existing._updatedAt || 0)) insMap.set(i.id, i);
-  });
-
-  // OngoingExpenses: union by id, prefer higher _updatedAt
-  const ongoingMap = new Map();
-  [...(remote.ongoingExpenses || []), ...(local.ongoingExpenses || [])].forEach(o => {
-    if (deletedIds.has(o.id)) return;
-    const existing = ongoingMap.get(o.id);
-    if (!existing || (o._updatedAt || 0) >= (existing._updatedAt || 0)) ongoingMap.set(o.id, o);
-  });
-
   // Mortgages: union by id, prefer higher _updatedAt, merge entries, exclude deleted
   const mortgageMap = new Map();
   [...(remote.mortgages || []), ...(local.mortgages || [])].forEach(m => {
     if (deletedIds.has(m.id)) return;
-    if (!mortgageMap.has(m.id)) {
-      mortgageMap.set(m.id, { ...m, entries: [] });
-    }
+    if (!mortgageMap.has(m.id)) mortgageMap.set(m.id, { ...m, entries: [] });
     const existing = mortgageMap.get(m.id);
     if ((m._updatedAt || 0) >= (existing._updatedAt || 0)) {
       const entries = existing.entries;
@@ -395,120 +304,57 @@ function mergeData(local, remote) {
     const ex = nwMap.get(s.key);
     if (!ex || (s._ts || 0) > (ex._ts || 0)) nwMap.set(s.key, s);
   });
-  const netWorthSnapshots = [...nwMap.values()].sort((a, b) => a.key.localeCompare(b.key));
 
-  // AI report: last-writer-wins via _aiReportTs
-  const aiReport = (local._aiReportTs || 0) >= (remote._aiReportTs || 0)
-    ? (local.aiReport ?? remote.aiReport ?? null)
-    : (remote.aiReport ?? local.aiReport ?? null);
-  const aiReportTs = Math.max(local._aiReportTs || 0, remote._aiReportTs || 0);
-
-  // Dependents: union by id, prefer higher _ts, exclude deleted
-  const depMap = new Map();
-  [...(remote.dependents || []), ...(local.dependents || [])].forEach(d => {
-    if (deletedIds.has(d.id)) return;
-    const ex = depMap.get(d.id);
-    if (!ex || (d._ts || 0) > (ex._ts || 0)) depMap.set(d.id, d);
-  });
-  const dependents = [...depMap.values()];
-  const dependentsTs = Math.max(local._dependentsTs || 0, remote._dependentsTs || 0);
-
-  // Allocation ratios: last-writer-wins via _allocationRatiosTs
-  const allocationRatios = (local._allocationRatiosTs || 0) >= (remote._allocationRatiosTs || 0)
-    ? (local.allocationRatios || remote.allocationRatios || {})
-    : (remote.allocationRatios || local.allocationRatios || {});
-  const allocationRatiosTs = Math.max(local._allocationRatiosTs || 0, remote._allocationRatiosTs || 0);
-
-  // Medical visits: union by id, prefer higher _ts, exclude deleted
-  const medicalMap = new Map();
-  [...(remote.medicalVisits || []), ...(local.medicalVisits || [])].forEach(v => {
-    if (deletedIds.has(v.id)) return;
-    const ex = medicalMap.get(v.id);
-    if (!ex || (v._ts || 0) > (ex._ts || 0)) medicalMap.set(v.id, v);
-  });
-
-  // Notes: union by id, prefer higher _updatedAt, exclude deleted
-  const notesMap = new Map();
-  [...(remote.notes || []), ...(local.notes || [])].forEach(n => {
-    if (deletedIds.has(n.id)) return;
-    const ex = notesMap.get(n.id);
-    if (!ex || (n._updatedAt || 0) >= (ex._updatedAt || 0)) notesMap.set(n.id, n);
-  });
-
-  // Wiki collections (recipes/shoppingLists/resumes) live in a separate Drive file
-  // now (see mergeWikiData / driveSync). Here we only carry the pointer + timestamp:
-  // prefer a non-empty file ID (lets a partner auto-adopt the ID from the main file),
-  // and keep the local wiki timestamp — driveSync overwrites wikiUpdatedAt after it
-  // merges/uploads the wiki file.
-  const wikiFileId = local.wikiFileId || remote.wikiFileId || null;
-  // History file ID also lives in the main file now — prefer a non-empty ID so a
-  // partner adopts it from whichever side has it. driveSync overrides after upload.
-  const historyFileId = local.historyFileId || remote.historyFileId || null;
-
-  // Custom AI prompt: last-writer-wins via _customAiPromptTs
-  const customAiPrompt = (local._customAiPromptTs || 0) >= (remote._customAiPromptTs || 0)
-    ? (local.customAiPrompt ?? remote.customAiPrompt ?? null)
-    : (remote.customAiPrompt ?? local.customAiPrompt ?? null);
-  const customAiPromptTs = Math.max(local._customAiPromptTs || 0, remote._customAiPromptTs || 0);
-
-  // retirementSettings: last-writer-wins via _retirementSettingsTs; fill in field defaults
   const RS_DEFAULTS = { inflationRate: 2.5, investmentRate: 5.0, retirementAge: 62, deathAge: 85, monthlyExpenses: 3000, annualSavings: 150000, safeWithdrawalRate: 4.0 };
-  const retirementSettingsWinner = (local._retirementSettingsTs || 0) >= (remote._retirementSettingsTs || 0)
-    ? (local.retirementSettings || remote.retirementSettings)
-    : (remote.retirementSettings || local.retirementSettings);
-  const retirementSettings = { ...RS_DEFAULTS, ...(retirementSettingsWinner || {}) };
-  const retirementSettingsTs = Math.max(local._retirementSettingsTs || 0, remote._retirementSettingsTs || 0);
-
-  // busProxyUrl + busProxyToken: last-writer-wins via _busProxyTs
-  const busProxyWinner = (local._busProxyTs || 0) >= (remote._busProxyTs || 0) ? local : remote;
-  const busProxyUrl = busProxyWinner.busProxyUrl || '';
-  const busProxyToken = busProxyWinner.busProxyToken || '';
-  const busProxyTs = Math.max(local._busProxyTs || 0, remote._busProxyTs || 0);
 
   const merged = {
-    accounts: [...accMap.values()],
-    expenses: [...expMap.values()],
-    assets: [...assetMap.values()],
-    events: [...eventMap.values()],
-    taxRecords: [...taxMap.values()],
-    cpfRecords: [...cpfMap.values()],
-    cpfSettings,
-    _cpfSettingsTs: cpfSettingsTs,
-    insurances: [...insMap.values()],
-    ongoingExpenses: [...ongoingMap.values()],
-    mortgages: [...mortgageMap.values()],
-    _deletedIds: [...deletedIds],
-    budgets: { ...(remote.budgets || {}), ...(local.budgets || {}) },
-    termDates,
-    _termDatesTs: termDatesTs,
-    eventTags,
-    _eventTagsTs: eventTagsTs,
-    expenseCats,
-    _expenseCatsTs: expenseCatsTs,
-    emailParsers,
-    _emailParsersTs: emailParsersTs,
-    emailCatMap,
-    emailCatDefault,
-    _emailCatMapTs: emailCatMapTs,
-    netWorthSnapshots,
-    aiReport,
-    _aiReportTs: aiReportTs,
-    dependents,
-    _dependentsTs: dependentsTs,
-    allocationRatios,
-    _allocationRatiosTs: allocationRatiosTs,
-    medicalVisits: [...medicalMap.values()],
-    notes: [...notesMap.values()],
-    wikiFileId,
+    accounts:        unionById(local.accounts,       remote.accounts,       '_updatedAt'),
+    expenses:        unionById(local.expenses,        remote.expenses,        '_ts',        deletedIds),
+    assets:          [...assetMap.values()],
+    events:          unionById(local.events,          remote.events,          '_ts',        deletedIds),
+    taxRecords:      unionById(local.taxRecords,      remote.taxRecords,      '_ts',        deletedIds),
+    cpfRecords:      unionById(local.cpfRecords,      remote.cpfRecords,      '_ts',        deletedIds),
+    insurances:      unionById(local.insurances,      remote.insurances,      '_updatedAt', deletedIds),
+    ongoingExpenses: unionById(local.ongoingExpenses, remote.ongoingExpenses, '_updatedAt', deletedIds),
+    dependents:      unionById(local.dependents,      remote.dependents,      '_ts',        deletedIds),
+    medicalVisits:   unionById(local.medicalVisits,   remote.medicalVisits,   '_ts',        deletedIds),
+    notes:           unionById(local.notes,           remote.notes,           '_updatedAt', deletedIds),
+    mortgages:       [...mortgageMap.values()],
+    _deletedIds:     [...deletedIds],
+    budgets:         { ...(remote.budgets || {}), ...(local.budgets || {}) },
+    netWorthSnapshots: [...nwMap.values()].sort((a, b) => a.key.localeCompare(b.key)),
+
+    cpfSettings:           lww(local, remote, 'cpfSettings',        '_cpfSettingsTs',       { dateOfBirth: '' }),
+    _cpfSettingsTs:        lwwTs(local, remote, '_cpfSettingsTs'),
+    termDates:             lww(local, remote, 'termDates',          '_termDatesTs',          {}),
+    _termDatesTs:          lwwTs(local, remote, '_termDatesTs'),
+    eventTags:             lww(local, remote, 'eventTags',          '_eventTagsTs',          []),
+    _eventTagsTs:          lwwTs(local, remote, '_eventTagsTs'),
+    expenseCats:           lww(local, remote, 'expenseCats',        '_expenseCatsTs',        ''),
+    _expenseCatsTs:        lwwTs(local, remote, '_expenseCatsTs'),
+    emailParsers:          lww(local, remote, 'emailParsers',       '_emailParsersTs',       null),
+    _emailParsersTs:       lwwTs(local, remote, '_emailParsersTs'),
+    emailCatMap:           lww(local, remote, 'emailCatMap',        '_emailCatMapTs',        []),
+    emailCatDefault:       lww(local, remote, 'emailCatDefault',    '_emailCatMapTs',        'Other'),
+    _emailCatMapTs:        lwwTs(local, remote, '_emailCatMapTs'),
+    aiReport:              lww(local, remote, 'aiReport',           '_aiReportTs',           null),
+    _aiReportTs:           lwwTs(local, remote, '_aiReportTs'),
+    allocationRatios:      lww(local, remote, 'allocationRatios',   '_allocationRatiosTs',   {}),
+    _allocationRatiosTs:   lwwTs(local, remote, '_allocationRatiosTs'),
+    customAiPrompt:        lww(local, remote, 'customAiPrompt',     '_customAiPromptTs',     null),
+    _customAiPromptTs:     lwwTs(local, remote, '_customAiPromptTs'),
+    retirementSettings:    { ...RS_DEFAULTS, ...lww(local, remote, 'retirementSettings', '_retirementSettingsTs', {}) },
+    _retirementSettingsTs: lwwTs(local, remote, '_retirementSettingsTs'),
+    busProxyUrl:           lww(local, remote, 'busProxyUrl',        '_busProxyTs',           ''),
+    busProxyToken:         lww(local, remote, 'busProxyToken',      '_busProxyTs',           ''),
+    _busProxyTs:           lwwTs(local, remote, '_busProxyTs'),
+    _dependentsTs:         lwwTs(local, remote, '_dependentsTs'),
+
+    // Wiki/history file IDs live in the main file so partners adopt them on first sync.
+    // driveSync overwrites wikiUpdatedAt after it merges/uploads the wiki file.
+    wikiFileId:    local.wikiFileId || remote.wikiFileId || null,
     wikiUpdatedAt: local.wikiUpdatedAt || 0,
-    historyFileId,
-    customAiPrompt,
-    _customAiPromptTs: customAiPromptTs,
-    retirementSettings,
-    _retirementSettingsTs: retirementSettingsTs,
-    busProxyUrl,
-    busProxyToken,
-    _busProxyTs: busProxyTs,
+    historyFileId: local.historyFileId || remote.historyFileId || null,
   };
   recalcBalances(merged, merged.expenses);
   recalcMonthlyAgg(merged, merged.expenses);

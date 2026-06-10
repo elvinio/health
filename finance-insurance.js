@@ -256,11 +256,6 @@ function deleteMedical() {
 }
 
 // ── Ongoing Expenses ──────────────────────────────────────────────────────────
-function openOngoingListSheet() {
-  renderOngoingList();
-  openSheet('ongoingListSheet');
-}
-
 function renderOngoingListInto(elId) {
   const el = document.getElementById(elId);
   if (!el) return;
@@ -290,7 +285,6 @@ function renderOngoingListInto(elId) {
     </div>`;
   }).join('');
 }
-function renderOngoingList() { renderOngoingListInto('ongoingList'); }
 function renderOngoingListInline() { renderOngoingListInto('ongoingListInline'); }
 
 function openOngoingFormSheet(id) {
@@ -350,7 +344,7 @@ document.getElementById('ongoingForm').addEventListener('submit', e => {
   saveData(data);
   closeSheet();
   showToast(id ? 'Updated' : 'Added');
-  if (currentExpSubTab === 'recurring') { renderOngoingListInline(); } else { setTimeout(() => openOngoingListSheet(), 350); }
+  renderOngoingListInline();
 });
 
 function deleteOngoing() {
@@ -363,7 +357,7 @@ function deleteOngoing() {
   saveData(data);
   closeSheet();
   showToast('Deleted');
-  if (currentExpSubTab === 'recurring') { renderOngoingListInline(); } else { setTimeout(() => openOngoingListSheet(), 350); }
+  renderOngoingListInline();
 }
 
 function getOngoingDueInfo(o, refDate) {

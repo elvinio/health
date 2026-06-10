@@ -138,16 +138,6 @@
   .acc-dot.acc1 { background: #5b8af7; }
   .acc-dot.acc2 { background: #f472b6; }
 
-  /* ── Investment ── */
-  .portfolio-banner {
-    background: var(--primary); color: #fff;
-    border-radius: var(--radius); padding: 18px 20px; margin-bottom: 16px;
-    box-shadow: var(--shadow);
-  }
-  .portfolio-label { font-size: .8rem; opacity: .75; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
-  .portfolio-total { font-size: 2rem; font-weight: 800; margin-top: 2px; }
-  .portfolio-change { font-size: .85rem; margin-top: 4px; opacity: .85; }
-
   .asset-card {
     background: var(--card); border-radius: var(--radius);
     box-shadow: var(--shadow); padding: 10px 14px;

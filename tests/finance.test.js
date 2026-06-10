@@ -230,6 +230,197 @@ test('mergeWikiData: tolerates missing collections', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// mergeData — unionById for all remaining collections
+// ─────────────────────────────────────────────────────────────────────────────
+test('mergeData: events/taxRecords/cpfRecords/dependents/medicalVisits union-by-id via _ts', () => {
+  const local = baseSide({
+    events:        [{ id: 'ev1', title: 'Old', _ts: 1 }],
+    taxRecords:    [{ id: 'tx1', year: 2023, _ts: 1 }],
+    cpfRecords:    [{ id: 'cf1', year: 2023, _ts: 1 }],
+    dependents:    [{ id: 'dp1', name: 'Old', _ts: 1 }],
+    medicalVisits: [{ id: 'mv1', title: 'Old', _ts: 1 }],
+  });
+  const remote = baseSide({
+    events:        [{ id: 'ev1', title: 'New', _ts: 2 }, { id: 'ev2', title: 'Extra', _ts: 1 }],
+    taxRecords:    [{ id: 'tx1', year: 2024, _ts: 2 }],
+    cpfRecords:    [{ id: 'cf1', year: 2024, _ts: 2 }],
+    dependents:    [{ id: 'dp1', name: 'New', _ts: 2 }],
+    medicalVisits: [{ id: 'mv1', title: 'New', _ts: 2 }],
+  });
+  const m = F.mergeData(local, remote);
+  assert.equal(m.events.find(e => e.id === 'ev1').title, 'New', 'newer _ts wins');
+  assert.equal(m.events.length, 2, 'remote-only event kept');
+  assert.equal(m.taxRecords.find(r => r.id === 'tx1').year, 2024);
+  assert.equal(m.cpfRecords.find(r => r.id === 'cf1').year, 2024);
+  assert.equal(m.dependents.find(d => d.id === 'dp1').name, 'New');
+  assert.equal(m.medicalVisits.find(v => v.id === 'mv1').title, 'New');
+});
+
+test('mergeData: insurances/ongoingExpenses/notes union-by-id via _updatedAt', () => {
+  const local = baseSide({
+    insurances:      [{ id: 'in1', name: 'Old', _updatedAt: 1 }],
+    ongoingExpenses: [{ id: 'og1', name: 'Old', _updatedAt: 1 }],
+    notes:           [{ id: 'nt1', title: 'Old', _updatedAt: 1 }],
+  });
+  const remote = baseSide({
+    insurances:      [{ id: 'in1', name: 'New', _updatedAt: 2 }],
+    ongoingExpenses: [{ id: 'og1', name: 'New', _updatedAt: 2 }],
+    notes:           [{ id: 'nt1', title: 'New', _updatedAt: 2 }],
+  });
+  const m = F.mergeData(local, remote);
+  assert.equal(m.insurances.find(i => i.id === 'in1').name, 'New');
+  assert.equal(m.ongoingExpenses.find(o => o.id === 'og1').name, 'New');
+  assert.equal(m.notes.find(n => n.id === 'nt1').title, 'New');
+});
+
+test('mergeData: unionById local wins on equal timestamps', () => {
+  const local  = baseSide({ events: [{ id: 'ev1', title: 'Local', _ts: 5 }] });
+  const remote = baseSide({ events: [{ id: 'ev1', title: 'Remote', _ts: 5 }] });
+  const m = F.mergeData(local, remote);
+  assert.equal(m.events[0].title, 'Local');
+});
+
+test('mergeData: _deletedIds filters all unionById collections', () => {
+  const local = baseSide({
+    events:          [{ id: 'ev1', _ts: 1 }],
+    insurances:      [{ id: 'in1', _updatedAt: 1 }],
+    ongoingExpenses: [{ id: 'og1', _updatedAt: 1 }],
+    _deletedIds: ['ev1', 'in1', 'og1'],
+  });
+  const remote = baseSide({
+    events:          [{ id: 'ev1', _ts: 9 }],
+    insurances:      [{ id: 'in1', _updatedAt: 9 }],
+    ongoingExpenses: [{ id: 'og1', _updatedAt: 9 }],
+  });
+  const m = F.mergeData(local, remote);
+  assert.equal(m.events.length, 0);
+  assert.equal(m.insurances.length, 0);
+  assert.equal(m.ongoingExpenses.length, 0);
+  assert.ok(m._deletedIds.includes('ev1'));
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// mergeData — lww scalar fields
+// ─────────────────────────────────────────────────────────────────────────────
+test('mergeData: lww — local wins when timestamp is newer', () => {
+  const local  = baseSide({ cpfSettings: { dateOfBirth: '1990-01-01' }, _cpfSettingsTs: 10 });
+  const remote = baseSide({ cpfSettings: { dateOfBirth: '1985-01-01' }, _cpfSettingsTs: 5 });
+  const m = F.mergeData(local, remote);
+  assert.equal(m.cpfSettings.dateOfBirth, '1990-01-01');
+  assert.equal(m._cpfSettingsTs, 10);
+});
+
+test('mergeData: lww — remote wins when timestamp is newer', () => {
+  const local  = baseSide({ cpfSettings: { dateOfBirth: '1990-01-01' }, _cpfSettingsTs: 3 });
+  const remote = baseSide({ cpfSettings: { dateOfBirth: '1985-01-01' }, _cpfSettingsTs: 7 });
+  const m = F.mergeData(local, remote);
+  assert.equal(m.cpfSettings.dateOfBirth, '1985-01-01');
+  assert.equal(m._cpfSettingsTs, 7);
+});
+
+test('mergeData: lww — local wins on equal timestamps', () => {
+  const local  = baseSide({ expenseCats: 'Local',  _expenseCatsTs: 5 });
+  const remote = baseSide({ expenseCats: 'Remote', _expenseCatsTs: 5 });
+  const m = F.mergeData(local, remote);
+  assert.equal(m.expenseCats, 'Local');
+});
+
+test('mergeData: lww — explicit empty string from winning side is preserved', () => {
+  // Uses ?? internally; || would incorrectly fall through to the remote value.
+  const local  = baseSide({ expenseCats: '', _expenseCatsTs: 5 });
+  const remote = baseSide({ expenseCats: 'Grocery,Travel', _expenseCatsTs: 3 });
+  const m = F.mergeData(local, remote);
+  assert.equal(m.expenseCats, '');
+});
+
+test('mergeData: lww — emailCatMap and emailCatDefault share _emailCatMapTs', () => {
+  const local  = baseSide({ emailCatMap: [{ match: 'a', value: 'Grocery' }], emailCatDefault: 'Travel',  _emailCatMapTs: 1 });
+  const remote = baseSide({ emailCatMap: [],                                  emailCatDefault: 'Other',   _emailCatMapTs: 5 });
+  const m = F.mergeData(local, remote);
+  assert.deepEqual(plain(m.emailCatMap), []);
+  assert.equal(m.emailCatDefault, 'Other');
+  assert.equal(m._emailCatMapTs, 5);
+});
+
+test('mergeData: lww — busProxyUrl and busProxyToken share _busProxyTs', () => {
+  const local  = baseSide({ busProxyUrl: 'http://local',  busProxyToken: 'tok-l', _busProxyTs: 10 });
+  const remote = baseSide({ busProxyUrl: 'http://remote', busProxyToken: 'tok-r', _busProxyTs: 5 });
+  const m = F.mergeData(local, remote);
+  assert.equal(m.busProxyUrl, 'http://local');
+  assert.equal(m.busProxyToken, 'tok-l');
+  assert.equal(m._busProxyTs, 10);
+});
+
+test('mergeData: lww — retirementSettings merges winner with RS_DEFAULTS', () => {
+  const local = baseSide({ retirementSettings: { retirementAge: 60 }, _retirementSettingsTs: 5 });
+  const remote = baseSide();
+  const m = F.mergeData(local, remote);
+  assert.equal(m.retirementSettings.retirementAge, 60, 'local value preserved');
+  assert.equal(m.retirementSettings.inflationRate, 2.5, 'default filled in for missing key');
+});
+
+test('mergeData: lww — all timestamp fields carried into merged object', () => {
+  const ts = { _cpfSettingsTs: 1, _termDatesTs: 2, _eventTagsTs: 3, _expenseCatsTs: 4,
+               _emailParsersTs: 5, _emailCatMapTs: 6, _aiReportTs: 7, _allocationRatiosTs: 8,
+               _customAiPromptTs: 9, _retirementSettingsTs: 10, _busProxyTs: 11, _dependentsTs: 12 };
+  const m = F.mergeData(baseSide(ts), baseSide());
+  for (const [k, v] of Object.entries(ts)) {
+    assert.equal(m[k], v, `${k} should be ${v}`);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// mergeData — mortgage entry merging
+// ─────────────────────────────────────────────────────────────────────────────
+test('mergeData: mortgages merge entries from both sides, deduplicating by id', () => {
+  const local = baseSide({ mortgages: [{ id: 'm1', name: 'Home', _updatedAt: 2,
+    entries: [{ id: 'e1', type: 'payment', amount: 100, _ts: 1 }] }] });
+  const remote = baseSide({ mortgages: [{ id: 'm1', name: 'Home', _updatedAt: 1,
+    entries: [{ id: 'e1', type: 'payment', amount: 100, _ts: 1 },
+              { id: 'e2', type: 'interest', amount: 50, _ts: 2 }] }] });
+  const m = F.mergeData(local, remote);
+  const mort = m.mortgages.find(x => x.id === 'm1');
+  assert.equal(mort.entries.length, 2, 'duplicate entry collapsed, unique entry from remote kept');
+  assert.ok(mort.entries.find(e => e.id === 'e2'));
+});
+
+test('mergeData: mortgage top-level fields prefer higher _updatedAt', () => {
+  const local  = baseSide({ mortgages: [{ id: 'm1', name: 'Local Name',  _updatedAt: 5, entries: [] }] });
+  const remote = baseSide({ mortgages: [{ id: 'm1', name: 'Remote Name', _updatedAt: 3, entries: [] }] });
+  const m = F.mergeData(local, remote);
+  assert.equal(m.mortgages[0].name, 'Local Name');
+});
+
+test('mergeData: mortgage deleted entry is excluded', () => {
+  const local = baseSide({
+    mortgages:   [{ id: 'm1', _updatedAt: 1, entries: [{ id: 'e1', _ts: 1 }, { id: 'e2', _ts: 2 }] }],
+    _deletedIds: ['e1'],
+  });
+  const m = F.mergeData(local, baseSide());
+  const mort = m.mortgages[0];
+  assert.equal(mort.entries.find(e => e.id === 'e1'), undefined, 'tombstoned entry removed');
+  assert.ok(mort.entries.find(e => e.id === 'e2'));
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// mergeData — file ID propagation
+// ─────────────────────────────────────────────────────────────────────────────
+test('mergeData: wikiFileId and historyFileId prefer non-empty from either side', () => {
+  const local  = baseSide({ wikiFileId: null,       historyFileId: 'hist-123' });
+  const remote = baseSide({ wikiFileId: 'wiki-456', historyFileId: null });
+  const m = F.mergeData(local, remote);
+  assert.equal(m.wikiFileId, 'wiki-456');
+  assert.equal(m.historyFileId, 'hist-123');
+});
+
+test('mergeData: wikiUpdatedAt always taken from local', () => {
+  const local  = baseSide({ wikiUpdatedAt: 999 });
+  const remote = baseSide({ wikiUpdatedAt: 1 });
+  const m = F.mergeData(local, remote);
+  assert.equal(m.wikiUpdatedAt, 999);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // calcRetirementPlan — depends on global `data`
 // ─────────────────────────────────────────────────────────────────────────────
 function retirementData() {
