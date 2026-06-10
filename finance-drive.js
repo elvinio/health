@@ -534,6 +534,10 @@ async function driveSync() {
 
     const now = new Date().toISOString();
     localStorage.setItem('finance:lastSync', now);
+    // Re-merge to capture any edits made to `data` during the upload window.
+    // New local records have higher _ts and win; the upload was already correct
+    // for the remote side — the next sync will push the incremental diff.
+    merged = mergeData(data, merged);
     data = merged;
     if (merged.busProxyUrl) localStorage.setItem(BUS_PROXY_URL_STORAGE, merged.busProxyUrl);
     if (merged.busProxyToken) localStorage.setItem(BUS_PROXY_TOKEN_STORAGE, merged.busProxyToken);

@@ -166,11 +166,11 @@ function renderCategoryChart(byMonth, months, allCats) {
     const hidden = _hiddenCats.has(cat);
     const itemStyle = `cursor:pointer;user-select:none;${hidden ? 'opacity:0.35;' : ''}`;
     const nameStyle = hidden ? 'text-decoration:line-through' : '';
-    return `<div class="legend-item" style="${itemStyle}" onclick='toggleChartCat(${JSON.stringify(cat)})'><div class="legend-dot" style="background:${catColor(cat, ci)}"></div><span style="${nameStyle}">${esc(cat)}${budgetTag}</span></div>`;
+    return `<div class="legend-item" style="${itemStyle}" data-cat="${esc(cat)}" onclick="toggleChartCat(this.dataset.cat)"><div class="legend-dot" style="background:${catColor(cat, ci)}"></div><span style="${nameStyle}">${esc(cat)}${budgetTag}</span></div>`;
   }).join('');
 
   const totalHid = _hiddenCats.has('Total');
-  const totalLegendItem = `<div class="legend-item" style="cursor:pointer;user-select:none;${totalHid ? 'opacity:0.35;' : ''}" onclick='toggleChartCat("Total")'><div class="legend-dot" style="background:${TOTAL_COLOR}"></div><span style="${totalHid ? 'text-decoration:line-through' : ''}">Total</span></div>`;
+  const totalLegendItem = `<div class="legend-item" style="cursor:pointer;user-select:none;${totalHid ? 'opacity:0.35;' : ''}" data-cat="Total" onclick="toggleChartCat(this.dataset.cat)"><div class="legend-dot" style="background:${TOTAL_COLOR}"></div><span style="${totalHid ? 'text-decoration:line-through' : ''}">Total</span></div>`;
 
   return `<div class="chart-wrap">
     <div class="chart-title">Monthly Trend by Category</div>

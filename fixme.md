@@ -24,10 +24,10 @@ and a handful of real data-loss / XSS bugs listed below.
 - [x] **H2. Drive sync: transient download failure silently overwrites remote history/wiki** — `finance-drive.js:439-446` (history), `:466-472` (wiki).
   Remote history/wiki downloads are wrapped in `.catch(() => null)` (lines 411, 414, 430, 461). If the GET fails transiently (network blip, 500, 403 rate limit), `dl` is `null` — but `uploadHistory`/`uploadWiki` is still set to `true`, so local-only data is uploaded with a fresh `_updatedAt`, **erasing every remote-only record from the Drive file** (e.g. a partner's power records or recipes). This directly violates the documented "never upload without merging first" invariant. If the records existed only on Drive, the loss is permanent. Fix: when the remote timestamp is non-zero and the download returned null, abort the aux-file upload (or the whole sync).
 
-- [ ] **H3. User edits made during the sync upload window are silently discarded** — `finance-drive.js:475-540`.
+- [x] **H3. User edits made during the sync upload window are silently discarded** — `finance-drive.js:475-540`.
   `mergeData(data, remote)` snapshots `data`, then up to three sequential network uploads run (seconds on slow connections), and only afterwards `data = merged` (line 527) and `saveData(data)` (line 540). The UI stays fully interactive during sync. An expense added while the status reads "Uploading…" mutates the *old* `data` object; line 527 then replaces it and line 540 overwrites localStorage — the expense is gone from memory, localStorage, and Drive. Fix: lock input during sync, or re-merge `data` into `merged` just before the final assignment.
 
-- [ ] **H4. Stored XSS via category name in the Analysis chart legend** — `finance-app.js:169`.
+- [x] **H4. Stored XSS via category name in the Analysis chart legend** — `finance-app.js:169`.
   `onclick='toggleChartCat(${JSON.stringify(cat)})'` uses a **single-quoted** attribute, but `JSON.stringify` only escapes double quotes. A category named `x' onpointerenter='alert(document.cookie)//` breaks out of the attribute and injects a second, valid event handler. Categories ride on expenses and `data.expenseCats` through Drive sync, so this is **cross-user stored XSS** (your partner's device executes it). Fix: put the category in a `data-cat` attribute (esc'd) with a delegated listener, or double-quote the attribute and `esc()` the JSON.
 
 - [ ] **H5. Stored XSS via the category "emoji" field** — `finance-expenses.js:54-57`.
