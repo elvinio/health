@@ -18,10 +18,10 @@ and a handful of real data-loss / XSS bugs listed below.
 
 ### 1.1 High severity
 
-- [ ] **H1. Mutual service-worker cache destruction between finance and tracker apps** — `sw.js:39-41` vs `sw-tracker.js` activate handler.
+- [x] **H1. Mutual service-worker cache destruction between finance and tracker apps** — `sw.js:39-41` vs `sw-tracker.js` activate handler.
   The Cache Storage API is per-**origin**, not per-SW-scope. `sw.js` activate deletes every cache except `finance-v163`/`finance-ext-v1`; `sw-tracker.js` deletes everything except its own `CACHE` — including the finance caches. Opening `tracker.html` after using the finance app wipes the entire finance asset cache. The finance SW's `install` won't re-run until the next version bump and the fetch handler does no runtime re-caching of ASSETS, so the finance PWA is **offline-broken until the next `sw.js` bump** (and vice versa: every finance cache bump wipes the tracker cache). Fix: each activate handler must whitelist the sibling app's cache prefix (keep `health-tracker-*` in `sw.js`, keep `finance-*` in `sw-tracker.js`).
 
-- [ ] **H2. Drive sync: transient download failure silently overwrites remote history/wiki** — `finance-drive.js:439-446` (history), `:466-472` (wiki).
+- [x] **H2. Drive sync: transient download failure silently overwrites remote history/wiki** — `finance-drive.js:439-446` (history), `:466-472` (wiki).
   Remote history/wiki downloads are wrapped in `.catch(() => null)` (lines 411, 414, 430, 461). If the GET fails transiently (network blip, 500, 403 rate limit), `dl` is `null` — but `uploadHistory`/`uploadWiki` is still set to `true`, so local-only data is uploaded with a fresh `_updatedAt`, **erasing every remote-only record from the Drive file** (e.g. a partner's power records or recipes). This directly violates the documented "never upload without merging first" invariant. If the records existed only on Drive, the loss is permanent. Fix: when the remote timestamp is non-zero and the download returned null, abort the aux-file upload (or the whole sync).
 
 - [ ] **H3. User edits made during the sync upload window are silently discarded** — `finance-drive.js:475-540`.
