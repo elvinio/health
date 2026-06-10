@@ -30,13 +30,13 @@ and a handful of real data-loss / XSS bugs listed below.
 - [x] **H4. Stored XSS via category name in the Analysis chart legend** — `finance-app.js:169`.
   `onclick='toggleChartCat(${JSON.stringify(cat)})'` uses a **single-quoted** attribute, but `JSON.stringify` only escapes double quotes. A category named `x' onpointerenter='alert(document.cookie)//` breaks out of the attribute and injects a second, valid event handler. Categories ride on expenses and `data.expenseCats` through Drive sync, so this is **cross-user stored XSS** (your partner's device executes it). Fix: put the category in a `data-cat` attribute (esc'd) with a delegated listener, or double-quote the attribute and `esc()` the JSON.
 
-- [ ] **H5. Stored XSS via the category "emoji" field** — `finance-expenses.js:54-57`.
+- [x] **H5. Stored XSS via the category "emoji" field** — `finance-expenses.js:54-57`.
   `const emoji = emojiMap[e.cat] || ''; ... <span class="cat-emoji">${emoji}</span>` — interpolated **without `esc()`**. `emojiMap` comes from `parseCatEmojis()` over `data.expenseCats`, which is free-text user input (`expenseCatsInput`, `finance-investments.js:179`). Entering `<svg/onload=alert(1)> Grocery` as a category puts active markup into every expense row, and `expenseCats` syncs via Drive (`_expenseCatsTs` LWW), so it executes on the partner's device too. Fix: `esc(emoji)`.
 
-- [ ] **H6. `latestCpfBalances()` ignores `forPerson` — one spouse's entire CPF missing from net worth** — `finance-investments.js:270-276`.
+- [x] **H6. `latestCpfBalances()` ignores `forPerson` — one spouse's entire CPF missing from net worth** — `finance-investments.js:270-276`.
   It sorts all `cpfRecords` (husband + wife mixed) by year and takes only the **last record**. `finance-tax.js` consistently partitions by `r.forPerson` (e.g. `finance-tax.js:140-142`), but `computeNetWorth()` (`finance-ai.js:50`) uses `latestCpfBalances().total`. With both spouses having records for the same year, only one person's balances are counted — net worth, every snapshot, and every AI KPI is understated by an entire person's CPF. Fix: sum the latest record per `forPerson`.
 
-- [ ] **H7. Dependent deletion is never tombstoned — deleted dependents resurrect on sync** — `finance-investments.js:111-130`.
+- [x] **H7. Dependent deletion is never tombstoned — deleted dependents resurrect on sync** — `finance-investments.js:111-130`.
   `saveAccountSettings` rebuilds `data.dependents` and drops blanked rows, but never pushes the dropped `id` into `data._deletedIds`. `mergeData` union-merges dependents (`finance-drive.js:319`), so the remote copy re-adds them on the next sync. Secondary bug at line 126: every save stamps *all* dependents `_ts: Date.now()`, so a partner's concurrent edit always loses, even for untouched rows.
 
 - [ ] **H8. "Remove Latest Entry" on asset history resurrects after sync** — `finance-investments.js:573-582`.
