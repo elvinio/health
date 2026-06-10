@@ -11,7 +11,6 @@ Actionable issues from the 2026-06 code review (developer / architect / QA lense
 
 ## 🟡 Medium
 
-- [ ] **CPF sliders recompute + persist on every `oninput` tick** (`finance-tax.js:523-555`) — full projection + two `simulateSAOAtoRetire` passes + SVG build + `saveData` per pixel of drag. Switch to `onchange` like the retirement sliders already do.
 - [ ] **Service worker is cache-first with no revalidation** (`sw.js:63-65`). Cached URLs are never re-checked, so a single missed `CACHE` bump strands users on old code permanently. Move to stale-while-revalidate (JS/CSS) or network-first (HTML navigation).
 - [ ] **Bus/geolocation polling not stopped on top-level tab switch** (`finance-events.js:249-265`). Intervals clear only inside `setEventView()`; leaving Events via a top-level tab leaves the 60s bus poll, 30s map poll, and high-accuracy `watchPosition` running with no visible panel.
 - [ ] **UTC-vs-local "today" / all-day date handling** ✓ (`finance-events.js:3` vs `:6-7`; `:104` vs `:177`/`:647`). Timeless events parse as UTC midnight, timed events as local; "today" highlighting uses UTC `toISOString().slice(0,10)` while the list split uses local `today()`. They disagree for ~8h around midnight in UTC+8.
