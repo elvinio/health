@@ -109,22 +109,31 @@ function saveAccountSettings() {
   data._eventTagsTs = Date.now();
 
   // Dependents — read existing rows plus the two blank ones rendered
-  const depCount = (data.dependents || []).length + 2;
+  const oldDeps = data.dependents || [];
+  const depCount = oldDeps.length + 2;
   const newDeps = [];
   for (let i = 0; i < depCount; i++) {
     const nameEl = document.getElementById('depName' + i);
     if (!nameEl) continue;
     const name = nameEl.value.trim();
     if (!name) continue;
-    const existing = (data.dependents || [])[i] || {};
+    const existing = oldDeps[i] || {};
+    const relationship = document.getElementById('depRel' + i).value || '';
+    const birthYear = parseInt(document.getElementById('depYear' + i).value) || null;
+    const sex = document.getElementById('depSex' + i).value || '';
+    const changed = !existing.id || existing.name !== name || existing.relationship !== relationship ||
+      existing.birthYear !== birthYear || existing.sex !== sex;
     newDeps.push({
       id: existing.id || uid(),
-      name,
-      relationship: document.getElementById('depRel' + i).value || '',
-      birthYear: parseInt(document.getElementById('depYear' + i).value) || null,
-      sex: document.getElementById('depSex' + i).value || '',
-      _ts: Date.now()
+      name, relationship, birthYear, sex,
+      _ts: changed ? Date.now() : (existing._ts || Date.now())
     });
+  }
+  // Tombstone any removed dependents so they don't resurrect on sync
+  const newDepIds = new Set(newDeps.map(d => d.id));
+  if (!data._deletedIds) data._deletedIds = [];
+  for (const d of oldDeps) {
+    if (!newDepIds.has(d.id) && !data._deletedIds.includes(d.id)) data._deletedIds.push(d.id);
   }
   data.dependents = newDeps;
   data._dependentsTs = Date.now();
@@ -268,11 +277,19 @@ function currentValue(a) {
 
 // ── CPF balance helper (used here and in finance-ai.js) ──────────────────────
 function latestCpfBalances() {
-  const recs = (data.cpfRecords || []).slice().sort((a, b) => a.year - b.year);
-  const r = recs[recs.length - 1];
-  if (!r) return { year: null, oa: 0, sa: 0, ma: 0, total: 0 };
-  const oa = r.oaBalance || 0, sa = r.saBalance || 0, ma = r.maBalance || 0;
-  return { year: r.year, oa, sa, ma, total: oa + sa + ma };
+  const recs = data.cpfRecords || [];
+  const byPerson = {};
+  for (const r of recs) {
+    const p = r.forPerson || 'husband';
+    if (!byPerson[p] || r.year > byPerson[p].year) byPerson[p] = r;
+  }
+  const persons = Object.values(byPerson);
+  if (!persons.length) return { year: null, oa: 0, sa: 0, ma: 0, total: 0 };
+  const oa = persons.reduce((s, r) => s + (r.oaBalance || 0), 0);
+  const sa = persons.reduce((s, r) => s + (r.saBalance || 0), 0);
+  const ma = persons.reduce((s, r) => s + (r.maBalance || 0), 0);
+  const maxYear = Math.max(...persons.map(r => r.year));
+  return { year: maxYear, oa, sa, ma, total: oa + sa + ma };
 }
 
 // ── Asset allocation ──────────────────────────────────────────────────────────
