@@ -2,25 +2,15 @@
 
 Actionable issues from the 2026-06 code review (developer / architect / QA lenses). Grouped by severity. Check off as resolved. Findings marked **✓** were verified against source during the review.
 
-## 🔴 Critical
-
-- [ ] **Net Worth chart renders broken — curly quotes in HTML/SVG attributes** ✓ (`finance-ai.js:517-523`). Markup uses `”`/`“` (U+201D/U+201C) instead of `"` (`class=”chart-wrap”`, `style=”…”`). Browsers don't parse these as quoted attributes, so classes/styles drop and the chart section of the AI card is malformed. Live via `renderNetWorthChart()` → `renderAiReport()` (`:544`). Introduced by the #122 inline-style refactor. Replace all curly quotes with straight `"`.
-
 ## 🟠 High
 
-- [ ] **History import resurrects deleted records** ✓ (`finance-drive.js:70`). The `historyImportFile` handler replaces `historyData.expenses` wholesale and sets a fresh `_updatedAt` with **no filter against `data._deletedIds`** — a previously-deleted expense in the file comes back and propagates to the partner on next sync. Apply the `_deletedIds` filter on import.
-- [ ] **Asset `units`/`class` sync loses partner edits** ✓ (`finance-drive.js:241-244`). Unlike `name` (which compares `_nameTs`), `units`/`class` use "local-non-null-wins" — a partner's update is silently dropped if your stale value is non-null. Add `_unitsTs`/`_classTs` (or reuse a timestamp comparison).
-- [ ] **Timeless event blanks the whole Events tab** ✓ (`finance-events.js:13`, also `:99-100`, `:711-712`). `eventToMs()` guards `!ev.startTime`, but `fmtEventDateTime()` and the item/calendar renderers dereference `ev.startTime.minute`/`.hour`/`.ampm` unguarded. One all-day event without a `startTime` object throws and `renderAll()`'s full-tab `innerHTML` rebuild blanks the tab. Null-guard all event renderers.
-- [ ] **Inconsistent `data._deletedIds.push` guarding** ✓ (pattern). `deleteNote` (`finance-events.js:962`) and `deleteOngoing` (`finance-insurance.js:359`) guard `if (!data._deletedIds) data._deletedIds = []`; `deleteEvent` (`finance-events.js:838`), `deleteCpfRecord` (`finance-tax.js:721`), `deleteTaxRecord` (`:947`), `deleteInsurance`, `deleteMedical`, `deleteAsset`, `deleteMortgage`, `deleteExpense` do not — they throw on legacy/imported data missing the field. Centralize the guard.
 - [ ] **Tax PIN gate provides no real protection** ✓ (`finance-tax.js:1-50`). PIN is plaintext in `localStorage`; `taxPinUnlocked` is a plain global; `maybeShowTaxPin()` only toggles `taxPinOverlay.style.display` over content already rendered into the DOM. Bypassable via devtools/console/DOM. Either gate actual rendering or drop the implied protection.
-- [ ] **CPF projection ignores bonus + wage growth** (`finance-tax.js:149-152`). Contributions modelled from `basicSalary` only, last salary applied flat with no growth, no Additional-Wage ceiling. Skews FRS/ERS attainment and the whole retirement plan downstream.
 - [ ] **Responsiveness: phone-only.** No media queries anywhere in `finance.css` — tablet/desktop is a narrow phone column; bottom sheets stay glued to the bottom edge. Add tablet/desktop breakpoints.
 - [ ] **No keyboard focus indicator (WCAG 2.4.7 fail).** Inputs do `outline:none`; buttons/tabs/sub-tabs/FAB/dropdown/PIN pad/theme options have no `:focus`/`:focus-visible` styling. Add a global `:focus-visible` rule.
 - [ ] **Tabs not exposed as a tablist** (`finance.html:21-47`). No `role="tablist"`/`role="tab"`/`aria-selected` on the tab bar or the four sub-tab groups.
 
 ## 🟡 Medium
 
-- [ ] **CPF sliders recompute + persist on every `oninput` tick** (`finance-tax.js:523-555`) — full projection + two `simulateSAOAtoRetire` passes + SVG build + `saveData` per pixel of drag. Switch to `onchange` like the retirement sliders already do.
 - [ ] **Service worker is cache-first with no revalidation** (`sw.js:63-65`). Cached URLs are never re-checked, so a single missed `CACHE` bump strands users on old code permanently. Move to stale-while-revalidate (JS/CSS) or network-first (HTML navigation).
 - [ ] **Bus/geolocation polling not stopped on top-level tab switch** (`finance-events.js:249-265`). Intervals clear only inside `setEventView()`; leaving Events via a top-level tab leaves the 60s bus poll, 30s map poll, and high-accuracy `watchPosition` running with no visible panel.
 - [ ] **UTC-vs-local "today" / all-day date handling** ✓ (`finance-events.js:3` vs `:6-7`; `:104` vs `:177`/`:647`). Timeless events parse as UTC midnight, timed events as local; "today" highlighting uses UTC `toISOString().slice(0,10)` while the list split uses local `today()`. They disagree for ~8h around midnight in UTC+8.
@@ -34,7 +24,6 @@ Actionable issues from the 2026-06 code review (developer / architect / QA lense
 - [ ] **CPF/AI summary asset inconsistency.** `computeNetWorth()` excludes CPF-class assets (correct), but `buildAiSummary()` includes them — the AI gets a CPF-double-counted asset total inconsistent with net worth (`finance-ai.js:169-177`).
 - [ ] **Calendar/bus hot paths.** `renderEventCalendar` rebuilds the full event-by-date map for the entire dataset on every month flip (`finance-events.js:656-666`); `refreshBusMapMarkers` tears down + recreates every Leaflet marker every 30s (`:574-622`).
 - [ ] **Fixed-width PIN pad overflows narrow screens** (`finance.css:883-886`, `repeat(3, 72px)` ≈ 288px min). Use `minmax()`/`aspect-ratio`.
-- [ ] **User-entered email-parser regex stored unvalidated** (`finance-gmail.js` editors). No `new RegExp()` validity check or ReDoS guard — a bad pattern throws/hangs at match time with no edit-time feedback.
 
 ## 🟢 Low / polish
 

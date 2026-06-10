@@ -72,7 +72,7 @@ const FILES = [
 // calling functions that read the global `data` / `historyData`.
 const FOOTER = `
 globalThis.__finance = {
-  calcSGTax, calcCpfProjection, calcRetirementPlan, mergeData, getOngoingDueInfo,
+  calcSGTax, calcRetirementPlan, mergeData, getOngoingDueInfo,
   localDateStr, recalcBalances, recalcMonthlyAgg, defaultData, allExpenses,
   mergeHistoryData: (typeof mergeHistoryData !== 'undefined') ? mergeHistoryData : undefined,
   mergeWikiData: (typeof mergeWikiData !== 'undefined') ? mergeWikiData : undefined,
