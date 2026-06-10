@@ -45,10 +45,6 @@ function getCurrentTermWeek() {
   return `${current.label}, Week ${week}`;
 }
 
-function renderTermWeekBanner() {
-  const el = document.getElementById('termWeekBanner');
-  if (el) el.style.display = 'none';
-}
 
 function syncEndDate() {
   const startEl = document.getElementById('evDate');
@@ -174,7 +170,6 @@ function onEventSearch(val) {
 function renderEventList() {
   const el = document.getElementById('eventList');
   if (!el) return;
-  renderTermWeekBanner();
   renderEventTagFilterPills();
   const todayStr = today();
   let events = (data.events || []).slice().sort((a, b) => eventToMs(a) - eventToMs(b));
