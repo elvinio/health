@@ -279,6 +279,10 @@ function recalcMonthlyAgg(d, expenses) {
 }
 
 let data = loadData();
+// Restore bus proxy URL/token from data to localStorage so the bus screen works on
+// a new device before the first Drive sync (driveSync() also does this after sync).
+if (data.busProxyUrl) localStorage.setItem(BUS_PROXY_URL_STORAGE, data.busProxyUrl);
+if (data.busProxyToken) localStorage.setItem(BUS_PROXY_TOKEN_STORAGE, data.busProxyToken);
 let historyData = loadHistory();
 let wikiData = loadWiki();
 
