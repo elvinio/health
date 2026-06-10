@@ -1,4 +1,4 @@
-const CACHE = 'finance-v163';
+const CACHE = 'finance-v165';
 const EXT_CACHE = 'finance-ext-v1';
 const ASSETS = [
   '/health/finance.html',
@@ -37,7 +37,11 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE && k !== EXT_CACHE).map(k => caches.delete(k)))
+      Promise.all(
+        keys
+          .filter(k => k !== CACHE && k !== EXT_CACHE && !k.startsWith('health-tracker-'))
+          .map(k => caches.delete(k))
+      )
     )
   );
   self.clients.claim();

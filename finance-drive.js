@@ -442,8 +442,14 @@ async function driveSync() {
       let remoteHistory = { expenses: remoteHistFromMain };
       const dl = await remoteHistP;
       if (dl && Array.isArray(dl.expenses)) remoteHistory = mergeHistoryData(dl, { expenses: remoteHistFromMain });
-      mergedHistory = mergeHistoryData(historyData, remoteHistory);
-      uploadHistory = true;
+      // dl === null means the download failed transiently. If the remote already has
+      // data (remoteHistTs > 0), uploading without it would permanently erase
+      // remote-only records — violating the "merge before upload" invariant.
+      // Skip the upload; the next sync will retry with a successful download.
+      if (dl !== null || remoteHistTs === 0) {
+        mergedHistory = mergeHistoryData(historyData, remoteHistory);
+        uploadHistory = true;
+      }
     } else if (!historyFileId && remoteHistTs > localHistTs) {
       // Remote is newer but no history file linked — can't merge, keep local as-is.
       // Do NOT adopt remoteHistTs below: claiming a timestamp we never pulled makes
@@ -468,7 +474,11 @@ async function driveSync() {
       if (dl && (Array.isArray(dl.recipes) || Array.isArray(dl.shoppingLists) || Array.isArray(dl.resumes))) {
         mergedWiki = mergeWikiData(wikiData, dl);
       }
-      uploadWiki = true;
+      // Same guard as history: skip upload when the download failed and the remote
+      // already has data — uploading now would silently erase remote-only records.
+      if (dl !== null || remoteWikiTs === 0) {
+        uploadWiki = true;
+      }
     }
 
     setDriveStatus('Merging…');
