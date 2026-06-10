@@ -168,6 +168,11 @@ function openParserEditor(idx) {
   openSheet('parserEditorSheet');
 }
 
+function _badRegex(pattern) {
+  if (!pattern) return null;
+  try { new RegExp(pattern); return null; } catch(e) { return e.message; }
+}
+
 function saveParserEditor() {
   const parsers = loadGmailParsers();
   const existing = editingParserIdx >= 0 ? parsers[editingParserIdx] : null;
@@ -180,6 +185,10 @@ function saveParserEditor() {
     desc:   { regex: document.getElementById('parserDescRegex').value.trim(),   group: parseInt(document.getElementById('parserDescGroup').value) || 1 }
   };
   if (!p.name || !p.subjectContains) { showToast('Name and subject are required'); return; }
+  for (const [label, rx] of [['Amount', p.amount.regex], ['Date', p.date.regex], ['Desc', p.desc.regex]]) {
+    const err = _badRegex(rx);
+    if (err) { showToast(`${label} regex invalid: ${err}`); return; }
+  }
   if (editingParserIdx >= 0) parsers[editingParserIdx] = p;
   else parsers.push(p);
   saveGmailParsers(parsers);
@@ -250,6 +259,10 @@ function saveEventParserEditor() {
   if (!p.name || !p.subjectContains)  { showToast('Name and subject are required'); return; }
   if (!p.title.regex)                 { showToast('Title regex is required'); return; }
   if (!p.datetime.regex)              { showToast('Datetime regex is required'); return; }
+  for (const [label, rx] of [['Title', p.title.regex], ['Datetime', p.datetime.regex], ['Items', diRegex]]) {
+    const err = _badRegex(rx);
+    if (err) { showToast(`${label} regex invalid: ${err}`); return; }
+  }
   if (editingEventParserIdx >= 0) parsers[editingEventParserIdx] = p;
   else parsers.push(p);
   saveGmailParsers(parsers);

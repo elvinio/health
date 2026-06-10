@@ -24,7 +24,6 @@ Actionable issues from the 2026-06 code review (developer / architect / QA lense
 - [ ] **CPF/AI summary asset inconsistency.** `computeNetWorth()` excludes CPF-class assets (correct), but `buildAiSummary()` includes them — the AI gets a CPF-double-counted asset total inconsistent with net worth (`finance-ai.js:169-177`).
 - [ ] **Calendar/bus hot paths.** `renderEventCalendar` rebuilds the full event-by-date map for the entire dataset on every month flip (`finance-events.js:656-666`); `refreshBusMapMarkers` tears down + recreates every Leaflet marker every 30s (`:574-622`).
 - [ ] **Fixed-width PIN pad overflows narrow screens** (`finance.css:883-886`, `repeat(3, 72px)` ≈ 288px min). Use `minmax()`/`aspect-ratio`.
-- [ ] **User-entered email-parser regex stored unvalidated** (`finance-gmail.js` editors). No `new RegExp()` validity check or ReDoS guard — a bad pattern throws/hangs at match time with no edit-time feedback.
 
 ## 🟢 Low / polish
 
