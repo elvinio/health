@@ -280,7 +280,7 @@ function deleteRecipe() {
   const id = document.getElementById('recipeId').value;
   if (!id || !confirm('Delete this recipe?')) return;
   if (!data._deletedIds) data._deletedIds = [];
-  data._deletedIds.push(id);
+  if (!data._deletedIds.includes(id)) data._deletedIds.push(id);
   wikiData.recipes = (wikiData.recipes || []).filter(r => r.id !== id);
   saveWiki(wikiData); saveData(data);
   closeSheet();
@@ -427,7 +427,7 @@ function deleteShoppingList() {
   const id = document.getElementById('shoppingId').value;
   if (!id || !confirm('Delete this shopping list?')) return;
   if (!data._deletedIds) data._deletedIds = [];
-  data._deletedIds.push(id);
+  if (!data._deletedIds.includes(id)) data._deletedIds.push(id);
   wikiData.shoppingLists = (wikiData.shoppingLists || []).filter(l => l.id !== id);
   saveWiki(wikiData); saveData(data);
   closeSheet();
@@ -749,7 +749,7 @@ function deleteResume() {
   const id = document.getElementById('resumeId').value;
   if (!id || !confirm('Delete this resume?')) return;
   if (!data._deletedIds) data._deletedIds = [];
-  data._deletedIds.push(id);
+  if (!data._deletedIds.includes(id)) data._deletedIds.push(id);
   wikiData.resumes = (wikiData.resumes || []).filter(r => r.id !== id);
   saveWiki(wikiData); saveData(data);
   closeSheet();

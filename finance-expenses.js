@@ -185,7 +185,7 @@ function deleteExpense() {
   if (!id) return;
   if (!confirm('Delete this expense?')) return;
   if (!data._deletedIds) data._deletedIds = [];
-  data._deletedIds.push(id);
+  if (!data._deletedIds.includes(id)) data._deletedIds.push(id);
   const inCurrent = data.expenses.some(e => e.id === id);
   if (inCurrent) {
     data.expenses = data.expenses.filter(e => e.id !== id);
@@ -288,7 +288,7 @@ function toggleAnalysisYear(y) {
 function renderAccountFilterPills() {
   const container = document.getElementById('accountFilterPills');
   if (!container) return;
-  const cutoff = new Date().toISOString().slice(0, 10);
+  const cutoff = localDateStr();
   const ytd = data.expenses.filter(e => e.cat !== 'TopUp' && e.date <= cutoff).reduce((s, e) => s + e.amount, 0);
   const ytdPill = `<span class="filter-pill" style="cursor:default">YTD: ${balanceHidden ? '••••' : fmtDollar(ytd)}</span>`;
   const pills = [{ id: null, name: 'All' }, ...data.accounts.map(a => ({ id: a.id, name: a.name }))];

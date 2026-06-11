@@ -510,7 +510,7 @@ function deleteCpfRecord() {
   const id = document.getElementById('cpfEntryId').value;
   if (!id || !confirm('Delete this CPF record?')) return;
   if (!data._deletedIds) data._deletedIds = [];
-  data._deletedIds.push(id);
+  if (!data._deletedIds.includes(id)) data._deletedIds.push(id);
   data.cpfRecords = (data.cpfRecords || []).filter(r => r.id !== id);
   saveData(data);
   closeSheet();
@@ -737,7 +737,7 @@ function deleteTaxRecord() {
   if (!id) return;
   if (!confirm('Delete this tax record?')) return;
   if (!data._deletedIds) data._deletedIds = [];
-  data._deletedIds.push(id);
+  if (!data._deletedIds.includes(id)) data._deletedIds.push(id);
   data.taxRecords = (data.taxRecords || []).filter(r => r.id !== id);
   saveData(data);
   closeSheet();

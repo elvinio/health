@@ -271,6 +271,7 @@ function mergeData(local, remote) {
     merged.name = src.name;
     merged.class = src.class;
     merged.units = src.units;
+    merged._metaTs = Math.max(la ? (la._metaTs || la._nameTs || 0) : 0, ra ? (ra._metaTs || ra._nameTs || 0) : 0);
   });
   assetMap.forEach(a => {
     const seen = new Set();
