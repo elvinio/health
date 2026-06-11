@@ -45,7 +45,7 @@ and a handful of real data-loss / XSS bugs listed below.
 - [ ] **H9. Editing an expense across the year boundary double-counts it after sync** — `finance-expenses.js:149-166`.
   Moving an expense from `historyData.expenses` to `data.expenses` (date changed from 2025 to 2026, lines 162-165) removes it from local history, but the remote history file still has it; `mergeHistoryData` is union-by-id with no tombstone, so after sync the old 2025 copy exists in history *and* the new 2026 copy in main — same id, double-counted in `allExpenses()` / `recalcMonthlyAgg`, permanently. (The reverse direction self-heals via `migrateExpenses()` on reload; this direction has no self-heal.)
 
-- [ ] **H10. Asset rename/class/units edits ping-pong between devices** — `finance-drive.js:260-274`.
+- [x] **H10. Asset rename/class/units edits ping-pong between devices** — `finance-drive.js:260-274`.
   For an asset on both sides, the merged record is seeded from the first-seen (remote) copy and only `name`/`class`/`units` are taken from the LWW winner — **`_metaTs` itself is never carried over**, so it stays at the remote's older/absent value. After A renames and syncs, the uploaded file has the new name but stale `_metaTs`; B's sync then ties (0 vs 0) and local-wins re-uploads the old name; A's next sync flips it back — forever. Fix: `merged._metaTs = Math.max(local._metaTs||0, remote._metaTs||0)` (and `_nameTs` likewise).
 
 ### 1.2 Medium severity
@@ -104,7 +104,7 @@ and a handful of real data-loss / XSS bugs listed below.
 - [ ] **M16. Mortgage projection overstates total interest after payoff** — `finance-insurance.js:676-688`.
   Balance is clamped at 0 but `totalInterest = monthlyPmt * yr * 12 - (bal - b)` assumes the full payment stream for all `yr*12` months; the `projYears` filter admits horizons up to 6 months past payoff, charging phantom installments as interest. (`monthsElapsed` also uses a 30.44-day approximation rather than calendar math.)
 
-- [ ] **M17. YTD pill uses UTC date — wrong before 8am SGT** — `finance-expenses.js:291`.
+- [x] **M17. YTD pill uses UTC date — wrong before 8am SGT** — `finance-expenses.js:291`.
   `new Date().toISOString().slice(0, 10)` — the codebase added `localDateStr()` (`finance-core.js:314-316`) precisely to avoid this. Between 00:00 and 08:00 local, today's expenses are excluded from the YTD figure.
 
 - [ ] **M18. CPF constants are internally contradictory** — `finance-core.js:394` vs `finance-tax.js:136`.
@@ -131,7 +131,7 @@ and a handful of real data-loss / XSS bugs listed below.
 
 - [ ] **L1.** Token acquisition can hang forever — no `error_callback` on GIS `initTokenClient`, so a closed/blocked consent popup leaves the sync button stuck on "Authenticating…" until reload (`finance-drive.js:191-208`).
 - [ ] **L2.** Events import ignores `data._deletedIds` — re-importing an old export transiently resurrects deleted events; also `reader.onload = ev => { ... incoming.forEach(ev => ...) }` shadows `ev` (`finance-drive.js:28-58`).
-- [ ] **L3.** `_deletedIds.push(id)` without an `includes` check at 8 call sites (`finance-expenses.js:188`, `finance-investments.js:533`, `finance-insurance.js:132/250/356/645`, `finance-tax.js:513/740`) — duplicates inflate the array and evict older tombstones sooner (see M8). CLAUDE.md's own recipe includes the dedupe check.
+- [x] **L3.** `_deletedIds.push(id)` without an `includes` check at 8 call sites (`finance-expenses.js:188`, `finance-investments.js:533`, `finance-insurance.js:132/250/356/645`, `finance-tax.js:513/740`) — duplicates inflate the array and evict older tombstones sooner (see M8). CLAUDE.md's own recipe includes the dedupe check.
 - [ ] **L4.** `forceSyncHistory` filters only with **local** tombstones — partner-deleted records transiently resurrect and get uploaded until the next full sync (`finance-drive.js:575-579`).
 - [ ] **L5.** `forceSyncWiki` has no remote-shape validation — linking the wrong file ID (e.g. the main data file) and tapping "Sync wiki" **overwrites that file with wiki content**, destroying it (`finance-drive.js:658-667`). Validate like `driveSync` does.
 - [ ] **L6.** Parser import: merge keys on id-else-name but the added/updated count keys on id-or-name — same-name/different-id parsers are pushed as duplicates yet counted as "updated" (`finance-gmail.js:52-67`).
