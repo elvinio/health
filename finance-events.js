@@ -1031,7 +1031,7 @@ function deleteEvent() {
   const id = document.getElementById('eventId').value;
   if (!id || !confirm('Delete this event?')) return;
   if (!data._deletedIds) data._deletedIds = [];
-  data._deletedIds.push(id);
+  if (!data._deletedIds.includes(id)) data._deletedIds.push(id);
   data.events = (data.events || []).filter(e => e.id !== id);
   saveData(data);
   closeSheet();
@@ -1156,7 +1156,7 @@ function deleteNote() {
   const id = document.getElementById('noteId').value;
   if (!id || !confirm('Delete this note?')) return;
   if (!data._deletedIds) data._deletedIds = [];
-  data._deletedIds.push(id);
+  if (!data._deletedIds.includes(id)) data._deletedIds.push(id);
   data.notes = (data.notes || []).filter(n => n.id !== id);
   saveData(data);
   closeSheet();

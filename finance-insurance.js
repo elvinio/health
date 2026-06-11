@@ -129,7 +129,7 @@ function deleteInsurance() {
   if (!id) return;
   if (!confirm('Delete this insurance policy?')) return;
   if (!data._deletedIds) data._deletedIds = [];
-  data._deletedIds.push(id);
+  if (!data._deletedIds.includes(id)) data._deletedIds.push(id);
   data.insurances = (data.insurances || []).filter(i => i.id !== id);
   saveData(data);
   closeSheet();
@@ -247,7 +247,7 @@ function deleteMedical() {
   if (!id) return;
   if (!confirm('Delete this medical visit?')) return;
   if (!data._deletedIds) data._deletedIds = [];
-  data._deletedIds.push(id);
+  if (!data._deletedIds.includes(id)) data._deletedIds.push(id);
   data.medicalVisits = (data.medicalVisits || []).filter(x => x.id !== id);
   saveData(data);
   closeSheet();
@@ -353,7 +353,7 @@ function deleteOngoing() {
   if (!confirm('Delete this ongoing expense?')) return;
   data.ongoingExpenses = (data.ongoingExpenses || []).filter(x => x.id !== id);
   if (!data._deletedIds) data._deletedIds = [];
-  data._deletedIds.push(id);
+  if (!data._deletedIds.includes(id)) data._deletedIds.push(id);
   saveData(data);
   closeSheet();
   showToast('Deleted');
@@ -642,7 +642,7 @@ function deleteMortgage() {
   if (!id) return;
   if (!confirm('Delete this mortgage and all its entries?')) return;
   if (!data._deletedIds) data._deletedIds = [];
-  data._deletedIds.push(id);
+  if (!data._deletedIds.includes(id)) data._deletedIds.push(id);
   data.mortgages = (data.mortgages || []).filter(x => x.id !== id);
   saveData(data);
   renderAll();
