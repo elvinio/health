@@ -553,8 +553,10 @@ async function driveSync() {
     wikiData = mergedWiki;
     wikiData._updatedAt = merged.wikiUpdatedAt;
     saveData(data);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(historyData));
-    localStorage.setItem(WIKI_KEY, JSON.stringify(wikiData));
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(historyData)); }
+    catch (e) { if (typeof showToast === 'function') showToast('⚠️ Storage full — history not saved locally', 8000); }
+    try { localStorage.setItem(WIKI_KEY, JSON.stringify(wikiData)); }
+    catch (e) { if (typeof showToast === 'function') showToast('⚠️ Storage full — wiki not saved locally', 8000); }
     renderAll();
 
     document.getElementById('shareCodeDisplay').textContent =
@@ -564,7 +566,7 @@ async function driveSync() {
     showToast('Sync complete');
   } catch (err) {
     setDriveStatus('Error: ' + err.message);
-    showToast('Sync failed');
+    showToast('Sync failed — ' + err.message, 8000);
   } finally {
     btn.disabled = false;
     btn.textContent = '↕ Sync Now';
@@ -610,13 +612,14 @@ async function forceSyncHistory() {
     historyData = mergedHistory;
     recalcMonthlyAgg(data, allExpenses());
     saveData(data);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(historyData));
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(historyData)); }
+    catch (e) { if (typeof showToast === 'function') showToast('⚠️ Storage full — history not saved locally', 8000); }
     renderAll();
     setDriveStatus('History sync complete ✓');
     showToast(`History synced — ${historyData.expenses.length} records`);
   } catch (err) {
     setDriveStatus('Error: ' + err.message);
-    showToast('History sync failed');
+    showToast('History sync failed — ' + err.message, 8000);
   } finally {
     btn.disabled = false;
     btn.textContent = '⟳ Force History Sync';
@@ -684,13 +687,14 @@ async function forceSyncWiki() {
     await uploadToDrive(token, fileId, data);
     wikiData = mergedWiki;
     saveData(data);
-    localStorage.setItem(WIKI_KEY, JSON.stringify(wikiData));
+    try { localStorage.setItem(WIKI_KEY, JSON.stringify(wikiData)); }
+    catch (e) { if (typeof showToast === 'function') showToast('⚠️ Storage full — wiki not saved locally', 8000); }
     renderAll();
     setDriveStatus('Wiki sync complete ✓');
     showToast(`Wiki synced — ${mergedWiki.recipes.length + mergedWiki.shoppingLists.length + mergedWiki.resumes.length} items`);
   } catch (err) {
     setDriveStatus('Error: ' + err.message);
-    showToast('Wiki sync failed');
+    showToast('Wiki sync failed — ' + err.message, 8000);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '⟳ Sync wiki'; }
   }
