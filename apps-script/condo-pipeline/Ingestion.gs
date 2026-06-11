@@ -115,8 +115,8 @@ function fetchAndStore() {
       newRows = [];
     }
 
-    // Throttle: 400 ms between pages keeps us well under the rate limit
-    Utilities.sleep(400);
+    // Throttle: 1100 ms between pages = ~0.9 req/s, safely under the Dev tier 1 req/s limit
+    Utilities.sleep(1100);
   }
 
   if (newRows.length > 0) appendRows(txSheet, newRows);
