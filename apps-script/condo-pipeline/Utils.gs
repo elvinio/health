@@ -18,11 +18,26 @@ function setMeta(key, value) {
   const data = sheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] === key) {
-      sheet.getRange(i + 1, 2).setValue(value);
+      // Force text format so values like "2015-01" aren't coerced into Dates
+      sheet.getRange(i + 1, 2).setNumberFormat('@').setValue(value);
       return;
     }
   }
-  sheet.appendRow([key, value]);
+  sheet.appendRow([key, '']);
+  sheet.getRange(sheet.getLastRow(), 2).setNumberFormat('@').setValue(value);
+}
+
+// Normalise a meta value to a "YYYY-MM" string. Sheets coerces "2015-01"
+// into a Date object on write; reading it back as a Date breaks every
+// string comparison against normalised dates, so convert it back here.
+function toYearMonth(v) {
+  if (!v) return null;
+  if (v instanceof Date) {
+    const tz = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSpreadsheetTimeZone();
+    return Utilities.formatDate(v, tz, 'yyyy-MM');
+  }
+  const s = String(v).trim();
+  return /^\d{4}-\d{2}$/.test(s) ? s : null;
 }
 
 function normaliseProject(name) {

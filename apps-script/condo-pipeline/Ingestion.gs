@@ -19,7 +19,10 @@ function fetchAndStore() {
   const startTime = Date.now();
 
   const txSheet = getSheet(CONFIG.TX_SHEET);
-  const lastDate = getMeta('last_ingested_date') || CONFIG.HISTORY_CUTOFF;
+  // toYearMonth: the meta cell may come back as a Date object (Sheets coerces
+  // "2015-01" on write) — normalise to a "YYYY-MM" string or all string
+  // comparisons below silently fail.
+  const lastDate = toYearMonth(getMeta('last_ingested_date')) || CONFIG.HISTORY_CUTOFF;
   const backfillComplete = getMeta('backfill_complete') === 'true';
   const isBackfill = !backfillComplete;
 
@@ -42,6 +45,14 @@ function fetchAndStore() {
   let hasMore = true;
   let totalFetched = 0;
   let timedOut = false;
+
+  // Diagnostics: count why each record was skipped, so "fetched N, saved 0"
+  // is explainable from the log alone.
+  let accepted = 0;
+  let sampleLogged = false;
+  const skip = { wrongType: 0, badDate: 0, beforeCutoff: 0, alreadyIngested: 0, duplicate: 0 };
+  const typesSeen = {};
+  const badDateSamples = [];
 
   while (hasMore) {
     // Graceful timeout: flush pending rows and save state before GAS kills us
@@ -66,15 +77,28 @@ function fetchAndStore() {
     if (records.length === 0) { hasMore = false; break; }
     totalFetched += records.length;
 
+    // Log one raw record so field-name mismatches with the dataset are obvious
+    if (!sampleLogged) {
+      Logger.log(`First record fields: ${Object.keys(records[0]).join(', ')}`);
+      Logger.log(`First record sample: ${JSON.stringify(records[0])}`);
+      sampleLogged = true;
+    }
+
     for (const r of records) {
-      if (!CONFIG.PROPERTY_TYPES.includes(r.propertyType)) continue;
+      const ptLabel = r.propertyType === undefined ? '(field missing)' : String(r.propertyType);
+      typesSeen[ptLabel] = (typesSeen[ptLabel] || 0) + 1;
+      if (!CONFIG.PROPERTY_TYPES.includes(r.propertyType)) { skip.wrongType++; continue; }
 
       const date = normaliseDate(r.contractDate);
-      if (!date) continue;
-      if (date < CONFIG.HISTORY_CUTOFF) continue;
+      if (!date) {
+        skip.badDate++;
+        if (badDateSamples.length < 5) badDateSamples.push(String(r.contractDate));
+        continue;
+      }
+      if (date < CONFIG.HISTORY_CUTOFF) { skip.beforeCutoff++; continue; }
 
       // Incremental mode: skip already-ingested dates. Backfill: dedup only.
-      if (!isBackfill && date <= lastDate) continue;
+      if (!isBackfill && date <= lastDate) { skip.alreadyIngested++; continue; }
 
       const area = parseFloat(r.floorAreaSqft) || 0;
       const price = parseFloat(r.price) || 0;
@@ -100,14 +124,20 @@ function fetchAndStore() {
       };
       row.tx_key = makeTxKey(row);
 
-      if (existing.has(row.tx_key)) continue;
+      if (existing.has(row.tx_key)) { skip.duplicate++; continue; }
       existing.add(row.tx_key);
       newRows.push(row);
+      accepted++;
       if (date > latestDate) latestDate = date;
     }
 
     offset += CONFIG.PAGE_SIZE;
     if (records.length < CONFIG.PAGE_SIZE) hasMore = false;
+
+    // Periodic progress so long backfill runs aren't silent
+    if (offset % (CONFIG.PAGE_SIZE * 20) === 0) {
+      Logger.log(`Progress: offset=${offset}, fetched=${totalFetched}, accepted=${accepted}`);
+    }
 
     // Flush every 500 rows to avoid memory pressure
     if (newRows.length >= 500) {
@@ -128,15 +158,32 @@ function fetchAndStore() {
   const total = txSheet.getLastRow() - 1;
   setMeta('total_rows', total);
 
-  if (!timedOut && isBackfill) {
+  if (!timedOut && isBackfill && total > 0) {
     // Completed a full pass without timing out — backfill is done
     setMeta('backfill_complete', 'true');
     Logger.log(`Backfill complete. Total rows: ${total}`);
+  } else if (!timedOut && isBackfill) {
+    Logger.log(`Full pass finished but 0 rows stored — NOT marking backfill complete. See breakdown below.`);
   } else if (timedOut) {
     Logger.log(`Timed out. Progress saved. Rows so far: ${total}. Re-run fetchAndStore() to continue.`);
   }
 
   rebuildIndex();
+
+  Logger.log(`Record breakdown — accepted: ${accepted}; skipped: wrongType=${skip.wrongType}, ` +
+             `badDate=${skip.badDate}, beforeCutoff=${skip.beforeCutoff}, ` +
+             `alreadyIngested=${skip.alreadyIngested}, duplicate=${skip.duplicate}`);
+  Logger.log(`propertyType values seen: ${JSON.stringify(typesSeen)}`);
+  if (skip.badDate > 0) {
+    Logger.log(`Unparseable contractDate samples: ${badDateSamples.join(' | ')}`);
+  }
+  if (accepted === 0 && totalFetched > 0) {
+    Logger.log(`WARNING: fetched ${totalFetched} records but accepted 0. Compare the "First record fields/sample" ` +
+               `log above with what the code expects: propertyType ∈ ${JSON.stringify(CONFIG.PROPERTY_TYPES)}, ` +
+               `contractDate parseable as "YYYY-MM" or "MMM-YY", date >= ${CONFIG.HISTORY_CUTOFF}. ` +
+               `If the fields don't exist, DATASET_RESOURCE_ID points at the wrong dataset.`);
+  }
+
   Logger.log(`Run finished. Fetched: ${totalFetched} API records. Latest date: ${latestDate}. Total rows: ${total}`);
 }
 
@@ -171,7 +218,11 @@ function appendRows(sheet, rows) {
     r.floor_low, r.floor_high,
     r.tenure, r.district, r.postal, r.tx_key
   ]);
-  sheet.getRange(sheet.getLastRow() + 1, 1, values.length, values[0].length).setValues(values);
+  const startRow = sheet.getLastRow() + 1;
+  // Keep the date column as text ("YYYY-MM") — handleQuery() compares dates
+  // as strings, and Sheets would otherwise coerce them into Date objects.
+  sheet.getRange(startRow, 1, values.length, 1).setNumberFormat('@');
+  sheet.getRange(startRow, 1, values.length, values[0].length).setValues(values);
 }
 
 function normaliseDate(raw) {
