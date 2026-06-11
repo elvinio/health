@@ -1,28 +1,39 @@
 // Main entry point — called by timer trigger and manual backfill runs.
-// On the very first run (total_rows == 0), performs a full backfill from
-// HISTORY_CUTOFF. On subsequent runs, fetches only records newer than
-// last_ingested_date (incremental update).
+//
+// Modes:
+//   backfill  — backfill_complete meta flag is absent/false; accepts all records
+//               >= HISTORY_CUTOFF and relies purely on tx_key dedup. Re-run until
+//               the log says "Backfill complete".
+//   incremental — backfill_complete = true; skips records with date <= last_ingested_date.
+//
+// Graceful timeout: the loop checks elapsed time every page and stops at
+// SAFE_RUNTIME_MS (5.5 min) so state is always saved before GAS kills the script.
+// Simply re-run fetchAndStore() until "Backfill complete" appears in the log.
 function fetchAndStore() {
   const apiKey = getApiKey();
   if (!apiKey) {
-    throw new Error('No API key set. Run setApiKey("your-key") first. Get a free key at https://data.gov.sg');
+    throw new Error('No API key set. Add DATA_GOV_API_KEY in Project Settings → Script Properties.');
   }
+
+  const SAFE_RUNTIME_MS = 5.5 * 60 * 1000; // stop fetching at 5.5 min, save state, exit cleanly
+  const startTime = Date.now();
 
   const txSheet = getSheet(CONFIG.TX_SHEET);
   const lastDate = getMeta('last_ingested_date') || CONFIG.HISTORY_CUTOFF;
-  const isBackfill = (String(getMeta('total_rows') || '0') === '0');
+  const backfillComplete = getMeta('backfill_complete') === 'true';
+  const isBackfill = !backfillComplete;
 
   if (isBackfill) {
-    Logger.log(`Backfill mode: fetching all records from ${CONFIG.HISTORY_CUTOFF}`);
+    Logger.log(`Backfill mode (resumable): dedup-only, no date cutoff. Re-run until "Backfill complete".`);
   } else {
     Logger.log(`Incremental mode: fetching records newer than ${lastDate}`);
   }
 
-  // Build existing dedup key set from transactions sheet
+  // Build dedup key set from existing transactions
   const existing = new Set();
   const allData = txSheet.getDataRange().getValues();
   for (let i = 1; i < allData.length; i++) {
-    existing.add(allData[i][12]); // column M (index 12) = tx_key
+    existing.add(allData[i][12]); // column M = tx_key
   }
 
   let offset = 0;
@@ -30,8 +41,16 @@ function fetchAndStore() {
   let latestDate = lastDate;
   let hasMore = true;
   let totalFetched = 0;
+  let timedOut = false;
 
   while (hasMore) {
+    // Graceful timeout: flush pending rows and save state before GAS kills us
+    if (Date.now() - startTime > SAFE_RUNTIME_MS) {
+      Logger.log(`Approaching 6-min GAS limit after ${totalFetched} records. Saving progress and exiting.`);
+      timedOut = true;
+      break;
+    }
+
     const url = `${CONFIG.API_BASE}?resource_id=${CONFIG.DATASET_RESOURCE_ID}&limit=${CONFIG.PAGE_SIZE}&offset=${offset}`;
     const response = UrlFetchApp.fetch(url, {
       muteHttpExceptions: true,
@@ -49,25 +68,19 @@ function fetchAndStore() {
     totalFetched += records.length;
 
     for (const r of records) {
-      // Filter property type
       if (!CONFIG.PROPERTY_TYPES.includes(r.propertyType)) continue;
 
-      // Parse date (API returns e.g. "2024-03" or "Mar-24")
       const date = normaliseDate(r.contractDate);
       if (!date) continue;
-
-      // Always enforce the 10-year floor
       if (date < CONFIG.HISTORY_CUTOFF) continue;
 
-      // During incremental runs, skip records already ingested.
-      // During backfill, accept everything >= HISTORY_CUTOFF (dedup handles reruns).
+      // Incremental mode: skip already-ingested dates. Backfill: dedup only.
       if (!isBackfill && date <= lastDate) continue;
 
       const area = parseFloat(r.floorAreaSqft) || 0;
       const price = parseFloat(r.price) || 0;
       const psf = area > 0 ? Math.round(price / area) : 0;
 
-      // Parse storey range e.g. "07 TO 09"
       const storeyParts = (r.floorRange || '').split(' TO ');
       const floorLow = parseInt(storeyParts[0]) || 0;
       const floorHigh = parseInt(storeyParts[1]) || floorLow;
@@ -97,7 +110,7 @@ function fetchAndStore() {
     offset += CONFIG.PAGE_SIZE;
     if (records.length < CONFIG.PAGE_SIZE) hasMore = false;
 
-    // Batch-write every 500 rows to avoid memory pressure
+    // Flush every 500 rows to avoid memory pressure
     if (newRows.length >= 500) {
       appendRows(txSheet, newRows);
       newRows = [];
@@ -106,15 +119,23 @@ function fetchAndStore() {
 
   if (newRows.length > 0) appendRows(txSheet, newRows);
 
-  // Persist state — latestDate advances even on partial timeout runs,
-  // so the next manual re-run resumes from where this one stopped.
+  // Always save state so re-runs resume correctly
   setMeta('last_ingested_date', latestDate);
   setMeta('last_run_timestamp', new Date().toISOString());
-  rebuildIndex();
+
   const total = txSheet.getLastRow() - 1;
   setMeta('total_rows', total);
 
-  Logger.log(`Done. Pages fetched: ${totalFetched / CONFIG.PAGE_SIZE}. Latest date: ${latestDate}. Total rows: ${total}`);
+  if (!timedOut && isBackfill) {
+    // Completed a full pass without timing out — backfill is done
+    setMeta('backfill_complete', 'true');
+    Logger.log(`Backfill complete. Total rows: ${total}`);
+  } else if (timedOut) {
+    Logger.log(`Timed out. Progress saved. Rows so far: ${total}. Re-run fetchAndStore() to continue.`);
+  }
+
+  rebuildIndex();
+  Logger.log(`Run finished. Fetched: ${totalFetched} API records. Latest date: ${latestDate}. Total rows: ${total}`);
 }
 
 function appendRows(sheet, rows) {
@@ -129,7 +150,6 @@ function appendRows(sheet, rows) {
 
 function normaliseDate(raw) {
   if (!raw) return null;
-  // Handle "YYYY-MM" directly
   if (/^\d{4}-\d{2}$/.test(raw)) return raw;
   // Handle "MMM-YY" e.g. "Mar-24"
   const months = { Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',

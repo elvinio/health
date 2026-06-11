@@ -67,6 +67,7 @@ function setupSpreadsheet() {
     ['last_run_timestamp', ''],
     ['total_rows',         0],
     ['index_last_rebuilt', ''],
+    ['backfill_complete',  'false'],
   ];
   const existing = metaSheet.getDataRange().getValues().map(r => r[0]);
   for (const [key, value] of seedRows) {
