@@ -52,14 +52,13 @@ function fetchAndStore() {
     }
 
     const url = `${CONFIG.API_BASE}?resource_id=${CONFIG.DATASET_RESOURCE_ID}&limit=${CONFIG.PAGE_SIZE}&offset=${offset}`;
-    const response = UrlFetchApp.fetch(url, {
-      muteHttpExceptions: true,
-      headers: { 'x-api-key': apiKey },
-    });
-
-    const json = JSON.parse(response.getContentText());
+    const json = fetchWithRetry(url, apiKey);
+    if (!json) {
+      Logger.log(`Giving up at offset ${offset} after retries. Saving progress.`);
+      break;
+    }
     if (!json.success) {
-      Logger.log(`API error at offset ${offset}: ${response.getContentText()}`);
+      Logger.log(`API error at offset ${offset}: ${JSON.stringify(json)}`);
       break;
     }
 
@@ -115,6 +114,9 @@ function fetchAndStore() {
       appendRows(txSheet, newRows);
       newRows = [];
     }
+
+    // Throttle: 400 ms between pages keeps us well under the rate limit
+    Utilities.sleep(400);
   }
 
   if (newRows.length > 0) appendRows(txSheet, newRows);
@@ -136,6 +138,30 @@ function fetchAndStore() {
 
   rebuildIndex();
   Logger.log(`Run finished. Fetched: ${totalFetched} API records. Latest date: ${latestDate}. Total rows: ${total}`);
+}
+
+// Fetch one page with up to 3 retries on rate-limit (TOO_MANY_REQUESTS).
+// Returns parsed JSON on success, null if all retries exhausted.
+function fetchWithRetry(url, apiKey) {
+  const RETRY_DELAYS_MS = [12000, 20000, 30000]; // wait before each retry
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    const response = UrlFetchApp.fetch(url, {
+      muteHttpExceptions: true,
+      headers: { 'x-api-key': apiKey },
+    });
+    const json = JSON.parse(response.getContentText());
+    if (json.name === 'TOO_MANY_REQUESTS' || response.getResponseCode() === 429) {
+      if (attempt < RETRY_DELAYS_MS.length) {
+        const wait = RETRY_DELAYS_MS[attempt];
+        Logger.log(`Rate limited. Waiting ${wait / 1000}s before retry ${attempt + 1}…`);
+        Utilities.sleep(wait);
+        continue;
+      }
+      return null; // exhausted
+    }
+    return json;
+  }
+  return null;
 }
 
 function appendRows(sheet, rows) {
