@@ -333,6 +333,33 @@ test('mergeData: lww — explicit empty string from winning side is preserved', 
   assert.equal(m.expenseCats, '');
 });
 
+test('mergeData: lww — explicit null from winning side is preserved (M4)', () => {
+  // User cleared customAiPrompt on local (newer ts); merge must keep null and not
+  // resurrect the partner's old value.
+  const local  = baseSide({ customAiPrompt: null, _customAiPromptTs: 10 });
+  const remote = baseSide({ customAiPrompt: 'My old prompt', _customAiPromptTs: 5 });
+  const m = F.mergeData(local, remote);
+  assert.equal(m.customAiPrompt, null, 'null from newer winner must not be overwritten by loser');
+});
+
+test('mergeData: asset _deletedHistoryTs tombstones applied during merge (H8)', () => {
+  const badEntry = { date: '2024-03-01', value: 500000, _ts: 99 };
+  // Local deleted the bad entry; remote still has it.
+  const local = baseSide({ assets: [{
+    id: 'as1', name: 'S', class: 'Equities', units: 1,
+    history: [{ date: '2024-01-01', value: 100, _ts: 1 }],
+    _deletedHistoryTs: [99],
+  }] });
+  const remote = baseSide({ assets: [{
+    id: 'as1', name: 'S', class: 'Equities', units: 1,
+    history: [{ date: '2024-01-01', value: 100, _ts: 1 }, badEntry],
+  }] });
+  const m = F.mergeData(local, remote);
+  const asset = m.assets.find(a => a.id === 'as1');
+  assert.equal(asset.history.length, 1, 'deleted entry must not resurface after merge');
+  assert.ok(asset._deletedHistoryTs.includes(99), 'tombstone carried into merged asset');
+});
+
 test('mergeData: lww — emailCatMap and emailCatDefault share _emailCatMapTs', () => {
   const local  = baseSide({ emailCatMap: [{ match: 'a', value: 'Grocery' }], emailCatDefault: 'Travel',  _emailCatMapTs: 1 });
   const remote = baseSide({ emailCatMap: [],                                  emailCatDefault: 'Other',   _emailCatMapTs: 5 });

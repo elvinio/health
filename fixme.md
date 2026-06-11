@@ -39,7 +39,7 @@ and a handful of real data-loss / XSS bugs listed below.
 - [x] **H7. Dependent deletion is never tombstoned — deleted dependents resurrect on sync** — `finance-investments.js:111-130`.
   `saveAccountSettings` rebuilds `data.dependents` and drops blanked rows, but never pushes the dropped `id` into `data._deletedIds`. `mergeData` union-merges dependents (`finance-drive.js:319`), so the remote copy re-adds them on the next sync. Secondary bug at line 126: every save stamps *all* dependents `_ts: Date.now()`, so a partner's concurrent edit always loses, even for untouched rows.
 
-- [ ] **H8. "Remove Latest Entry" on asset history resurrects after sync** — `finance-investments.js:573-582`.
+- [x] **H8. "Remove Latest Entry" on asset history resurrects after sync** — `finance-investments.js:573-582`.
   `deleteLatestHistory()` pops the last history entry with no tombstone, but the asset merge (`finance-drive.js:260-279`) is a pure union of `history[]` deduped by `_ts` — there is no deletion mechanism for history entries. Scenario: fat-finger $500,000 instead of $50,000, remove it, sync — the bad entry comes back from the remote file and, having the highest `_ts`, becomes `currentValue()` again, corrupting net worth, allocation, and the retirement projection.
 
 - [ ] **H9. Editing an expense across the year boundary double-counts it after sync** — `finance-expenses.js:149-166`.
@@ -52,7 +52,7 @@ and a handful of real data-loss / XSS bugs listed below.
 
 **Sync / data layer**
 
-- [ ] **M1. No single-flight guard across the four sync entry points** — `finance-drive.js:392` (`driveSync`), `:94-97` (`driveSyncHeader` quick-sync), `:559` (`forceSyncHistory`), `:646` (`forceSyncWiki`).
+- [x] **M1. No single-flight guard across the four sync entry points** — `finance-drive.js:392` (`driveSync`), `:94-97` (`driveSyncHeader` quick-sync), `:559` (`forceSyncHistory`), `:646` (`forceSyncWiki`).
   `driveSync` disables `#driveSyncBtn` but never *checks* it, and the other three entry points call straight in. Two overlapping syncs interleave download/merge/upload and both reassign the global `data = merged` mid-flight (compounding H3). Fix: a module-level `let syncInFlight` mutex checked in all four.
 
 - [ ] **M2. No optimistic concurrency on Drive uploads** — `finance-drive.js:684-704`.
@@ -61,7 +61,7 @@ and a handful of real data-loss / XSS bugs listed below.
 - [ ] **M3. First-time history upload failure orphans the new Drive file** — `finance-drive.js:504-523` (and same shape in `driveFirstSave` ~line 378).
   When no `historyFileId` exists, a new Drive file is created and its ID captured only in local variables / the in-flight `merged` object. If the subsequent main upload throws, the ID is recorded nowhere — the next sync creates *another* history file, orphaning the first. Fix: persist the new file ID (`saveData`) immediately after creation.
 
-- [ ] **M4. `lww()` resurrects values the winner explicitly set to `null`** — `finance-drive.js:223-229`.
+- [x] **M4. `lww()` resurrects values the winner explicitly set to `null`** — `finance-drive.js:223-229`.
   The comment claims `??` preserves explicit null/'' from the winning side; `??` does the opposite for `null` — it falls through to the **loser's** value. Concrete case: user resets `customAiPrompt` to null (newer ts); merge with a partner's old non-null prompt brings the old prompt back. Same for `aiReport: null` ("report cleared"). Fix: don't fall through when the winner's timestamp is strictly newer.
 
 - [ ] **M5. Date-less expenses are silently destroyed at startup** — `finance-core.js:293-302`, same double-filter in `finance-drive.js:423-424`.

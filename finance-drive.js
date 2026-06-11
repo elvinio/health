@@ -2,6 +2,7 @@
 // synchronous DOM setup below can throw and leave it in TDZ) ──────────────────
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
 let driveToken = null;
+let syncInFlight = false;
 
 // ── Import / Export ───────────────────────────────────────────────────────────
 function confirmClearData() {
@@ -221,11 +222,15 @@ function unionById(localArr, remoteArr, tsField, deletedIds) {
 }
 
 // Last-writer-wins: pick the field value from whichever side has the newer tsField.
-// Uses ?? so explicit null/'' values from the winning side are preserved.
+// When one side's timestamp is strictly newer, its value is used even if null/''
+// (user intentionally cleared the field). Falls back to the other side only when
+// the field is completely absent (undefined) on the winner.
 function lww(local, remote, field, tsField, fallback) {
-  return (local[tsField] || 0) >= (remote[tsField] || 0)
-    ? (local[field] ?? remote[field] ?? fallback)
-    : (remote[field] ?? local[field] ?? fallback);
+  const lt = local[tsField] || 0;
+  const rt = remote[tsField] || 0;
+  const winner = lt >= rt ? local : remote;
+  const loser  = lt >= rt ? remote : local;
+  return winner[field] !== undefined ? winner[field] : (loser[field] !== undefined ? loser[field] : fallback);
 }
 
 function lwwTs(local, remote, tsField) {
@@ -278,6 +283,19 @@ function mergeData(local, remote) {
     a.history = a.history
       .filter(h => { const k = h._ts || h.date + h.value; if (seen.has(k)) return false; seen.add(k); return true; })
       .sort((a, b) => (a._ts || 0) - (b._ts || 0));
+  });
+  // Apply history-entry tombstones: union of _deletedHistoryTs from both sides
+  assetMap.forEach(a => {
+    const la = localAssetMap.get(a.id);
+    const ra = remoteAssetMap.get(a.id);
+    const delTs = new Set([
+      ...((la && la._deletedHistoryTs) || []),
+      ...((ra && ra._deletedHistoryTs) || []),
+    ]);
+    if (delTs.size) {
+      a._deletedHistoryTs = [...delTs];
+      a.history = a.history.filter(h => !delTs.has(h._ts));
+    }
   });
 
   // Mortgages: union by id, prefer higher _updatedAt, merge entries, exclude deleted
@@ -391,9 +409,11 @@ async function driveFirstSave() {
 }
 
 async function driveSync() {
+  if (syncInFlight) { showToast('Sync already in progress'); return; }
   const clientId = localStorage.getItem(DRIVE_CLIENT_KEY);
   const fileId = localStorage.getItem(DRIVE_FILE_KEY);
   if (!clientId || !fileId) { showToast('Not connected to Drive'); return; }
+  syncInFlight = true;
   const btn = document.getElementById('driveSyncBtn');
   btn.disabled = true;
   btn.textContent = 'Syncing…';
@@ -566,17 +586,20 @@ async function driveSync() {
     setDriveStatus('Error: ' + err.message);
     showToast('Sync failed');
   } finally {
+    syncInFlight = false;
     btn.disabled = false;
     btn.textContent = '↕ Sync Now';
   }
 }
 
 async function forceSyncHistory() {
+  if (syncInFlight) { showToast('Sync already in progress'); return; }
   const clientId = localStorage.getItem(DRIVE_CLIENT_KEY);
   const fileId = localStorage.getItem(DRIVE_FILE_KEY);
   const historyFileId = data.historyFileId;
   if (!clientId || !fileId) { showToast('Not connected to Drive'); return; }
   if (!historyFileId) { showToast('No history file linked — run a full sync first'); return; }
+  syncInFlight = true;
   const btn = document.getElementById('forceHistorySyncBtn');
   btn.disabled = true;
   btn.textContent = 'Syncing…';
@@ -618,6 +641,7 @@ async function forceSyncHistory() {
     setDriveStatus('Error: ' + err.message);
     showToast('History sync failed');
   } finally {
+    syncInFlight = false;
     btn.disabled = false;
     btn.textContent = '⟳ Force History Sync';
   }
@@ -659,11 +683,13 @@ async function createWikiFile() {
 }
 
 async function forceSyncWiki() {
+  if (syncInFlight) { showToast('Sync already in progress'); return; }
   const clientId = localStorage.getItem(DRIVE_CLIENT_KEY);
   const fileId = localStorage.getItem(DRIVE_FILE_KEY);
   const wikiFileId = data.wikiFileId;
   if (!clientId || !fileId) { showToast('Not connected to Drive'); return; }
   if (!wikiFileId) { showToast('No wiki file linked — enter a file ID first'); return; }
+  syncInFlight = true;
   const btn = document.getElementById('forceWikiSyncBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Syncing…'; }
   setDriveStatus('Authenticating…');
@@ -692,6 +718,7 @@ async function forceSyncWiki() {
     setDriveStatus('Error: ' + err.message);
     showToast('Wiki sync failed');
   } finally {
+    syncInFlight = false;
     if (btn) { btn.disabled = false; btn.textContent = '⟳ Sync wiki'; }
   }
 }
