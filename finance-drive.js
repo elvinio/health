@@ -483,7 +483,7 @@ async function driveSync() {
     }
 
     setDriveStatus('Merging…');
-    const merged = mergeData(data, remote);
+    let merged = mergeData(data, remote);
 
     // Apply deletedIds to history + wiki
     const deletedSet = new Set(merged._deletedIds);
