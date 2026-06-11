@@ -559,7 +559,7 @@ function deleteAsset() {
 function openHistory(id) {
   const asset = data.assets.find(a => a.id === id);
   if (!asset) return;
-  document.getElementById('historyTitle').textContent = esc(asset.name) + ' — History';
+  document.getElementById('historyTitle').textContent = asset.name + ' — History';
   const rows = [...asset.history].reverse();
   document.getElementById('historyBody').innerHTML = `
     <table class="hist-table">

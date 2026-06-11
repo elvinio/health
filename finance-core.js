@@ -191,7 +191,11 @@ function saveData(d) {
   if (Array.isArray(d._deletedIds) && d._deletedIds.length > 500) {
     d._deletedIds = d._deletedIds.slice(-500);
   }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
+  } catch (e) {
+    if (typeof showToast === 'function') showToast('⚠️ Storage full — export your data to avoid losing changes', 8000);
+  }
 }
 
 function loadHistory() {
@@ -209,7 +213,11 @@ function loadHistory() {
 function saveHistory(h) {
   h._updatedAt = Date.now();
   data.historyUpdatedAt = h._updatedAt;
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
+  } catch (e) {
+    if (typeof showToast === 'function') showToast('⚠️ Storage full — export your data to avoid losing changes', 8000);
+  }
 }
 
 function defaultWikiData() {
@@ -254,7 +262,11 @@ function saveWiki(w) {
   w._updatedAt = Date.now();
   wikiData = w;
   if (typeof data !== 'undefined' && data) data.wikiUpdatedAt = w._updatedAt;
-  localStorage.setItem(WIKI_KEY, JSON.stringify(w));
+  try {
+    localStorage.setItem(WIKI_KEY, JSON.stringify(w));
+  } catch (e) {
+    if (typeof showToast === 'function') showToast('⚠️ Storage full — export your data to avoid losing changes', 8000);
+  }
 }
 
 function recalcBalances(d, expenses) {

@@ -70,7 +70,7 @@ and a handful of real data-loss / XSS bugs listed below.
 - [ ] **M6. Fresh install bypasses `loadData()` backfills — undefined CPF settings on first session** — `finance-core.js:131-134, 144-146`.
   `loadData()` early-returns `defaultData()` when nothing is stored, skipping the backfills. `defaultData()`'s `cpfSettings` is just `{ dateOfBirth: '' }` — no `lifeExpectancy`/`ersGrowthRate`/`mortalityFactor` — so the CPF tab can compute NaNs until the first save+reload. Fix: make `defaultData()` complete, or run the backfills on the fresh object too.
 
-- [ ] **M7. No try/catch around any `localStorage.setItem`; quota failure = silent data loss** — `finance-core.js:190-195, 209-213, 252-258`.
+- [x] **M7. No try/catch around any `localStorage.setItem`; quota failure = silent data loss** — `finance-core.js:190-195, 209-213, 252-258`.
   `QuotaExceededError` propagates out of `saveData`/`saveHistory`/`saveWiki` mid-form-handler: the sheet stays open with no explanation and the data exists only in memory (gone on reload). The history blob grows unboundedly (all past years), so this *will* eventually fire. Also `loadData()`'s blanket `catch { return defaultData() }` discards a possibly-recoverable corrupt blob and the next `saveData` overwrites it permanently — stash the raw string (e.g. `finance:v1:corrupt`) before resetting.
 
 - [ ] **M8. `_deletedIds` capped at 500 — old tombstones rotate out, deletions resurrect** — `finance-core.js:191-193`.
@@ -81,7 +81,7 @@ and a handful of real data-loss / XSS bugs listed below.
 
 **Service worker / PWA**
 
-- [ ] **M10. PWA shortcuts fail offline — cache match doesn't ignore query strings** — `sw.js:65-67` + `manifest.json` shortcuts.
+- [x] **M10. PWA shortcuts fail offline — cache match doesn't ignore query strings** — `sw.js:65-67` + `manifest.json` shortcuts.
   The manifest's shortcuts point at `/health/finance.html?add=1` / `?addevent=1`; `caches.match(e.request)` without options doesn't match the cached `finance.html`, so the "Quickly add expense" shortcut shows a browser error page offline. Fix: `caches.match(e.request, { ignoreSearch: true })` for navigations.
 
 - [ ] **M11. `EXT_CACHE` never populates — Leaflet never works offline** — `sw.js:46-63` + `finance-events.js:518-528`.
@@ -141,7 +141,7 @@ and a handful of real data-loss / XSS bugs listed below.
 - [ ] **L10.** Uploaded `monthlyAgg` excludes history months — `mergeData` ends with current-year-only `recalcMonthlyAgg` and that gets uploaded; the all-years recompute runs only after upload. External consumers of the Drive file (the Apps Script quarterly report) see months missing around year boundaries (`finance-drive.js:359-360, 523, 533`).
 - [ ] **L11.** FAB stays visible (no-op) when switching to Tax › Retirement — `switchTaxSubTab` doesn't update FAB visibility, unlike `switchAnalysisSubTab` (`finance-expenses.js:327-336`). On Expenses › Recurring/Mortgage the FAB still opens the plain expense sheet rather than the sub-tab's own add-entity.
 - [ ] **L12.** Hardcoded account-id styling: `e.ac === 'acc1' ? 'acc1' : 'acc2'` — anything not literally `acc1` styles as account 2 (`finance-expenses.js:62`, `finance-insurance.js:279`).
-- [ ] **L13.** Double-escaping into `textContent`: `historyTitle.textContent = esc(asset.name) + …` shows `A &amp; B` for `A & B` (`finance-investments.js:545`).
+- [x] **L13.** Double-escaping into `textContent`: `historyTitle.textContent = esc(asset.name) + …` shows `A &amp; B` for `A & B` (`finance-investments.js:545`).
 - [ ] **L14.** Tax PIN: lock screen renders exactly `pin.length` dots (discloses length), 1-digit PINs accepted, and the tab handler runs `renderAll()` **before** `maybeShowTaxPin()` so all tax data is in the DOM behind the overlay (find-in-page / screen readers see it) (`finance-tax.js:22, 44-49`; `finance-investments.js:138`; `finance-core.js:422-423`).
 - [ ] **L15.** CPF "Monthly Mortgage" cannot be set below $3,000 (slider min + validation + default all 3000) — a user with no mortgage can't model $0 OA deduction; out-of-range values are silently discarded (`finance-tax.js:320, 363, 432`).
 - [ ] **L16.** Retirement loop `for (age = retireAge; age < deathAge; ...)` — "Portfolio at Death Age" is actually the balance at end of age `deathAge − 1`; the death year is never simulated (`finance-tax.js:882, 1045`).

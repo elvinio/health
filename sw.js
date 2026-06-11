@@ -1,4 +1,4 @@
-const CACHE = 'finance-v168';
+const CACHE = 'finance-v169';
 const EXT_CACHE = 'finance-ext-v1';
 const ASSETS = [
   '/health/finance.html',
@@ -67,7 +67,7 @@ self.addEventListener('fetch', e => {
   }
 
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+    caches.match(e.request, { ignoreSearch: true }).then(cached => cached || fetch(e.request))
   );
 });
 
