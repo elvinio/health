@@ -112,6 +112,11 @@ function openDriveMenu() {
     const lastSync = localStorage.getItem('finance:lastSync');
     document.getElementById('driveLastSync').textContent = lastSync
       ? 'Last synced ' + new Date(lastSync).toLocaleString() : '';
+    caches.keys().then(keys => {
+      const v = keys.find(k => k.startsWith('finance-v'));
+      const el = document.getElementById('swVersionDisplay');
+      if (el) el.textContent = v ? 'Cache: ' + v : '';
+    });
   } else {
     document.getElementById('driveSetup').style.display = '';
     document.getElementById('driveConnected').style.display = 'none';
@@ -565,8 +570,10 @@ async function driveSync() {
     setDriveStatus('Sync complete ✓');
     showToast('Sync complete');
   } catch (err) {
-    setDriveStatus('Error: ' + err.message);
-    showToast('Sync failed — ' + err.message, 8000);
+    const loc = (err.stack || '').split('\n').find(l => /finance-.*:\d+/.test(l));
+    const detail = err.message + (loc ? ' @ ' + loc.trim().replace(/^at\s+/, '') : '');
+    setDriveStatus('Error: ' + detail);
+    showToast('Sync failed — ' + detail, 10000);
   } finally {
     btn.disabled = false;
     btn.textContent = '↕ Sync Now';
