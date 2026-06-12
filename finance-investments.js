@@ -591,6 +591,12 @@ function deleteLatestHistory(id) {
   const asset = data.assets.find(a => a.id === id);
   if (!asset || asset.history.length < 2) { showToast('Cannot remove only entry'); return; }
   if (!confirm('Remove the latest value entry?')) return;
+  const removed = asset.history[asset.history.length - 1];
+  // Tombstone the entry so Drive sync doesn't resurrect it from the remote copy.
+  if (removed._ts) {
+    if (!asset._deletedHistoryTs) asset._deletedHistoryTs = [];
+    if (!asset._deletedHistoryTs.includes(removed._ts)) asset._deletedHistoryTs.push(removed._ts);
+  }
   asset.history.pop();
   saveData(data);
   closeHistory();
