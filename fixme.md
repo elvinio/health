@@ -61,10 +61,10 @@ and a handful of real data-loss / XSS bugs listed below.
 - [ ] **M3. First-time history upload failure orphans the new Drive file** — `finance-drive.js:504-523` (and same shape in `driveFirstSave` ~line 378).
   When no `historyFileId` exists, a new Drive file is created and its ID captured only in local variables / the in-flight `merged` object. If the subsequent main upload throws, the ID is recorded nowhere — the next sync creates *another* history file, orphaning the first. Fix: persist the new file ID (`saveData`) immediately after creation.
 
-- [ ] **M4. `lww()` resurrects values the winner explicitly set to `null`** — `finance-drive.js:223-229`.
+- [x] **M4. `lww()` resurrects values the winner explicitly set to `null`** — `finance-drive.js:223-229`.
   The comment claims `??` preserves explicit null/'' from the winning side; `??` does the opposite for `null` — it falls through to the **loser's** value. Concrete case: user resets `customAiPrompt` to null (newer ts); merge with a partner's old non-null prompt brings the old prompt back. Same for `aiReport: null` ("report cleared"). Fix: don't fall through when the winner's timestamp is strictly newer.
 
-- [ ] **M5. Date-less expenses are silently destroyed at startup** — `finance-core.js:293-302`, same double-filter in `finance-drive.js:423-424`.
+- [x] **M5. Date-less expenses are silently destroyed at startup** — `finance-core.js:293-302`, same double-filter in `finance-drive.js:423-424`.
   An expense with a missing/empty `date` matches neither the "past" nor "current-year" filter: not copied to history, removed from `data.expenses` — deleted with no toast and no tombstone on every load; the sync variant then propagates the deletion. The form can't produce these (`required`), but JSON/CSV imports and legacy data can. Fix: treat falsy dates as "keep in current".
 
 - [ ] **M6. Fresh install bypasses `loadData()` backfills — undefined CPF settings on first session** — `finance-core.js:131-134, 144-146`.
@@ -115,7 +115,7 @@ and a handful of real data-loss / XSS bugs listed below.
 
 **UI / events**
 
-- [ ] **M20. Wiki gesture listeners accumulate on every render** — `finance-wiki.js:188, 317, 461` → `attachWikiGestures`.
+- [x] **M20. Wiki gesture listeners accumulate on every render** — `finance-wiki.js:188, 317, 461` → `attachWikiGestures`.
   Each list render calls `attachWikiGestures` on the same **persistent** container (`#wikiSubContent-*` are static in the HTML; only innerHTML is replaced), unconditionally adding `touchstart/touchmove/touchend/click` listeners with no dedupe. After N renders a single tap fires N click handlers. Fix: a `container._wikiGesturesBound` guard or one delegated listener bound once.
 
 - [ ] **M21. Event reminders >7 days out are dropped and never re-armed** — `finance-events.js:1060-1083`.
