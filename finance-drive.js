@@ -226,11 +226,11 @@ function unionById(localArr, remoteArr, tsField, deletedIds) {
 }
 
 // Last-writer-wins: pick the field value from whichever side has the newer tsField.
-// Uses ?? so explicit null/'' values from the winning side are preserved.
+// Uses !== undefined so explicit null/'' from the winner are preserved (not fallen through).
 function lww(local, remote, field, tsField, fallback) {
-  return (local[tsField] || 0) >= (remote[tsField] || 0)
-    ? (local[field] ?? remote[field] ?? fallback)
-    : (remote[field] ?? local[field] ?? fallback);
+  const winner = (local[tsField] || 0) >= (remote[tsField] || 0) ? local : remote;
+  const loser  = winner === local ? remote : local;
+  return winner[field] !== undefined ? winner[field] : (loser[field] ?? fallback);
 }
 
 function lwwTs(local, remote, tsField) {
@@ -427,7 +427,7 @@ async function driveSync() {
     // Split off any past-year entries that landed in remote.expenses (old format)
     const curYear = String(new Date().getFullYear());
     const remoteHistFromMain = (remote.expenses || []).filter(e => e.date && !e.date.startsWith(curYear + '-'));
-    remote.expenses = (remote.expenses || []).filter(e => e.date && e.date.startsWith(curYear + '-'));
+    remote.expenses = (remote.expenses || []).filter(e => !e.date || e.date.startsWith(curYear + '-'));
 
     // History file ID may come from local or be adopted from the remote main file
     // (partner first sync), exactly like the wiki file ID.

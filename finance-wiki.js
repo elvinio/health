@@ -51,6 +51,8 @@ function closeWikiDetail() {
 // Usage: attachWikiGestures(containerEl)
 function attachWikiGestures(container) {
   if (!container) return;
+  if (container._wikiGesturesBound) return;
+  container._wikiGesturesBound = true;
 
   let startX = 0, startY = 0, activeCard = null, dragging = false;
   const SWIPE_THRESHOLD = 55;   // px before reveal
