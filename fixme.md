@@ -39,10 +39,10 @@ and a handful of real data-loss / XSS bugs listed below.
 - [x] **H7. Dependent deletion is never tombstoned — deleted dependents resurrect on sync** — `finance-investments.js:111-130`.
   `saveAccountSettings` rebuilds `data.dependents` and drops blanked rows, but never pushes the dropped `id` into `data._deletedIds`. `mergeData` union-merges dependents (`finance-drive.js:319`), so the remote copy re-adds them on the next sync. Secondary bug at line 126: every save stamps *all* dependents `_ts: Date.now()`, so a partner's concurrent edit always loses, even for untouched rows.
 
-- [ ] **H8. "Remove Latest Entry" on asset history resurrects after sync** — `finance-investments.js:573-582`.
+- [x] **H8. "Remove Latest Entry" on asset history resurrects after sync** — `finance-investments.js:573-582`.
   `deleteLatestHistory()` pops the last history entry with no tombstone, but the asset merge (`finance-drive.js:260-279`) is a pure union of `history[]` deduped by `_ts` — there is no deletion mechanism for history entries. Scenario: fat-finger $500,000 instead of $50,000, remove it, sync — the bad entry comes back from the remote file and, having the highest `_ts`, becomes `currentValue()` again, corrupting net worth, allocation, and the retirement projection.
 
-- [ ] **H9. Editing an expense across the year boundary double-counts it after sync** — `finance-expenses.js:149-166`.
+- [x] **H9. Editing an expense across the year boundary double-counts it after sync** — `finance-expenses.js:149-166`.
   Moving an expense from `historyData.expenses` to `data.expenses` (date changed from 2025 to 2026, lines 162-165) removes it from local history, but the remote history file still has it; `mergeHistoryData` is union-by-id with no tombstone, so after sync the old 2025 copy exists in history *and* the new 2026 copy in main — same id, double-counted in `allExpenses()` / `recalcMonthlyAgg`, permanently. (The reverse direction self-heals via `migrateExpenses()` on reload; this direction has no self-heal.)
 
 - [x] **H10. Asset rename/class/units edits ping-pong between devices** — `finance-drive.js:260-274`.
@@ -52,7 +52,7 @@ and a handful of real data-loss / XSS bugs listed below.
 
 **Sync / data layer**
 
-- [ ] **M1. No single-flight guard across the four sync entry points** — `finance-drive.js:392` (`driveSync`), `:94-97` (`driveSyncHeader` quick-sync), `:559` (`forceSyncHistory`), `:646` (`forceSyncWiki`).
+- [x] **M1. No single-flight guard across the four sync entry points** — `finance-drive.js:392` (`driveSync`), `:94-97` (`driveSyncHeader` quick-sync), `:559` (`forceSyncHistory`), `:646` (`forceSyncWiki`).
   `driveSync` disables `#driveSyncBtn` but never *checks* it, and the other three entry points call straight in. Two overlapping syncs interleave download/merge/upload and both reassign the global `data = merged` mid-flight (compounding H3). Fix: a module-level `let syncInFlight` mutex checked in all four.
 
 - [ ] **M2. No optimistic concurrency on Drive uploads** — `finance-drive.js:684-704`.
