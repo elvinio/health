@@ -6,10 +6,10 @@ function renderExpenseList() {
     return;
   }
   const curYear = String(new Date().getFullYear());
-  const source = filterYear === curYear ? data.expenses : historyData.expenses.filter(e => e.date.startsWith(filterYear + '-'));
-  let sorted = [...source].sort((a, b) => b.date.localeCompare(a.date) || b._ts - a._ts);
+  const source = filterYear === curYear ? data.expenses : historyData.expenses.filter(e => (e.date || '').startsWith(filterYear + '-'));
+  let sorted = [...source].sort((a, b) => (b.date || '').localeCompare(a.date || '') || b._ts - a._ts);
   if (filterAccount) sorted = sorted.filter(e => e.ac === filterAccount);
-  if (filterSearch) sorted = sorted.filter(e => e.desc.toLowerCase().includes(filterSearch));
+  if (filterSearch) sorted = sorted.filter(e => (e.desc || '').toLowerCase().includes(filterSearch));
   if (!sorted.length) {
     el.innerHTML = `<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">search</span></div>No matching expenses.</div>`;
     return;
