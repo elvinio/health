@@ -272,7 +272,7 @@ function saveExpenseBudget() {
 
 function currentValue(a) {
   const units = a.units != null ? a.units : 1;
-  return a.history.length ? a.history[a.history.length - 1].value * units : 0;
+  return (a.history && a.history.length) ? a.history[a.history.length - 1].value * units : 0;
 }
 
 // ── CPF balance helper (used here and in finance-ai.js) ──────────────────────

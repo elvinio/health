@@ -106,7 +106,7 @@ function defaultData() {
     insurances: [],
     taxRecords: [],
     cpfRecords: [],
-    cpfSettings: { dateOfBirth: '' },
+    cpfSettings: { dateOfBirth: '', spouseDob: '', lifeExpectancy: 85, ersGrowthRate: 3.5, mortalityFactor: 1.35 },
     retirementSettings: { inflationRate: 2.5, investmentRate: 5.0, retirementAge: 62, deathAge: 85, monthlyExpenses: 3000, annualSavings: 150000, safeWithdrawalRate: 4.0 },
     _deletedIds: [],
     budgets: {},

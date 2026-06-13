@@ -696,6 +696,10 @@ async function forceSyncWiki() {
     const token = await getAccessToken(clientId);
     setDriveStatus('Downloading wiki…');
     const remoteWiki = await downloadFromDrive(token, wikiFileId);
+    if (!remoteWiki || typeof remoteWiki !== 'object' ||
+        (!Array.isArray(remoteWiki.recipes) && !Array.isArray(remoteWiki.shoppingLists) && !Array.isArray(remoteWiki.resumes))) {
+      throw new Error('Remote file does not look like wiki data — wrong file linked?');
+    }
     setDriveStatus('Merging wiki…');
     const mergedWiki = mergeWikiData(wikiData, remoteWiki);
     const deletedSet = new Set(data._deletedIds || []);

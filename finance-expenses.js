@@ -7,9 +7,9 @@ function renderExpenseList() {
   }
   const curYear = String(new Date().getFullYear());
   const source = filterYear === curYear ? data.expenses : historyData.expenses.filter(e => e.date.startsWith(filterYear + '-'));
-  let sorted = [...source].sort((a, b) => b.date.localeCompare(a.date) || b._ts - a._ts);
+  let sorted = [...source].sort((a, b) => (b.date || '').localeCompare(a.date || '') || b._ts - a._ts);
   if (filterAccount) sorted = sorted.filter(e => e.ac === filterAccount);
-  if (filterSearch) sorted = sorted.filter(e => e.desc.toLowerCase().includes(filterSearch));
+  if (filterSearch) sorted = sorted.filter(e => (e.desc || '').toLowerCase().includes(filterSearch));
   if (!sorted.length) {
     el.innerHTML = `<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">search</span></div>No matching expenses.</div>`;
     return;
@@ -217,8 +217,8 @@ let showHistoryPills = false;
 
 function getExpenseYears() {
   const years = new Set([
-    ...data.expenses.map(e => e.date.slice(0, 4)),
-    ...historyData.expenses.map(e => e.date.slice(0, 4))
+    ...data.expenses.map(e => (e.date || '').slice(0, 4)).filter(Boolean),
+    ...historyData.expenses.map(e => (e.date || '').slice(0, 4)).filter(Boolean)
   ]);
   years.add(String(new Date().getFullYear()));
   return [...years].sort((a, b) => Number(b) - Number(a));
