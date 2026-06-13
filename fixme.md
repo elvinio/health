@@ -67,7 +67,7 @@ and a handful of real data-loss / XSS bugs listed below.
 - [x] **M5. Date-less expenses are silently destroyed at startup** — `finance-core.js:293-302`, same double-filter in `finance-drive.js:423-424`.
   An expense with a missing/empty `date` matches neither the "past" nor "current-year" filter: not copied to history, removed from `data.expenses` — deleted with no toast and no tombstone on every load; the sync variant then propagates the deletion. The form can't produce these (`required`), but JSON/CSV imports and legacy data can. Fix: treat falsy dates as "keep in current".
 
-- [ ] **M6. Fresh install bypasses `loadData()` backfills — undefined CPF settings on first session** — `finance-core.js:131-134, 144-146`.
+- [x] **M6. Fresh install bypasses `loadData()` backfills — undefined CPF settings on first session** — `finance-core.js:131-134, 144-146`.
   `loadData()` early-returns `defaultData()` when nothing is stored, skipping the backfills. `defaultData()`'s `cpfSettings` is just `{ dateOfBirth: '' }` — no `lifeExpectancy`/`ersGrowthRate`/`mortalityFactor` — so the CPF tab can compute NaNs until the first save+reload. Fix: make `defaultData()` complete, or run the backfills on the fresh object too.
 
 - [x] **M7. No try/catch around any `localStorage.setItem`; quota failure = silent data loss** — `finance-core.js:190-195, 209-213, 252-258`.
@@ -110,7 +110,7 @@ and a handful of real data-loss / XSS bugs listed below.
 - [ ] **M18. CPF constants are internally contradictory** — `finance-core.js:394` vs `finance-tax.js:136`.
   `CPF_ERS = CPF_FRS * 1.5` = $330,600 ("ERS = 1.5× FRS") coexists with `ERS_2026 = 440800` (the post-2025 2×FRS rule) — two different ERS values; the core one is dead code but a landmine. The "CPF Board official rates (2024)" block mixes 2024/2025/2026 figures with inconsistent year labels; `CPF_BHS = 75500` is held flat across multi-decade projections; magic numbers (`annualSalary = 102000`, SRS `15300`, growth `1.04`, payout age `65`) are inline.
 
-- [ ] **M19. Records missing `desc`/`date`/`history` blank entire tabs** — `finance-expenses.js:10, 12`; `finance-investments.js:266`.
+- [x] **M19. Records missing `desc`/`date`/`history` blank entire tabs** — `finance-expenses.js:10, 12`; `finance-investments.js:266`.
   `b.date.localeCompare(...)` and `e.desc.toLowerCase()` throw on `undefined`; `currentValue(a)` assumes `a.history` is an array. CLAUDE.md warns an uncaught render exception blanks the tab — imported or partner-edited data with a missing field is enough. Guard with fallbacks.
 
 **UI / events**
