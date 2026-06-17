@@ -1640,56 +1640,19 @@ const DriveSync = (() => {
       onStatus('Authorizing…');
       const token = await authorize();
       const cfg = loadConfig();
-      if (cfg.fileId) {
-        onStatus('Downloading…');
-        const content = await fetchFile(token, cfg.fileId);
-        const parsed = JSON.parse(content);
-        if (!parsed.perProfile && !parsed.config && !parsed.sessions && !parsed.baselines) throw new Error('Not a valid backup');
-        if (!confirm('Replace all local data with Drive backup?')) { onStatus('Cancelled.'); return; }
-        localStorage.setItem(STORAGE_KEY, content);
-        onStatus('Loaded — reloading…');
-        setTimeout(() => location.reload(), 800);
-      } else {
-        onStatus('Opening file picker…');
-        await openPicker(token, onStatus);
-      }
+      const fileId = cfg.fileId;
+      if (!fileId) { onStatus('No file ID set — enter one in settings.'); return; }
+      onStatus('Downloading…');
+      const content = await fetchFile(token, fileId);
+      const parsed = JSON.parse(content);
+      if (!parsed.perProfile && !parsed.config && !parsed.sessions && !parsed.baselines) throw new Error('Not a valid backup');
+      if (!confirm('Replace all local data with Drive backup?')) { onStatus('Cancelled.'); return; }
+      localStorage.setItem(STORAGE_KEY, content);
+      onStatus('Loaded — reloading…');
+      setTimeout(() => location.reload(), 800);
     } catch (e) {
       onStatus('Error: ' + e.message);
     }
-  }
-
-  async function openPicker(token, onStatus) {
-    const cfg = loadConfig();
-    if (!cfg.apiKey) {
-      onStatus('');
-      alert('Enter an API Key to use the file picker, or "Save to Drive" first (which stores the file ID for future loads).');
-      return;
-    }
-    await loadScript('https://apis.google.com/js/api.js');
-    await new Promise(r => gapi.load('picker', r));
-    const picker = new google.picker.PickerBuilder()
-      .addView(google.picker.ViewId.DOCS)
-      .setOAuthToken(token)
-      .setDeveloperKey(cfg.apiKey)
-      .setCallback(async data => {
-        if (data.action !== google.picker.Action.PICKED) { onStatus(''); return; }
-        const fileId = data.docs[0].id;
-        try {
-          onStatus('Downloading…');
-          const content = await fetchFile(token, fileId);
-          const parsed = JSON.parse(content);
-          if (!parsed.perProfile && !parsed.config && !parsed.sessions && !parsed.baselines) throw new Error('Not a valid backup');
-          if (!confirm('Replace all local data with Drive backup?')) { onStatus('Cancelled.'); return; }
-          saveConfig({ fileId });
-          localStorage.setItem(STORAGE_KEY, content);
-          onStatus('Loaded — reloading…');
-          setTimeout(() => location.reload(), 800);
-        } catch (e) {
-          onStatus('Error: ' + e.message);
-        }
-      })
-      .build();
-    picker.setVisible(true);
   }
 
   return { loadConfig, saveConfig, save, load };
@@ -2305,8 +2268,9 @@ function renderSetup(isFirstRun) {
           <li>Go to <strong>console.cloud.google.com</strong> → create a project</li>
           <li>Enable the <em>Google Drive API</em></li>
           <li>Create an <em>OAuth 2.0 Client ID</em> (Web application) — add this page's URL as an authorised JavaScript origin</li>
-          <li>Create an <em>API Key</em> (restrict to Drive API) — needed for the file picker</li>
-          <li>Paste both values below and tap Save credentials</li>
+          <li>Paste the Client ID below and tap Save credentials</li>
+          <li>Click <em>Save to Drive</em> to create the backup file — the File ID is saved automatically</li>
+          <li>To load from an existing file, paste its Drive File ID below</li>
         </ol>
       </details>
       <div class="field">
@@ -2314,8 +2278,8 @@ function renderSetup(isFirstRun) {
         <input type="text" id="drive-client-id" placeholder="xxxx.apps.googleusercontent.com" value="${escapeHtml(driveCfg.clientId || '')}">
       </div>
       <div class="field">
-        <label for="drive-api-key">API Key <span class="text-muted">(for file picker)</span></label>
-        <input type="text" id="drive-api-key" placeholder="AIza…" value="${escapeHtml(driveCfg.apiKey || '')}">
+        <label for="drive-file-id">File ID <span class="text-muted">(auto-saved after first upload; paste to load an existing file)</span></label>
+        <input type="text" id="drive-file-id" placeholder="1BxiM…" value="${escapeHtml(driveCfg.fileId || '')}">
       </div>
       <button class="btn secondary sm" id="drive-cred-btn">Save credentials</button>
       <div id="drive-controls" ${driveCfg.clientId ? '' : 'hidden'} style="margin-top:14px;">
@@ -2443,8 +2407,8 @@ function renderSetup(isFirstRun) {
 
   document.getElementById('drive-cred-btn').onclick = () => {
     const clientId = document.getElementById('drive-client-id').value.trim();
-    const apiKey   = document.getElementById('drive-api-key').value.trim();
-    DriveSync.saveConfig({ clientId, apiKey });
+    const fileId   = document.getElementById('drive-file-id').value.trim();
+    DriveSync.saveConfig({ clientId, ...(fileId && { fileId }) });
     document.getElementById('drive-controls').hidden = !clientId;
     alert('Credentials saved.');
   };
