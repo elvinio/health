@@ -248,7 +248,9 @@ Guidance
         rpe: st.rpe ?? null,
         durationSec: st.startedAt && st.endedAt ? Math.round((st.endedAt - st.startedAt) / 1000) : null,
         hr: st.hrAvg != null ? { avg: st.hrAvg, max: st.hrMax, min: st.hrMin ?? null } : null,
-        rest: st.restHrAvg != null ? { avg: st.restHrAvg, max: st.restHrMax ?? null, min: st.restHrMin ?? null, durationSec: st.restSeconds ?? null } : null,
+        zones: st.zones ?? null,
+        rampRate: st.rampRate ?? null,
+        rest: st.restHrAvg != null ? { avg: st.restHrAvg, max: st.restHrMax ?? null, min: st.restHrMin ?? null, durationSec: st.restSeconds ?? null, zones: st.restZones ?? null, rampRate: st.restRampRate ?? null } : null,
         hrRecovery: st.hrRecovery ?? null,
       })),
     }));
@@ -256,8 +258,8 @@ Guidance
       date: s.date, week: s.week, day: s.day,
       completed: !!s.completedAt,
       exercises,
-      cardio: s.cardio ? { distanceMeters: s.cardio.distanceMeters, hrAvg: s.cardio.hrAvg, hrMax: s.cardio.hrMax, hrMin: s.cardio.hrMin ?? null } : null,
-      warmupHr: s.warmup ? { hrAvg: s.warmup.hrAvg, hrMax: s.warmup.hrMax, hrMin: s.warmup.hrMin ?? null } : null,
+      cardio: s.cardio ? { distanceMeters: s.cardio.distanceMeters, hrAvg: s.cardio.hrAvg, hrMax: s.cardio.hrMax, hrMin: s.cardio.hrMin ?? null, zones: s.cardio.zones ?? null } : null,
+      warmupHr: s.warmup ? { hrAvg: s.warmup.hrAvg, hrMax: s.warmup.hrMax, hrMin: s.warmup.hrMin ?? null, zones: s.warmup.zones ?? null, rampRate: s.warmup.rampRate ?? null } : null,
     };
   }
 
