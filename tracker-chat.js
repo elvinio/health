@@ -242,16 +242,22 @@ Guidance
     const exercises = Object.entries(s.exercises || {}).map(([id, ex]) => ({
       exercise: names[id] || id,
       actualWeight: ex.actualWeight != null ? ex.actualWeight : ex.plannedWeight,
-      sets: (ex.sets || []).length,
-      rpe: (ex.sets || []).map(st => st.rpe).filter(v => v != null),
-      avgHr: (ex.sets || []).map(st => st.hrAvg).filter(v => v != null),
+      sets: (ex.sets || []).filter(st => st.endedAt).length,
+      setDetail: (ex.sets || []).filter(st => st.endedAt).sort((a, b) => a.setIndex - b.setIndex).map(st => ({
+        index: st.setIndex,
+        rpe: st.rpe ?? null,
+        durationSec: st.startedAt && st.endedAt ? Math.round((st.endedAt - st.startedAt) / 1000) : null,
+        hr: st.hrAvg != null ? { avg: st.hrAvg, max: st.hrMax, min: st.hrMin ?? null } : null,
+        rest: st.restHrAvg != null ? { avg: st.restHrAvg, max: st.restHrMax ?? null, min: st.restHrMin ?? null, durationSec: st.restSeconds ?? null } : null,
+        hrRecovery: st.hrRecovery ?? null,
+      })),
     }));
     return {
       date: s.date, week: s.week, day: s.day,
       completed: !!s.completedAt,
       exercises,
-      cardio: s.cardio ? { distanceMeters: s.cardio.distanceMeters, hrAvg: s.cardio.hrAvg, hrMax: s.cardio.hrMax } : null,
-      warmupHr: s.warmup ? { hrAvg: s.warmup.hrAvg, hrMax: s.warmup.hrMax } : null,
+      cardio: s.cardio ? { distanceMeters: s.cardio.distanceMeters, hrAvg: s.cardio.hrAvg, hrMax: s.cardio.hrMax, hrMin: s.cardio.hrMin ?? null } : null,
+      warmupHr: s.warmup ? { hrAvg: s.warmup.hrAvg, hrMax: s.warmup.hrMax, hrMin: s.warmup.hrMin ?? null } : null,
     };
   }
 

@@ -3101,6 +3101,7 @@ function onTimerEndWarmup() {
     activeDayState.warmup.hrSamples = hr.samples;
     activeDayState.warmup.hrAvg     = hr.avg;
     activeDayState.warmup.hrMax     = hr.max;
+    activeDayState.warmup.hrMin     = hr.min;
   }
   persistDayState();
   rerenderActiveSetButton();
@@ -3120,6 +3121,7 @@ function onTimerEndSet() {
       setEntry.hrSamples = hr.samples;
       setEntry.hrAvg     = hr.avg;
       setEntry.hrMax     = hr.max;
+      setEntry.hrMin     = hr.min;
     }
   }
   persistDayState();
@@ -3141,6 +3143,8 @@ function onTimerSkipRest() {
         prevSet.restHrSamples = hr.samples;
         prevSet.restHrAvg     = hr.avg;
         prevSet.restHrMax     = hr.max;
+        prevSet.restHrMin     = hr.min;
+        prevSet.hrRecovery    = (prevSet.hrMax != null && hr.min != null) ? prevSet.hrMax - hr.min : null;
       }
       persistDayState();
       rerenderActiveSetButton(ps.exKey, ps.setIndex);
@@ -3282,7 +3286,7 @@ function renderHistoryDetail(s) {
   if (s.warmup && s.warmup.startedAt && s.warmup.endedAt) {
     const dur = Math.round((s.warmup.endedAt - s.warmup.startedAt) / 1000);
     const wHr = s.warmup.hrAvg != null
-      ? `<div class="h-hr">♥ avg ${s.warmup.hrAvg} max ${s.warmup.hrMax}</div>` : '';
+      ? `<div class="h-hr">♥ avg ${s.warmup.hrAvg} · max ${s.warmup.hrMax}${s.warmup.hrMin != null ? ' · min ' + s.warmup.hrMin : ''}</div>` : '';
     warmupHtml = `<div class="h-ex"><span class="h-ex-name">Warm-up</span> <span class="h-sets">${fmtTime(dur)}</span>${wHr}</div>`;
   }
   if (!entries.length && !warmupHtml) return '<div class="text-xs text-muted">No exercises logged.</div>';
@@ -3295,8 +3299,8 @@ function renderHistoryDetail(s) {
         const dur  = Math.round((x.endedAt - x.startedAt) / 1000);
         const rest = x.restSeconds != null ? ` r${x.restSeconds}s` : '';
         const rpe  = x.rpe != null ? ` @${x.rpe}` : '';
-        const hr   = x.hrAvg != null ? ` ♥${x.hrAvg}↑${x.hrMax}` : '';
-        const rhr  = x.restHrAvg != null ? ` rest♥${x.restHrAvg}` : '';
+        const hr   = x.hrAvg != null ? ` ♥${x.hrMin != null ? x.hrMin + '/' : ''}${x.hrAvg}/${x.hrMax}` : '';
+        const rhr  = x.restHrAvg != null ? ` rest♥${x.restHrMin != null ? x.restHrMin + '/' : ''}${x.restHrAvg}${x.hrRecovery != null ? ' ↓' + x.hrRecovery : ''}` : '';
         return `S${x.setIndex}:${fmtTime(dur)}${rest}${rpe}${hr}${rhr}`;
       }).join('  ');
     return `<div class="h-ex">
