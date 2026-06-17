@@ -22,7 +22,8 @@ Personal health and finance tools, all served as static files under `/health/`.
 | `apps-script/quarterly-report.gs` | Optional Google Apps Script — quarterly Claude API call → Drive report | — |
 | `sw.js` | Service worker for `finance.html` | 76 |
 | `tracker.html` | Health tracker PWA | — |
-| `sw-tracker.js` | Service worker for `tracker.html` | — |
+| `tracker-chat.js` | Tracker Chat tab — Claude agent (browser `@anthropic-ai/sdk` via ESM CDN); tools to browse workout/health history + create/modify/activate programs; streaming, prompt caching, per-message cost/tokens, per-profile saved sessions | — |
+| `sw-tracker.js` | Service worker for `tracker.html` (caches `tracker-chat.js`; `esm.sh` SDK cached in `EXT_CACHE`) | — |
 | `her.html` / `him.html` | Health plan pages | — |
 | `themes.css` | Shared CSS themes (navy, earth, pastel) | — |
 | `manifest.json` | PWA manifest (finance) | — |

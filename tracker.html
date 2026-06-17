@@ -943,12 +943,14 @@
     <a href="#/today" data-route="today"><span class="icon">▶</span>Today</a>
     <a href="#/history" data-route="history"><span class="icon">⏱</span>History</a>
     <a href="#/health" data-route="health"><span class="icon">♡</span>Health</a>
+    <a href="#/chat" data-route="chat"><span class="icon">💬</span>Chat</a>
     <a href="#/setup" data-route="setup"><span class="icon">⚙</span>Setup</a>
   </nav>
 
   <div id="modal-backdrop" class="modal-backdrop" hidden></div>
   <div id="modal-sheet" class="modal-sheet" hidden></div>
 
+<script src="tracker-chat.js"></script>
 <script>
 'use strict';
 
@@ -1317,8 +1319,8 @@ const Storage = {
       activeProfile: 'p1',
       importedPrograms: {},
       perProfile: {
-        p1: { config: null, baselines: {}, sessions: {}, doctorVisits: [], healthReports: [] },
-        p2: { config: null, baselines: {}, sessions: {}, doctorVisits: [], healthReports: [] },
+        p1: { config: null, baselines: {}, sessions: {}, doctorVisits: [], healthReports: [], chatSessions: [] },
+        p2: { config: null, baselines: {}, sessions: {}, doctorVisits: [], healthReports: [], chatSessions: [] },
       },
     };
   },
@@ -1333,6 +1335,7 @@ const Storage = {
     if (!p.sessions) p.sessions = {};
     if (!p.doctorVisits) p.doctorVisits = [];
     if (!p.healthReports) p.healthReports = [];
+    if (!Array.isArray(p.chatSessions)) p.chatSessions = [];
   },
 
   load() {
@@ -2119,7 +2122,7 @@ function go(path) { location.hash = path; }
 function route() {
   const { path, params } = parseHash();
   const cfg = Storage.getConfig();
-  const navMap = { '/today': 'today', '/setup': 'setup', '/history': 'history', '/day': 'today', '/health': 'health' };
+  const navMap = { '/today': 'today', '/setup': 'setup', '/history': 'history', '/day': 'today', '/health': 'health', '/chat': 'chat' };
   const navKey = navMap[path] || (path === '/' ? 'today' : '');
   document.querySelectorAll('.bottom-nav a').forEach(a => {
     a.classList.toggle('active', a.dataset.route === navKey);
@@ -2137,6 +2140,7 @@ function route() {
   if (path === '/setup') return renderSetup(false);
   if (path === '/history') return renderHistory();
   if (path === '/health') return renderHealth();
+  if (path === '/chat') return renderChat();
   if (path === '/day') {
     const w = Number(params.w), d = Number(params.d);
     const numW = Object.keys(getActiveProgram().weeks).length;
@@ -2248,6 +2252,27 @@ function renderSetup(isFirstRun) {
                placeholder="e.g. 120" value="${escapeHtml(String(cfg.recoveryHrTarget || ''))}">
         <div class="text-xs text-muted">Rest between strength sets until HR drops below this value. Leave blank to disable.</div>
       </div>
+    </div>
+
+    <div class="card">
+      <h2>AI Chat</h2>
+      <div class="field">
+        <label for="ai-key">Claude API key</label>
+        <input type="password" id="ai-key" placeholder="sk-ant-..." autocomplete="off" value="${escapeHtml(localStorage.getItem('health:anthropicKey') || '')}">
+        <div class="text-xs text-muted">Stored only in this browser. Get one at console.anthropic.com.</div>
+      </div>
+      <div class="field">
+        <label for="ai-model">Default model</label>
+        ${(() => {
+          const m = localStorage.getItem('health:chatModel') || 'claude-sonnet-4-6';
+          const opt = (id, label) => `<option value="${id}" ${m === id ? 'selected' : ''}>${label}</option>`;
+          return `<select id="ai-model" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:0.9rem;">
+            ${opt('claude-sonnet-4-6', 'Sonnet 4.6 — $3 / $15 per 1M tok')}
+            ${opt('claude-opus-4-8', 'Opus 4.8 — $5 / $25 per 1M tok')}
+          </select>`;
+        })()}
+      </div>
+      <button class="btn secondary sm" id="ai-save-btn">Save AI settings</button>
     </div>
 
     <div class="card">
@@ -2376,6 +2401,12 @@ function renderSetup(isFirstRun) {
     Storage.setProfileNames(n1, n2);
     updateProfileSwitcherUI();
     alert('Names saved.');
+  };
+
+  document.getElementById('ai-save-btn').onclick = () => {
+    localStorage.setItem('health:anthropicKey', document.getElementById('ai-key').value.trim());
+    localStorage.setItem('health:chatModel', document.getElementById('ai-model').value);
+    alert('AI settings saved.');
   };
 
   document.getElementById('export-btn').onclick = exportData;
