@@ -1,5 +1,6 @@
-const CACHE = 'health-tracker-v2';
-const ASSETS = ['/health/tracker.html'];
+const CACHE = 'health-tracker-v3';
+const EXT_CACHE = 'health-tracker-ext-v1';
+const ASSETS = ['/health/tracker.html', '/health/tracker-chat.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
@@ -11,7 +12,7 @@ self.addEventListener('activate', e => {
     caches.keys().then(keys =>
       Promise.all(
         keys
-          .filter(k => k !== CACHE && !k.startsWith('finance-'))
+          .filter(k => k !== CACHE && k !== EXT_CACHE && !k.startsWith('finance-'))
           .map(k => caches.delete(k))
       )
     )
@@ -20,6 +21,20 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
+  const url = e.request.url;
+  // Cache the Claude SDK ESM module (versioned CDN URL) on first fetch so the
+  // chat UI keeps loading; the chat itself still needs network to call the API.
+  if (url.startsWith('https://esm.sh/')) {
+    e.respondWith(
+      caches.open(EXT_CACHE).then(c =>
+        c.match(e.request).then(hit => hit || fetch(e.request).then(res => {
+          if (res && res.ok) c.put(e.request, res.clone());
+          return res;
+        }))
+      )
+    );
+    return;
+  }
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request))
   );
