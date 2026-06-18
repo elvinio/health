@@ -65,12 +65,12 @@ the report to Drive for the app to fetch.
 
 The Events › Rain view overlays NEA's rain-radar PNG on a map. weather.gov.sg
 publishes a frame every 5 minutes but only keeps ~1 hour; the proxy script
-extends that to **24 hours** by caching frames in your Drive.
+extends that to **30 days** by caching frames in your Drive.
 
 - A 5-minute trigger (`cacheRainFrame`) saves each frame as
   `<YYYYMMDDHHMM>.png` (SGT slot key) into a Drive folder named
-  `rain-radar-cache`, and trashes frames older than 24h (~288 small PNGs at
-  steady state).
+  `rain-radar-cache`, and (at most once an hour) trashes frames older than
+  30 days (~8640 small PNGs at steady state).
 - The PWA reuses the **same proxy URL/token** you already configured for the
   bus views — no new setting. Without the cache, the Rain view still works in
   live mode (last hour straight from weather.gov.sg).
@@ -82,11 +82,17 @@ Setup, if you already deployed `lta-proxy.gs` for buses:
    (the rain feature adds the Drive scope).
 3. Run `installRainTrigger` once (installs/replaces the every-5-min trigger).
 4. **Deploy → Manage deployments → edit → New version** so the new
-   `RainList` / `RainImg` actions go live on the same `/exec` URL.
+   `RainList` / `RainImg` / `RainImgBatch` actions go live on the same
+   `/exec` URL.
 
 Endpoints (token optional, as for the bus actions):
 
 ```
 GET {url}?action=RainList&token=…          → { "frames": ["202606090800", …] }
 GET {url}?action=RainImg&t=202606090800&token=… → { "t": "…", "png": "<base64>" }
+GET {url}?action=RainImgBatch&t=202606090800,202606090805,…&token=…
+                                            → { "images": { "202606090800": "<base64>", … } }
 ```
+
+The PWA uses `RainImgBatch` to pull ~4 hours of frames per request, which is
+much faster than one HTTP round-trip per 5-minute frame.

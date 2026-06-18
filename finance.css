@@ -612,7 +612,7 @@
     border: 1px solid var(--border);
   }
   .rain-controls {
-    display: flex; gap: 8px; align-items: center; margin-bottom: 10px;
+    display: flex; gap: 8px; align-items: center; margin-top: 10px;
   }
   .rain-slider { flex: 1; min-width: 0; accent-color: var(--primary); }
   .rain-frame-label {

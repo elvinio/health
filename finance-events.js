@@ -660,9 +660,10 @@ let rainUsingProxy = false;
 // SW / NE corners from the checkweather-sg / rain-geojson-sg projects.
 const RAIN_BOUNDS = [[1.156, 103.565], [1.475, 104.13]];
 const RAIN_IMG_URL = key => `https://www.weather.gov.sg/files/rainarea/50km/v2/dpsri_70km_${key}0000dBR.dpsri.png`;
+const RAIN_BATCH_SIZE = 48; // 4h of 5-min frames fetched per batched proxy request
 
 // 12 most recent SGT 5-min slots (oldest first), one slot back for publish lag.
-// weather.gov.sg itself only retains ~1h; the Apps Script cache extends to 24h.
+// weather.gov.sg itself only retains ~1h; the Apps Script cache extends to 30d.
 function rainSlotKeysLastHour() {
   const slots = [];
   const base = Math.floor((Date.now() + 8 * 3600000) / 300000) * 300000 - 300000;
@@ -702,6 +703,7 @@ function renderRainPanel() {
   }
 
   panel.innerHTML = `
+    <div id="rainMapContainer"></div>
     <div class="rain-controls">
       <button class="bus-refresh-btn" id="rainPlayBtn" title="Play loop" onclick="rainToggleAnim()">
         <span class="material-symbols-outlined" style="font-size:.95rem">play_arrow</span>
@@ -709,7 +711,6 @@ function renderRainPanel() {
       <input type="range" id="rainSlider" class="rain-slider" min="0" max="0" value="0" oninput="rainShowFrame(this.value)">
       <span class="rain-frame-label" id="rainFrameLabel">—</span>
     </div>
-    <div id="rainMapContainer"></div>
     <div class="bus-refresh-row" style="margin-top:8px">
       <span class="bus-last-updated" id="rainLastUpdated">Fetching…</span>
       <div style="display:flex;gap:8px;align-items:center">
@@ -759,28 +760,48 @@ async function refreshRainFrames() {
   if (slider) slider.max = rainFrames.length - 1;
   const upd = document.getElementById('rainLastUpdated');
   if (upd) upd.textContent = rainUsingProxy
-    ? `${rainFrames.length} frames cached (up to 24h)`
-    : 'Live: last hour only — add the rain cache to your Apps Script proxy for 24h';
+    ? `${rainFrames.length} frames cached (up to 30d)`
+    : 'Live: last hour only — add the rain cache to your Apps Script proxy for 30d';
 
   rainShowFrame(wasAtLatest ? rainFrames.length - 1 : Math.min(rainFrameIdx, rainFrames.length - 1));
 }
 
-async function rainFrameSrc(key) {
+// Aligned [start, end) bounds of the RAIN_BATCH_SIZE window containing idx.
+function rainBatchBounds(idx) {
+  const start = Math.floor(idx / RAIN_BATCH_SIZE) * RAIN_BATCH_SIZE;
+  return [start, Math.min(rainFrames.length, start + RAIN_BATCH_SIZE)];
+}
+
+// Fetch every not-yet-cached key in one proxy request (~4h of frames per call).
+async function rainFetchBatch(keys) {
+  const need = keys.filter(k => !rainFrameCache.has(k));
+  if (!need.length) return;
+  const proxyUrl = localStorage.getItem(BUS_PROXY_URL_STORAGE) || '';
+  const token = localStorage.getItem(BUS_PROXY_TOKEN_STORAGE) || '';
+  let url = `${proxyUrl.replace(/\/$/, '')}?action=RainImgBatch&t=${need.join(',')}`;
+  if (token) url += `&token=${encodeURIComponent(token)}`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(resp.status);
+  const json = await resp.json();
+  const imgs = json.images || {};
+  // Cap memory: 30-day retention can yield thousands of frames; keep enough
+  // for several batches but drop the lot once it grows large.
+  if (rainFrameCache.size > 1500) rainFrameCache.clear();
+  Object.keys(imgs).forEach(k => {
+    if (imgs[k]) rainFrameCache.set(k, 'data:image/png;base64,' + imgs[k]);
+  });
+}
+
+// Resolve a frame to an overlay src. Proxy frames load in 4h batches (see
+// rainFetchBatch); without a proxy the overlay pulls the cross-origin PNG directly.
+async function rainFrameSrc(key, idx) {
   if (rainFrameCache.has(key)) return rainFrameCache.get(key);
-  let src;
   if (rainUsingProxy) {
-    const proxyUrl = localStorage.getItem(BUS_PROXY_URL_STORAGE) || '';
-    const token = localStorage.getItem(BUS_PROXY_TOKEN_STORAGE) || '';
-    let url = `${proxyUrl.replace(/\/$/, '')}?action=RainImg&t=${key}`;
-    if (token) url += `&token=${encodeURIComponent(token)}`;
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error(resp.status);
-    const json = await resp.json();
-    if (!json.png) throw new Error(json.error || 'No image');
-    src = 'data:image/png;base64,' + json.png;
-  } else {
-    src = RAIN_IMG_URL(key); // image overlays load cross-origin images directly
+    const [s, e] = rainBatchBounds(idx);
+    await rainFetchBatch(rainFrames.slice(s, e));
+    return rainFrameCache.get(key);
   }
+  const src = RAIN_IMG_URL(key); // image overlays load cross-origin images directly
   if (rainFrameCache.size >= 300) rainFrameCache.clear();
   rainFrameCache.set(key, src);
   return src;
@@ -797,15 +818,16 @@ async function rainShowFrame(idx) {
   if (label) label.textContent = rainFrameTimeLabel(key);
 
   let src;
-  try { src = await rainFrameSrc(key); } catch { return; }
-  if (rainFrameIdx !== idx || !rainMapInstance) return; // user scrubbed on while fetching
+  try { src = await rainFrameSrc(key, idx); } catch { return; }
+  if (rainFrameIdx !== idx || !rainMapInstance || !src) return; // user scrubbed on while fetching
   if (!rainOverlay) rainOverlay = L.imageOverlay(src, RAIN_BOUNDS, { opacity: 0.65 }).addTo(rainMapInstance);
   else rainOverlay.setUrl(src);
 
-  // Prefetch neighbours so scrubbing/animation stays smooth
+  // Prefetch the adjacent 4h batches so scrubbing/animation stays smooth
   if (rainUsingProxy) {
-    if (idx > 0) rainFrameSrc(rainFrames[idx - 1]).catch(() => {});
-    if (idx < rainFrames.length - 1) rainFrameSrc(rainFrames[idx + 1]).catch(() => {});
+    const [s, e] = rainBatchBounds(idx);
+    if (s > 0) rainFetchBatch(rainFrames.slice(Math.max(0, s - RAIN_BATCH_SIZE), s)).catch(() => {});
+    if (e < rainFrames.length) rainFetchBatch(rainFrames.slice(e, Math.min(rainFrames.length, e + RAIN_BATCH_SIZE))).catch(() => {});
   }
 }
 

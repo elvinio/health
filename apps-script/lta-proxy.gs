@@ -25,10 +25,10 @@
  *   { "83139": { lat, lng, name }, "12345": { ... } }
  *
  * ── Rain radar cache ──
- * Keeps the last 24h of NEA rain-radar frames (weather.gov.sg publishes a
+ * Keeps the last 30 days of NEA rain-radar frames (weather.gov.sg publishes a
  * frame every 5 min but only retains ~1 hour). A time-driven trigger saves
  * each frame as <YYYYMMDDHHMM>.png (SGT slot key) into a Drive folder named
- * "rain-radar-cache" and prunes frames older than 24h (~288 small PNGs).
+ * "rain-radar-cache" and prunes frames older than 30 days (~8640 small PNGs).
  *
  * One-time setup (in addition to the steps above):
  *   1. Run cacheRainFrame once manually — this triggers the authorization
@@ -44,6 +44,11 @@
  * GET {webAppUrl}?action=RainImg&t=202606090800&token=<secret>
  *   → { "t": "202606090800", "png": "<base64>" }
  *   (Apps Script can't serve binary; the PWA builds a data: URI.)
+ *
+ * GET {webAppUrl}?action=RainImgBatch&t=202606090800,202606090805,...&token=<secret>
+ *   → { "images": { "202606090800": "<base64>", "202606090805": "<base64>", ... } }
+ *   Returns many frames in one round-trip (the PWA batches ~4h per request),
+ *   which is far faster than one HTTP call per 5-min frame.
  *
  * If PROXY_TOKEN is not set in Script Properties, the token check is skipped.
  */
@@ -70,6 +75,7 @@ function doGet(e) {
     // Rain actions need Drive only, not the LTA key.
     if (action === 'RainList') return handleRainList();
     if (action === 'RainImg') return handleRainImg(e);
+    if (action === 'RainImgBatch') return handleRainImgBatch(e);
 
     var apiKey = props.getProperty(LTA_API_KEY_PROP);
     if (!apiKey) {
@@ -158,7 +164,7 @@ function handleBusStopCoords(e, apiKey) {
 var RAIN_URL_PREFIX    = 'https://www.weather.gov.sg/files/rainarea/50km/v2/dpsri_70km_';
 var RAIN_URL_SUFFIX    = '0000dBR.dpsri.png';
 var RAIN_FOLDER_NAME   = 'rain-radar-cache';
-var RAIN_RETENTION_MS  = 24 * 60 * 60 * 1000;
+var RAIN_RETENTION_MS  = 30 * 24 * 60 * 60 * 1000;
 
 // Run once manually to install the every-5-minutes trigger (idempotent).
 function installRainTrigger() {
@@ -182,7 +188,7 @@ function getRainFolder_() {
 }
 
 // Trigger handler: fetch the newest available frame (NEA publishes with a
-// little lag, so fall back up to 2 slots) and prune frames older than 24h.
+// little lag, so fall back up to 2 slots) and prune frames older than 30 days.
 function cacheRainFrame() {
   var folder = getRainFolder_();
   var now = new Date();
@@ -196,7 +202,9 @@ function cacheRainFrame() {
       break;
     }
   }
-  pruneRainCache_(folder, now);
+  // With 30-day retention the folder holds thousands of files; iterating them
+  // all every 5 min is wasteful, so prune at most once an hour.
+  if (now.getMinutes() < 5) pruneRainCache_(folder, now);
 }
 
 function pruneRainCache_(folder, now) {
@@ -227,6 +235,23 @@ function handleRainImg(e) {
   var it = getRainFolder_().getFilesByName(key + '.png');
   if (!it.hasNext()) return jsonOut({ error: 'Not found' });
   return jsonOut({ t: key, png: Utilities.base64Encode(it.next().getBlob().getBytes()) });
+}
+
+// Batched variant: t is a comma-separated list of slot keys; returns every
+// matching frame in one response so the PWA can load ~4h of frames per HTTP
+// round-trip instead of one call per 5-min frame.
+function handleRainImgBatch(e) {
+  var keysParam = e.parameter && e.parameter.t;
+  if (!keysParam) return jsonOut({ error: 'Missing t parameter' });
+  var folder = getRainFolder_();
+  var images = {};
+  keysParam.split(',').forEach(function(raw) {
+    var key = (raw || '').trim();
+    if (!/^\d{12}$/.test(key) || images[key]) return;
+    var it = folder.getFilesByName(key + '.png');
+    if (it.hasNext()) images[key] = Utilities.base64Encode(it.next().getBlob().getBytes());
+  });
+  return jsonOut({ images: images });
 }
 
 function jsonOut(obj) {
