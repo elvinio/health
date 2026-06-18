@@ -68,9 +68,12 @@ publishes a frame every 5 minutes but only keeps ~1 hour; the proxy script
 extends that to **30 days** by caching frames in your Drive.
 
 - A 5-minute trigger (`cacheRainFrame`) saves each frame as
-  `<YYYYMMDDHHMM>.png` (SGT slot key) into a Drive folder named
-  `rain-radar-cache`, and (at most once an hour) trashes frames older than
-  30 days (~8640 small PNGs at steady state).
+  `<YYYYMMDDHHMM>.png` (SGT slot key) into a **day-of-month subfolder**
+  (`01`…`31`) of a Drive folder named `rain-radar-cache` (~8640 small PNGs at
+  steady state). The day subfolders form a ring buffer — each is reused ~30
+  days later, so the first write of a new day just wipes that one small folder.
+  There is no full-cache prune scan; `RainList` applies a strict 30-day cutoff
+  when listing.
 - The PWA reuses the **same proxy URL/token** you already configured for the
   bus views — no new setting. Without the cache, the Rain view still works in
   live mode (last hour straight from weather.gov.sg).
