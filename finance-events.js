@@ -649,37 +649,75 @@ async function refreshBusMapMarkers() {
 // ── Rain Radar ───────────────────────────────────────────────────────────────
 let rainMapInstance = null;
 let rainOverlay = null;
-let rainFrames = [];        // sorted SGT slot keys (yyyyMMddHHmm), oldest first
+let rainFrames = [];        // windowed SGT slot keys (yyyyMMddHHmm), oldest first
 let rainFrameIdx = 0;
-let rainFrameCache = new Map(); // slot key → data: URI (proxy) or direct URL (live)
+let rainFrameCache = new Map(); // slot key → data: URI (proxy) / direct URL (live); hot cache over the persistent Cache API
 let rainPollingInterval = null;
 let rainAnimTimer = null;
 let rainUsingProxy = false;
+let rainWindowDays = 1;     // selected range pill — bounds how far back the slider can be dragged
 
 // Fixed georeference of the NEA radar PNG (same extent every frame) —
 // SW / NE corners from the checkweather-sg / rain-geojson-sg projects.
 const RAIN_BOUNDS = [[1.156, 103.565], [1.475, 104.13]];
 const RAIN_IMG_URL = key => `https://www.weather.gov.sg/files/rainarea/50km/v2/dpsri_70km_${key}0000dBR.dpsri.png`;
 const RAIN_BATCH_SIZE = 48; // 4h of 5-min frames fetched per batched proxy request
+const RAIN_WINDOWS = [[1, '1 day'], [3, '3 days'], [7, '1 week'], [14, '2 weeks'], [30, '30 days']];
+const RAIN_CACHE_NAME = 'rain-frames-v1'; // persistent Cache API store (preserved across SW updates, see sw.js)
 
-// 12 most recent SGT 5-min slots (oldest first), one slot back for publish lag.
-// weather.gov.sg itself only retains ~1h; the Apps Script cache extends to 30d.
-function rainSlotKeysLastHour() {
-  const slots = [];
-  const base = Math.floor((Date.now() + 8 * 3600000) / 300000) * 300000 - 300000;
-  for (let i = 11; i >= 0; i--) {
+// SGT 5-min slot keys for the last `days` days, oldest first. Frames are
+// deterministic (one every 5 min), so the client generates the keys it wants
+// and asks the proxy only for those — no server-side index/listing to scan.
+// One slot back from "now" covers NEA's publish lag.
+function rainGenerateKeys(days) {
+  const count = Math.max(1, Math.round(days * 24 * 12)); // 12 five-min slots / hour
+  const base = Math.floor((Date.now() + 8 * 3600000) / 300000) * 300000 - 300000; // latest slot, SGT-shifted
+  const keys = [];
+  for (let i = count - 1; i >= 0; i--) {
     const d = new Date(base - i * 300000);
-    slots.push(d.getUTCFullYear() +
+    keys.push('' + d.getUTCFullYear() +
       String(d.getUTCMonth() + 1).padStart(2, '0') +
       String(d.getUTCDate()).padStart(2, '0') +
       String(d.getUTCHours()).padStart(2, '0') +
       String(d.getUTCMinutes()).padStart(2, '0'));
   }
-  return slots;
+  return keys;
 }
 
 function rainFrameTimeLabel(key) {
   return `${key.slice(6, 8)}/${key.slice(4, 6)} ${key.slice(8, 10)}:${key.slice(10, 12)}`;
+}
+
+// ── Persistent frame cache (Cache API) — frames are immutable per slot key ────
+function rainCacheKeyUrl(key) { return '/rainframe/' + key; }
+
+async function rainCacheStore() {
+  if (!('caches' in self)) return null;
+  try { return await caches.open(RAIN_CACHE_NAME); } catch { return null; }
+}
+
+async function rainCacheGet(store, key) {
+  if (!store) return null;
+  try { const r = await store.match(rainCacheKeyUrl(key)); return r ? await r.text() : null; } catch { return null; }
+}
+
+function rainCachePut(store, key, uri) {
+  if (!store) return;
+  try { store.put(rainCacheKeyUrl(key), new Response(uri)); } catch {}
+}
+
+// Drop persistently-cached frames older than the 30-day retention window.
+async function rainPrunePersistentCache() {
+  const store = await rainCacheStore();
+  if (!store) return;
+  try {
+    const cutoff = rainGenerateKeys(30)[0];
+    const reqs = await store.keys();
+    await Promise.all(reqs.map(r => {
+      const m = r.url.match(/\/rainframe\/(\d{12})$/);
+      return (m && m[1] < cutoff) ? store.delete(r) : null;
+    }));
+  } catch {}
 }
 
 function showRainSettings() {
@@ -702,8 +740,13 @@ function renderRainPanel() {
     return;
   }
 
+  const pills = RAIN_WINDOWS.map(([d, l]) =>
+    `<button class="filter-pill${d === rainWindowDays ? ' active' : ''}" data-days="${d}" onclick="rainSetWindow(${d})">${l}</button>`
+  ).join('');
+
   panel.innerHTML = `
     <div id="rainMapContainer"></div>
+    <div class="filter-pills" id="rainPills" style="margin-top:10px">${pills}</div>
     <div class="rain-controls">
       <button class="bus-refresh-btn" id="rainPlayBtn" title="Play loop" onclick="rainToggleAnim()">
         <span class="material-symbols-outlined" style="font-size:.95rem">play_arrow</span>
@@ -729,41 +772,80 @@ function renderRainPanel() {
   setTimeout(() => rainMapInstance.invalidateSize(), 50);
 
   startLocationTracking(rainMapInstance);
-  refreshRainFrames();
+  rainUsingProxy = !!(localStorage.getItem(BUS_PROXY_URL_STORAGE) || '');
+  rainPrunePersistentCache();
+  rainApplyWindow(rainWindowDays, true);
 }
 
+function rainSyncPills() {
+  const pills = document.getElementById('rainPills');
+  if (!pills) return;
+  pills.style.display = rainUsingProxy ? '' : 'none'; // live mode only has the last hour
+  pills.querySelectorAll('.filter-pill').forEach(b =>
+    b.classList.toggle('active', Number(b.dataset.days) === rainWindowDays));
+}
+
+function rainUpdateStatus() {
+  const upd = document.getElementById('rainLastUpdated');
+  if (!upd) return;
+  if (!rainUsingProxy) {
+    upd.textContent = 'Live: last hour only — add the rain cache to your Apps Script proxy';
+    return;
+  }
+  const w = RAIN_WINDOWS.find(x => x[0] === rainWindowDays);
+  upd.textContent = `Last ${w ? w[1] : rainWindowDays + ' days'} · ${rainFrames.length} frames`;
+}
+
+// Pill click: change the draggable range (lower bound) and jump to the latest frame.
+function rainSetWindow(days) {
+  if (rainAnimTimer) rainToggleAnim(); // stop the loop when the range changes
+  rainApplyWindow(days, true);
+}
+
+// Poll / manual refresh: re-generate the window so "now" advances and the newest
+// frames load; keep the scrub position unless the user was already at the latest.
 async function refreshRainFrames() {
   if (!rainMapInstance) return;
   const wasAtLatest = !rainFrames.length || rainFrameIdx >= rainFrames.length - 1;
+  await rainApplyWindow(rainWindowDays, wasAtLatest);
+}
 
-  let frames = null;
-  const proxyUrl = localStorage.getItem(BUS_PROXY_URL_STORAGE) || '';
-  if (proxyUrl) {
-    try {
-      const token = localStorage.getItem(BUS_PROXY_TOKEN_STORAGE) || '';
-      let url = `${proxyUrl.replace(/\/$/, '')}?action=RainList&_t=${Date.now()}`;
-      if (token) url += `&token=${encodeURIComponent(token)}`;
-      const resp = await fetch(url, { cache: 'no-store' });
-      if (resp.ok) {
-        const json = await resp.json();
-        if (Array.isArray(json.frames) && json.frames.length) frames = json.frames;
-      }
-    } catch {}
-  }
-  rainUsingProxy = !!frames;
-  rainFrames = frames || rainSlotKeysLastHour();
+// Build the windowed frame list, load the newest 4h so the latest frame shows
+// fast, and lazily fetch the rest on demand as the user scrubs (see rainShowFrame).
+async function rainApplyWindow(days, jumpToLatest) {
+  rainWindowDays = days;
+  const prevKey = rainFrames[rainFrameIdx];
+  rainSyncPills();
 
-  const keep = new Set(rainFrames);
-  [...rainFrameCache.keys()].forEach(k => { if (!keep.has(k)) rainFrameCache.delete(k); });
-
+  rainFrames = rainUsingProxy ? rainGenerateKeys(days) : rainGenerateKeys(1 / 24); // live = last hour
   const slider = document.getElementById('rainSlider');
-  if (slider) slider.max = rainFrames.length - 1;
-  const upd = document.getElementById('rainLastUpdated');
-  if (upd) upd.textContent = rainUsingProxy
-    ? `${rainFrames.length} frames cached (up to 30d)`
-    : 'Live: last hour only — add the rain cache to your Apps Script proxy for 30d';
+  if (slider) slider.max = Math.max(0, rainFrames.length - 1);
 
-  rainShowFrame(wasAtLatest ? rainFrames.length - 1 : Math.min(rainFrameIdx, rainFrames.length - 1));
+  if (rainUsingProxy) {
+    const end = rainFrames.length, start = Math.max(0, end - RAIN_BATCH_SIZE);
+    try { await rainFetchBatch(rainFrames.slice(start, end)); } catch {}
+
+    // Whole newest batch empty → the proxy has no rain cache deployed; fall back to live.
+    if (!rainFrames.slice(start, end).some(k => rainFrameCache.has(k))) {
+      rainUsingProxy = false;
+      return rainApplyWindow(days, jumpToLatest);
+    }
+    // Trim trailing publish-lag gaps so the slider ends on a real frame.
+    let last = rainFrames.length - 1;
+    while (last >= start && !rainFrameCache.has(rainFrames[last])) last--;
+    if (last >= 0 && last < rainFrames.length - 1) rainFrames = rainFrames.slice(0, last + 1);
+    if (slider) slider.max = Math.max(0, rainFrames.length - 1);
+  }
+
+  rainSyncPills();
+  rainUpdateStatus();
+
+  let idx = rainFrames.length - 1;
+  if (!jumpToLatest && prevKey) {
+    const i = rainFrames.indexOf(prevKey);
+    if (i >= 0) idx = i;
+  }
+  rainShowFrame(idx);
 }
 
 // Aligned [start, end) bounds of the RAIN_BATCH_SIZE window containing idx.
@@ -772,11 +854,23 @@ function rainBatchBounds(idx) {
   return [start, Math.min(rainFrames.length, start + RAIN_BATCH_SIZE)];
 }
 
-// Fetch every not-yet-cached key in one proxy request (~4h of frames per call).
+// Load every not-yet-cached key in one round-trip: first from the persistent
+// Cache API, then a single batched proxy request for whatever's still missing.
 async function rainFetchBatch(keys) {
-  const need = keys.filter(k => !rainFrameCache.has(k));
+  if (rainFrameCache.size > 800) rainFrameCache.clear(); // persistent cache still backs everything
+  let need = keys.filter(k => !rainFrameCache.has(k));
   if (!need.length) return;
+
+  const store = await rainCacheStore();
+  if (store) {
+    const hits = await Promise.all(need.map(async k => [k, await rainCacheGet(store, k)]));
+    hits.forEach(([k, v]) => { if (v) rainFrameCache.set(k, v); });
+    need = need.filter(k => !rainFrameCache.has(k));
+  }
+  if (!need.length) return;
+
   const proxyUrl = localStorage.getItem(BUS_PROXY_URL_STORAGE) || '';
+  if (!proxyUrl) return;
   const token = localStorage.getItem(BUS_PROXY_TOKEN_STORAGE) || '';
   let url = `${proxyUrl.replace(/\/$/, '')}?action=RainImgBatch&t=${need.join(',')}`;
   if (token) url += `&token=${encodeURIComponent(token)}`;
@@ -784,27 +878,22 @@ async function rainFetchBatch(keys) {
   if (!resp.ok) throw new Error(resp.status);
   const json = await resp.json();
   const imgs = json.images || {};
-  // Cap memory: 30-day retention can yield thousands of frames; keep enough
-  // for several batches but drop the lot once it grows large.
-  if (rainFrameCache.size > 1500) rainFrameCache.clear();
   Object.keys(imgs).forEach(k => {
-    if (imgs[k]) rainFrameCache.set(k, 'data:image/png;base64,' + imgs[k]);
+    if (!imgs[k]) return;
+    const uri = 'data:image/png;base64,' + imgs[k];
+    rainFrameCache.set(k, uri);
+    rainCachePut(store, k, uri);
   });
 }
 
-// Resolve a frame to an overlay src. Proxy frames load in 4h batches (see
-// rainFetchBatch); without a proxy the overlay pulls the cross-origin PNG directly.
-async function rainFrameSrc(key, idx) {
+// Resolve a frame's overlay src, loading its 4h batch on demand in proxy mode.
+async function rainEnsureFrame(idx) {
+  const key = rainFrames[idx];
   if (rainFrameCache.has(key)) return rainFrameCache.get(key);
-  if (rainUsingProxy) {
-    const [s, e] = rainBatchBounds(idx);
-    await rainFetchBatch(rainFrames.slice(s, e));
-    return rainFrameCache.get(key);
-  }
-  const src = RAIN_IMG_URL(key); // image overlays load cross-origin images directly
-  if (rainFrameCache.size >= 300) rainFrameCache.clear();
-  rainFrameCache.set(key, src);
-  return src;
+  if (!rainUsingProxy) { const u = RAIN_IMG_URL(key); rainFrameCache.set(key, u); return u; }
+  const [s, e] = rainBatchBounds(idx);
+  await rainFetchBatch(rainFrames.slice(s, e));
+  return rainFrameCache.get(key);
 }
 
 async function rainShowFrame(idx) {
@@ -818,12 +907,12 @@ async function rainShowFrame(idx) {
   if (label) label.textContent = rainFrameTimeLabel(key);
 
   let src;
-  try { src = await rainFrameSrc(key, idx); } catch { return; }
-  if (rainFrameIdx !== idx || !rainMapInstance || !src) return; // user scrubbed on while fetching
+  try { src = await rainEnsureFrame(idx); } catch { return; }
+  if (rainFrameIdx !== idx || !rainMapInstance || !src) return; // user scrubbed on / frame gap
   if (!rainOverlay) rainOverlay = L.imageOverlay(src, RAIN_BOUNDS, { opacity: 0.65 }).addTo(rainMapInstance);
   else rainOverlay.setUrl(src);
 
-  // Prefetch the adjacent 4h batches so scrubbing/animation stays smooth
+  // Prefetch the adjacent 4h batches so scrubbing/animation stays smooth.
   if (rainUsingProxy) {
     const [s, e] = rainBatchBounds(idx);
     if (s > 0) rainFetchBatch(rainFrames.slice(Math.max(0, s - RAIN_BATCH_SIZE), s)).catch(() => {});

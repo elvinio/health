@@ -428,7 +428,7 @@ Switched by `switchInsSubTab(tab)` (`finance-insurance.js`):
 
 ### Events features
 
-- **Views** (`setEventView(mode)`): `list` (grouped by week), `calendar` (month grid), `bus` (real-time LTA arrivals), `busmap` (Leaflet interactive map), `rain` (NEA rain-radar overlay — last 24h cached via the lta-proxy Apps Script, live last-hour fallback without it; blue location dot; `RAIN_BOUNDS` georeference in finance-events.js), `notes` (free-form notes)
+- **Views** (`setEventView(mode)`): `list` (grouped by week), `calendar` (month grid), `bus` (real-time LTA arrivals), `busmap` (Leaflet interactive map), `rain` (NEA rain-radar overlay — windowed lazy-load with range pills 1d/3d/1w/2w/30d, default 1d; the client generates deterministic 5-min slot keys (`rainGenerateKeys`) and batch-fetches ~4h/request via the lta-proxy `RainImgBatch` action, no server-side listing; immutable frames persisted in a Cache API store `rain-frames-v1`, whitelisted in sw.js; live last-hour fallback without a proxy; blue location dot; `RAIN_BOUNDS` georeference in finance-events.js), `notes` (free-form notes)
 - **Bus stops**: 6 hardcoded stops in `BUS_STOPS` array in `finance-core.js`
 - **External APIs**: LTA DataMall (`BUS_API_URL`, via a **required** proxy URL — Apps Script or local; `busProxyFetch` no longer falls back to the public `corsproxy.io`, so the `AccountKey` never transits a third party), Leaflet.js (loaded dynamically), Geolocation API
 - **Reminders**: browser notifications via `scheduleEventReminders()`

@@ -98,4 +98,7 @@ GET {url}?action=RainImgBatch&t=202606090800,202606090805,…&token=…
 ```
 
 The PWA uses `RainImgBatch` to pull ~4 hours of frames per request, which is
-much faster than one HTTP round-trip per 5-minute frame.
+much faster than one HTTP round-trip per 5-minute frame. It generates the
+5-minute slot keys itself and lazily loads only the window being viewed
+(range pills: 1 day … 30 days), so `RainList` is no longer needed by the app —
+it's kept only for debugging / backwards compatibility.

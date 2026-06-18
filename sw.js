@@ -1,4 +1,4 @@
-const CACHE = 'finance-v176';
+const CACHE = 'finance-v177';
 const EXT_CACHE = 'finance-ext-v1';
 const ASSETS = [
   '/health/finance.html',
@@ -39,7 +39,7 @@ self.addEventListener('activate', e => {
     caches.keys().then(keys =>
       Promise.all(
         keys
-          .filter(k => k !== CACHE && k !== EXT_CACHE && !k.startsWith('health-tracker-'))
+          .filter(k => k !== CACHE && k !== EXT_CACHE && !k.startsWith('health-tracker-') && !k.startsWith('rain-frames-'))
           .map(k => caches.delete(k))
       )
     )
