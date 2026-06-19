@@ -117,7 +117,8 @@
   }
   async function deleteEpisode(id) {
     const ep = getEpisode(id);
-    if (ep) for (let i = 0; i < (ep.segments || []).length; i++) await idbDel(id + ':' + i).catch(() => {});
+    const n = ep ? Math.max((ep.segments || []).length, ep.plannedCount || 0) : 0;
+    for (let i = 0; i < n; i++) { await idbDel(id + ':' + i).catch(() => {}); await idbDel(id + ':' + i + ':txt').catch(() => {}); }
     saveEpisodes(loadEpisodes().filter(e => e.id !== id));
   }
   function latestEpisodeFor(channelId) {
@@ -233,22 +234,38 @@
   async function acquireWake() { try { if ('wakeLock' in navigator) _wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { _wakeLock = null; } }
   function releaseWake() { try { if (_wakeLock) _wakeLock.release(); } catch (e) {} _wakeLock = null; }
 
-  function rerenderHome() { if (isRadioActive() && RadioState.view === 'home') renderRadio(); }
+  // Re-render the active view as generation progresses. On the review screen we
+  // only nudge the progress line (avoids wiping the scripts the user is reading).
+  function rerenderActive() {
+    if (!isRadioActive()) return;
+    if (RadioState.view === 'review') updateReviewProgress();
+    else if (RadioState.view === 'home') renderRadio();
+  }
+  function updateReviewProgress() {
+    const ep = getEpisode(RadioState.epId);
+    if (!ep) return;
+    if (ep.status !== 'synthesizing') { renderRadio(); return; }   // status changed → full rebuild
+    const done = ep.segments.filter(s => s.hasAudio).length;
+    const prog = document.getElementById('rv-progress');
+    if (prog) prog.textContent = `Creating audio… ${done}/${ep.segments.length} segments`;
+    const btn = document.getElementById('rv-makeaudio');
+    if (btn) { btn.disabled = true; btn.textContent = 'Creating audio…'; }
+  }
 
-  async function generateEpisode(channel, lenMin) {
-    if (RadioState.generating) { alert('An episode is already generating. Please wait or cancel it first.'); return; }
+  // Phase 1 — write the whole script (Claude only, no TTS). Leaves a 'draft'.
+  async function generateScripts(channel, lenMin) {
+    if (RadioState.generating) { alert('Already busy. Please wait or stop the current job first.'); return; }
     if (!hasClaudeKey()) { alert('Add your Claude API key in Setup → AI Chat first.'); return; }
-    if (!hasTtsKey()) { alert('Add your Google TTS API key in Setup → Radio station first.'); return; }
 
     const ep = {
       id: uid(), channelId: channel.id, channelName: channel.name, emoji: channel.emoji,
       voice: channel.voice, languageCode: channel.languageCode || LANG_OF(channel.voice),
-      targetMin: lenMin, createdAt: Date.now(), status: 'generating', plannedCount: 0, segments: [], error: null,
+      targetMin: lenMin, createdAt: Date.now(), status: 'scripting', plannedCount: 0, segments: [], error: null,
     };
     saveEpisode(ep);
     RadioState.generating = true; RadioState.cancel = false; RadioState.genEpId = ep.id;
     await acquireWake();
-    rerenderHome();
+    rerenderActive();
 
     try {
       const plan = await planEpisode(channel, lenMin);
@@ -258,25 +275,66 @@
         if (RadioState.cancel) break;
         const script = await generateSegmentScript(channel, plan[i], priorTitles, i, plan.length);
         if (!script) continue;
-        const blob = await synthesizeTTS(script, ep.voice, ep.languageCode);
-        await idbPut(ep.id + ':' + ep.segments.length, blob);
+        const idx = ep.segments.length;
+        await idbPut(ep.id + ':' + idx + ':txt', script);
         const words = script.split(/\s+/).filter(Boolean).length;
-        ep.segments.push({ idx: ep.segments.length, title: plan[i].title, words, approxSec: Math.round(words / WORDS_PER_SEC) });
+        ep.segments.push({ idx, title: plan[i].title, words, approxSec: Math.round(words / WORDS_PER_SEC), hasAudio: false });
         priorTitles.push(plan[i].title);
         saveEpisode(ep);
-        rerenderHome();
+        rerenderActive();
       }
-      ep.status = 'ready';
+      ep.status = ep.segments.length ? 'draft' : 'error';
+      if (!ep.segments.length) ep.error = 'No script was produced.';
       saveEpisode(ep);
     } catch (e) {
-      ep.status = ep.segments.length ? 'ready' : 'error';
+      ep.status = ep.segments.length ? 'draft' : 'error';
       ep.error = String((e && e.message) || e);
       saveEpisode(ep);
-      alert('Radio generation problem: ' + ep.error);
+      alert('Script generation problem: ' + ep.error);
     } finally {
       RadioState.generating = false; RadioState.genEpId = null; RadioState.cancel = false;
       releaseWake();
-      rerenderHome();
+      const fresh = getEpisode(ep.id);
+      if (fresh && fresh.status === 'draft' && isRadioActive()) { RadioState.view = 'review'; RadioState.epId = ep.id; renderRadio(); }
+      else rerenderActive();
+    }
+  }
+
+  // Phase 2 — turn the approved script into audio (Cloud TTS). Resumable: it
+  // skips segments that already have audio, so a stopped/failed run can continue.
+  async function synthesizeEpisode(epId) {
+    if (RadioState.generating) { alert('Already busy. Please wait or stop the current job first.'); return; }
+    if (!hasTtsKey()) { alert('Add your Google TTS API key in Setup → Radio station first.'); return; }
+    const ep = getEpisode(epId);
+    if (!ep) return;
+    ep.status = 'synthesizing'; ep.error = null; saveEpisode(ep);
+    RadioState.generating = true; RadioState.cancel = false; RadioState.genEpId = epId;
+    await acquireWake();
+    if (isRadioActive()) renderRadio(); else rerenderActive();   // full render so the Stop button appears
+
+    try {
+      for (let i = 0; i < ep.segments.length; i++) {
+        if (RadioState.cancel) break;
+        if (ep.segments[i].hasAudio) continue;
+        const text = await idbGet(epId + ':' + i + ':txt');
+        if (!text) continue;
+        const blob = await synthesizeTTS(text, ep.voice, ep.languageCode);
+        await idbPut(epId + ':' + i, blob);
+        ep.segments[i].hasAudio = true;
+        saveEpisode(ep);
+        rerenderActive();
+      }
+      ep.status = ep.segments.every(s => s.hasAudio) ? 'ready' : 'draft';
+      saveEpisode(ep);
+    } catch (e) {
+      ep.status = 'draft';
+      ep.error = String((e && e.message) || e);
+      saveEpisode(ep);
+      alert('Audio creation problem: ' + ep.error);
+    } finally {
+      RadioState.generating = false; RadioState.genEpId = null; RadioState.cancel = false;
+      releaseWake();
+      rerenderActive();
     }
   }
 
@@ -346,7 +404,7 @@
     if (!ep) return;
     const done = ep.segments.length;
     if (idx < 0) idx = 0;
-    if (idx >= done) { setStatus(ep.status === 'generating' ? 'Generating more segments…' : 'End of episode.'); return; }
+    if (idx >= done) { setStatus(ep.status === 'synthesizing' ? 'Creating more audio…' : 'End of episode.'); return; }
     RadioState.curIdx = idx;
     const blob = await idbGet(ep.id + ':' + idx);
     if (!blob) { setStatus('Audio for this segment is missing.'); return; }
@@ -358,7 +416,8 @@
     const seg = ep.segments[idx];
     const segTitle = document.getElementById('rp-segtitle'); if (segTitle) segTitle.textContent = seg.title || '';
     const segN = document.getElementById('rp-segn'); if (segN) segN.textContent = String(idx + 1);
-    const segTot = document.getElementById('rp-segtot'); if (segTot) segTot.textContent = String(ep.status === 'generating' ? ep.plannedCount || done : done);
+    const segTot = document.getElementById('rp-segtot'); if (segTot) segTot.textContent = String(done);
+    idbGet(ep.id + ':' + idx + ':txt').then(t => { const el = document.getElementById('rp-scripttext'); if (el) el.textContent = t || '(no script saved)'; });
     audio.onloadedmetadata = () => {
       if (startTime && startTime < audio.duration) audio.currentTime = startTime;
       if (autoplay) audio.play().catch(() => {});
@@ -396,6 +455,7 @@
           <button id="rp-next" title="Next segment">⏭</button>
         </div>
         <div class="rp-status" id="rp-status"></div>
+        <details class="rp-script"><summary>📄 Script</summary><div class="rp-scripttext" id="rp-scripttext"></div></details>
       </div>`;
 
     const audio = document.getElementById('rp-audio');
@@ -428,6 +488,68 @@
     loadSegment(prog.idx || 0, false, prog.time || 0);
   }
 
+  /* ── Review screen (read the script before TTS) ────────────────────────── */
+  function openReview(epId) { teardownAudio(); RadioState.view = 'review'; RadioState.epId = epId; renderRadio(); }
+
+  function renderReview() {
+    const ep = getEpisode(RadioState.epId);
+    const view = document.getElementById('view');
+    if (!ep) { RadioState.view = 'home'; return renderRadio(); }
+    document.getElementById('topbar-title').textContent = 'Radio';
+    document.getElementById('topbar-sub').textContent = ep.channelName || '';
+
+    const busy = RadioState.generating && RadioState.genEpId === ep.id;
+    const synth = ep.status === 'synthesizing';
+    const ready = ep.segments.length && ep.segments.every(s => s.hasAudio);
+    const segHtml = ep.segments.map(s => `
+      <div class="rv-seg">
+        <div class="rv-seg-title">${s.idx + 1}. ${escapeHtml(s.title || '')} ${s.hasAudio ? '<span class="rv-aud">🔊</span>' : ''}</div>
+        <div class="rv-seg-text" id="rv-txt-${s.idx}">…</div>
+      </div>`).join('');
+
+    view.innerHTML = `
+      <div class="radio-review">
+        <button class="radio-back" id="rv-back">← Stations</button>
+        <div class="rv-head">
+          <span class="rc-emoji">${escapeHtml(ep.emoji || '📻')}</span>
+          <div><div class="rc-name">${escapeHtml(ep.channelName)}</div>
+            <div class="rc-topic">${ready ? 'Episode' : 'Draft script'} · ${ep.segments.length} segments · ~${Math.round(epSeconds(ep) / 60)} min</div></div>
+        </div>
+        ${ep.error ? `<div class="rc-status err">⚠ ${escapeHtml(ep.error)}</div>` : ''}
+        <div class="rv-actions">
+          ${ready
+            ? `<button class="btn" id="rv-listen">▶ Listen</button>`
+            : `<button class="btn" id="rv-makeaudio" ${busy ? 'disabled' : ''}>${synth ? 'Creating audio…' : '🔊 Create audio'}</button>`}
+          <button class="btn secondary" id="rv-regen" ${busy ? 'disabled' : ''}>↻ Regenerate</button>
+          ${busy && synth ? '<button class="btn secondary" id="rv-stop">Stop</button>' : ''}
+        </div>
+        <div class="rv-progress" id="rv-progress">${synth
+          ? `Creating audio… ${ep.segments.filter(s => s.hasAudio).length}/${ep.segments.length} segments`
+          : (ready ? 'All audio ready.' : 'Read the script below, then tap Create audio.')}</div>
+        <div class="rv-list">${segHtml}</div>
+      </div>`;
+
+    document.getElementById('rv-back').onclick = () => { RadioState.view = 'home'; renderRadio(); };
+    const mk = document.getElementById('rv-makeaudio'); if (mk) mk.onclick = () => synthesizeEpisode(ep.id);
+    const ls = document.getElementById('rv-listen'); if (ls) ls.onclick = () => openPlayer(ep.id);
+    const st = document.getElementById('rv-stop'); if (st) st.onclick = () => { RadioState.cancel = true; st.textContent = 'stopping…'; };
+    const rg = document.getElementById('rv-regen'); if (rg) rg.onclick = async () => {
+      const ch = getChannel(ep.channelId);
+      if (!ch) { alert('This channel no longer exists.'); return; }
+      if (!confirm('Discard this script (and any audio made so far) and write a new one?')) return;
+      const len = ep.targetMin;
+      await deleteEpisode(ep.id);
+      RadioState.view = 'home';
+      generateScripts(ch, len);
+    };
+
+    // fill in the script bodies from IndexedDB
+    ep.segments.forEach(s => idbGet(ep.id + ':' + s.idx + ':txt').then(t => {
+      const el = document.getElementById('rv-txt-' + s.idx);
+      if (el) el.textContent = t || '(missing)';
+    }));
+  }
+
   /* ── Home (channel grid + episodes) ────────────────────────────────────── */
   function channelCard(ch) {
     const ep = latestEpisodeFor(ch.id);
@@ -435,15 +557,23 @@
     let statusLine = '';
     if (genHere) {
       const g = getEpisode(RadioState.genEpId);
-      const tot = g.plannedCount || Math.round((g.targetMin * 60) / SEC_PER_SEGMENT);
-      statusLine = `<div class="rc-status">⏳ Generating… ${g.segments.length}/${tot || '?'} segments <button class="rc-cancel" data-cancel="1">stop</button></div>`;
+      if (g.status === 'synthesizing') {
+        const done = g.segments.filter(s => s.hasAudio).length;
+        statusLine = `<div class="rc-status">🔊 Creating audio… ${done}/${g.segments.length} <button class="rc-cancel" data-cancel="1">stop</button></div>`;
+      } else {
+        const tot = g.plannedCount || Math.round((g.targetMin * 60) / SEC_PER_SEGMENT);
+        statusLine = `<div class="rc-status">✍ Writing script… ${g.segments.length}/${tot || '?'} <button class="rc-cancel" data-cancel="1">stop</button></div>`;
+      }
     } else if (ep && ep.status === 'ready') {
       statusLine = `<div class="rc-status">✓ Episode ready · ~${Math.round(epSeconds(ep) / 60)} min</div>`;
+    } else if (ep && ep.status === 'draft') {
+      statusLine = `<div class="rc-status">📝 Draft script ready — review &amp; create audio</div>`;
     } else if (ep && ep.status === 'error') {
       statusLine = `<div class="rc-status err">⚠ ${escapeHtml(ep.error || 'generation failed')}</div>`;
     }
     const lenOpts = LENGTHS.map(m => `<option value="${m}" ${m === 30 ? 'selected' : ''}>${m >= 60 ? (m / 60) + 'h' : m + ' min'}</option>`).join('');
-    const canListen = ep && ep.segments && ep.segments.length;
+    const ready = ep && ep.status === 'ready' && ep.segments.some(s => s.hasAudio);
+    const draft = ep && ep.status === 'draft';
     return `
       <div class="rc-card">
         <div class="rc-head" data-edit="${ch.custom ? ch.id : ''}">
@@ -454,8 +584,9 @@
         ${statusLine}
         <div class="rc-actions">
           <select class="rc-len" data-ch="${ch.id}" ${RadioState.generating ? 'disabled' : ''}>${lenOpts}</select>
-          <button class="btn secondary sm rc-gen" data-ch="${ch.id}" ${RadioState.generating ? 'disabled' : ''}>${ep ? 'New episode' : 'Generate'}</button>
-          ${canListen ? `<button class="btn sm rc-listen" data-ep="${ep.id}">▶ Listen</button>` : ''}
+          <button class="btn secondary sm rc-gen" data-ch="${ch.id}" ${RadioState.generating ? 'disabled' : ''}>${ep ? 'New script' : 'Write script'}</button>
+          ${draft ? `<button class="btn sm rc-review" data-ep="${ep.id}">📝 Review</button>` : ''}
+          ${ready ? `<button class="btn sm rc-listen" data-ep="${ep.id}">▶ Listen</button>` : ''}
         </div>
       </div>`;
   }
@@ -463,15 +594,19 @@
   function episodesSection() {
     const eps = loadEpisodes().filter(e => e.segments && e.segments.length).sort((a, b) => b.createdAt - a.createdAt);
     if (!eps.length) return '';
-    const rows = eps.map(e => `
+    const rows = eps.map(e => {
+      const ready = e.status === 'ready' && e.segments.some(s => s.hasAudio);
+      const tag = ready ? '' : (e.status === 'draft' ? ' · draft' : e.status === 'synthesizing' ? ' · baking audio' : e.status === 'scripting' ? ' · writing' : '');
+      return `
       <div class="rep-row">
-        <button class="rep-open" data-ep="${e.id}">
+        <button class="rep-open" data-ep="${e.id}" data-ready="${ready ? 1 : 0}">
           <span class="rc-emoji">${escapeHtml(e.emoji || '📻')}</span>
           <span><strong>${escapeHtml(e.channelName)}</strong>
-            <span class="text-xs text-muted">${escapeHtml(fmtDate(new Date(e.createdAt).toISOString().slice(0, 10)))} · ~${Math.round(epSeconds(e) / 60)} min${e.status === 'generating' ? ' · baking' : ''}</span></span>
+            <span class="text-xs text-muted">${escapeHtml(fmtDate(new Date(e.createdAt).toISOString().slice(0, 10)))} · ~${Math.round(epSeconds(e) / 60)} min${tag}</span></span>
         </button>
         <button class="iconbtn rep-del" data-del="${e.id}" title="Delete">✕</button>
-      </div>`).join('');
+      </div>`;
+    }).join('');
     return `<div class="card" style="margin-top:14px;"><h2>Your episodes</h2>${rows}</div>`;
   }
 
@@ -480,14 +615,11 @@
     document.getElementById('topbar-title').textContent = 'Radio';
     document.getElementById('topbar-sub').textContent = 'DJ stations';
 
-    if (!hasClaudeKey() || !hasTtsKey()) {
-      const need = [];
-      if (!hasClaudeKey()) need.push('a <strong>Claude API key</strong> (writes the show)');
-      if (!hasTtsKey()) need.push('a <strong>Google TTS API key</strong> (speaks it)');
+    if (!hasClaudeKey()) {
       view.innerHTML = `
         <div class="card">
           <h2>📻 Radio station</h2>
-          <p class="note">Generate on-demand, talk-radio style audio shows — pick a topic & host, and listen with pause / rewind / resume. You'll need ${need.join(' and ')}.</p>
+          <p class="note">Generate on-demand, talk-radio style audio shows — pick a topic & host, read the script, then turn it into audio you can play with pause / rewind / resume. You'll need a <strong>Claude API key</strong> to write the shows (and a <strong>Google TTS key</strong> to voice them).</p>
           <button class="btn block mt-2" id="radio-go-setup">Go to Setup</button>
           <div class="text-xs text-muted mt-1">Keys are stored only in this browser.</div>
         </div>`;
@@ -495,9 +627,12 @@
       return;
     }
 
+    const ttsBanner = hasTtsKey() ? '' :
+      `<div class="rc-status err" style="margin-bottom:10px;">Add a Google TTS key in Setup to turn scripts into audio. You can still write & read scripts now.</div>`;
     const cards = allChannels().map(channelCard).join('');
     view.innerHTML = `
       <div class="radio-home">
+        ${ttsBanner}
         <div class="rc-grid">${cards}</div>
         <button class="btn secondary block" id="radio-add" style="margin-top:12px;" ${RadioState.generating ? 'disabled' : ''}>＋ Custom channel</button>
         ${episodesSection()}
@@ -507,11 +642,12 @@
     view.querySelectorAll('.rc-gen').forEach(b => b.onclick = () => {
       const ch = getChannel(b.dataset.ch);
       const sel = view.querySelector(`.rc-len[data-ch="${b.dataset.ch}"]`);
-      generateEpisode(ch, Number(sel ? sel.value : 30));
+      generateScripts(ch, Number(sel ? sel.value : 30));
     });
+    view.querySelectorAll('.rc-review').forEach(b => b.onclick = () => openReview(b.dataset.ep));
     view.querySelectorAll('.rc-cancel').forEach(b => b.onclick = () => { RadioState.cancel = true; b.textContent = 'stopping…'; });
     view.querySelectorAll('.rc-listen').forEach(b => b.onclick = () => openPlayer(b.dataset.ep));
-    view.querySelectorAll('.rep-open').forEach(b => b.onclick = () => openPlayer(b.dataset.ep));
+    view.querySelectorAll('.rep-open').forEach(b => b.onclick = () => { if (b.dataset.ready === '1') openPlayer(b.dataset.ep); else openReview(b.dataset.ep); });
     view.querySelectorAll('.rep-del').forEach(b => b.onclick = async () => {
       if (!confirm('Delete this episode and its audio?')) return;
       await deleteEpisode(b.dataset.del);
@@ -526,6 +662,7 @@
     injectStyles();
     document.querySelectorAll('.bottom-nav a').forEach(a => a.classList.toggle('active', a.dataset.route === 'radio'));
     if (RadioState.view === 'player' && RadioState.epId && getEpisode(RadioState.epId)) renderPlayer();
+    else if (RadioState.view === 'review' && RadioState.epId && getEpisode(RadioState.epId)) renderReview();
     else { RadioState.view = 'home'; renderHome(); }
   }
 
@@ -562,6 +699,18 @@
       .rp-controls button { font-size:1.1rem; font-weight:700; color:var(--accent-d); min-width:48px; padding:8px; }
       .rp-controls .rp-main { width:64px; height:64px; border-radius:50%; background:var(--accent); color:#fff; font-size:1.5rem; }
       .rp-status { font-size:0.8rem; color:var(--muted); margin-top:16px; min-height:1.2em; }
+      .rp-script { width:100%; max-width:440px; margin-top:22px; text-align:left; border:1px solid var(--border); border-radius:10px; background:var(--card); }
+      .rp-script summary { cursor:pointer; padding:9px 12px; font-weight:600; color:var(--accent-d); user-select:none; }
+      .rp-scripttext { padding:0 12px 12px; font-size:0.9rem; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
+      .radio-review { padding-bottom:40px; }
+      .rv-head { display:flex; align-items:flex-start; gap:10px; margin:8px 0 4px; }
+      .radio-review .rc-name { font-weight:700; color:var(--accent-d); }
+      .rv-actions { display:flex; gap:8px; flex-wrap:wrap; margin:12px 0 4px; }
+      .rv-progress { font-size:0.8rem; color:var(--muted); margin:4px 0 14px; }
+      .rv-list { display:flex; flex-direction:column; gap:12px; }
+      .rv-seg { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:11px 13px; }
+      .rv-seg-title { font-weight:700; color:var(--accent-d); font-size:0.9rem; margin-bottom:6px; }
+      .rv-seg-text { font-size:0.92rem; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
     `;
     const el = document.createElement('style');
     el.id = 'radio-styles';
