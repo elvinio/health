@@ -23,7 +23,8 @@ Personal health and finance tools, all served as static files under `/health/`.
 | `sw.js` | Service worker for `finance.html` | 76 |
 | `tracker.html` | Health tracker PWA | — |
 | `tracker-chat.js` | Tracker Chat tab — Claude agent (browser `@anthropic-ai/sdk` via ESM CDN); tools to browse workout/health history + create/modify/activate programs; streaming, prompt caching, per-message cost/tokens, per-profile saved sessions | — |
-| `sw-tracker.js` | Service worker for `tracker.html` (caches `tracker-chat.js`; `esm.sh` SDK cached in `EXT_CACHE`) | — |
+| `tracker-radio.js` | Tracker Radio tab — on-demand AI "radio station". Claude (same browser SDK/key as Chat) writes a segmented DJ script per channel/persona; Google Cloud TTS (`texttospeech.googleapis.com`, MP3) speaks each segment; audio Blobs in IndexedDB (`health-radio` DB, store `radioAudio`); progressive generation; custom `<audio>` player with pause/seek/±15s/segment nav + resume. Exposes `window.renderRadio()`. | — |
+| `sw-tracker.js` | Service worker for `tracker.html` (caches `tracker-chat.js` + `tracker-radio.js`; `esm.sh` SDK cached in `EXT_CACHE`) | — |
 | `her.html` / `him.html` | Health plan pages | — |
 | `themes.css` | Shared CSS themes (navy, earth, pastel) | — |
 | `manifest.json` | PWA manifest (finance) | — |
