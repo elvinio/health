@@ -1624,6 +1624,81 @@ const DriveSync = (() => {
     return res.text();
   }
 
+  // Generic create/update of an arbitrary named file (string or Blob content).
+  // parents only applies on create (PATCH keeps the file where it is). Returns id.
+  async function uploadNamed(token, fileId, name, mimeType, content, parents) {
+    const meta = { name, mimeType };
+    if (!fileId && parents && parents.length) meta.parents = parents;
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+    form.append('file', content instanceof Blob ? content : new Blob([content], { type: mimeType }));
+    const url = fileId
+      ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
+      : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+    const res = await fetch(url, {
+      method: fileId ? 'PATCH' : 'POST',
+      headers: { Authorization: 'Bearer ' + token },
+      body: form
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      const e = new Error((err.error && err.error.message) || 'Upload failed (' + res.status + ')');
+      e.status = res.status;
+      throw e;
+    }
+    return (await res.json()).id;
+  }
+
+  async function createFolder(token, name, parentId) {
+    const meta = { name, mimeType: 'application/vnd.google-apps.folder' };
+    if (parentId) meta.parents = [parentId];
+    const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token },
+      body: (() => { const f = new FormData(); f.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' })); return f; })()
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error((err.error && err.error.message) || 'Folder create failed (' + res.status + ')');
+    }
+    return (await res.json()).id;
+  }
+
+  // Export one radio episode to Drive as files sharing a base name:
+  //   <base>.md         (full script)
+  //   <base> - 01.mp3   (one file per segment, in order)
+  // All land in a single "Radio" folder (created once, id cached in config).
+  // Re-export reuses the stored file ids so it updates in place. Called
+  // automatically after audio generation finishes (radio: autoExportToDrive).
+  // segments: [{ blob, id }] in playback order; returns audioIds in that order.
+  async function exportRadioEpisode({ baseName, scriptText, scriptId, segments }, onStatus) {
+    const token = await authorize();
+    let folderId = loadConfig().radioFolderId || null;
+    if (!folderId) { folderId = await createFolder(token, 'Radio'); saveConfig({ radioFolderId: folderId }); }
+    const pad2 = i => String(i + 1).padStart(2, '0');
+    const doUpload = async fresh => {
+      onStatus && onStatus('Saving script…');
+      const sId = await uploadNamed(token, fresh ? null : scriptId, baseName + '.md', 'text/markdown', scriptText, [folderId]);
+      const audioIds = [];
+      for (let i = 0; i < segments.length; i++) {
+        onStatus && onStatus(`Saving audio ${i + 1}/${segments.length}…`);
+        const id = await uploadNamed(token, fresh ? null : (segments[i].id || null), `${baseName} - ${pad2(i)}.mp3`, 'audio/mpeg', segments[i].blob, [folderId]);
+        audioIds.push(id);
+      }
+      return { folderId, scriptId: sId, audioIds };
+    };
+    try {
+      return await doUpload(false);
+    } catch (e) {
+      // Folder/file may have been deleted/trashed on Drive → recreate once and retry as fresh files.
+      if (e.status === 404) {
+        folderId = await createFolder(token, 'Radio'); saveConfig({ radioFolderId: folderId });
+        return await doUpload(true);
+      }
+      throw e;
+    }
+  }
+
   // Radio channel config (edited preset prompts + custom channels) lives under
   // its own localStorage keys, so fold it into the backup payload under _radio.
   // Episode audio (IndexedDB) is intentionally device-local and not synced.
@@ -1685,7 +1760,7 @@ const DriveSync = (() => {
     }
   }
 
-  return { loadConfig, saveConfig, save, load };
+  return { loadConfig, saveConfig, save, load, exportRadioEpisode };
 })();
 
 /* ════════════════════════════════════════════════════════════════

@@ -93,6 +93,12 @@
   };
 
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function driveBadge(ep) {
+    if (!ep) return '';
+    if (ep.driveExportedAt) return '☁ Saved to Drive';
+    if (ep.driveError) return '⚠ Drive: ' + ep.driveError;
+    return '';
+  }
   function defaultModel() { const m = localStorage.getItem(MODEL_KEY); return CHAT_MODELS[m] ? m : DEFAULT_MODEL; }
   function hasClaudeKey() { return !!(localStorage.getItem(CLAUDE_KEY) || '').trim(); }
   function hasTtsKey() { return !!(localStorage.getItem(TTS_KEY) || '').trim(); }
@@ -331,6 +337,7 @@
       }
       ep.status = ep.segments.every(s => s.hasAudio) ? 'ready' : 'draft';
       saveEpisode(ep);
+      if (ep.status === 'ready') await autoExportToDrive(ep);
     } catch (e) {
       ep.status = 'draft';
       ep.error = String((e && e.message) || e);
@@ -340,6 +347,66 @@
       RadioState.generating = false; RadioState.genEpId = null; RadioState.cancel = false;
       releaseWake();
       rerenderActive();
+    }
+  }
+
+  /* ── Auto-export to Google Drive (script + combined audio, paired names) ─── */
+  // Filesystem-safe base name shared by both files: "YYYY-MM-DD HHmm <Channel>".
+  function driveBaseName(ep) {
+    const d = new Date(ep.createdAt || Date.now());
+    const p = n => String(n).padStart(2, '0');
+    const stamp = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}${p(d.getMinutes())}`;
+    const name = (ep.channelName || 'Episode').replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, ' ').trim();
+    return `${stamp} ${name}`.trim();
+  }
+  // Stitch every segment's saved script into one readable Markdown document.
+  async function buildEpisodeScript(ep) {
+    const date = fmtDate(new Date(ep.createdAt).toISOString().slice(0, 10));
+    const parts = [`# ${ep.channelName || 'Episode'} — ${date}`, '', `*~${Math.round(epSeconds(ep) / 60)} min · ${ep.segments.length} segments*`, ''];
+    for (let i = 0; i < ep.segments.length; i++) {
+      const txt = (await idbGet(ep.id + ':' + i + ':txt')) || '(missing)';
+      parts.push(`## ${i + 1}. ${ep.segments[i].title || 'Segment ' + (i + 1)}`, '', txt, '');
+    }
+    return parts.join('\n');
+  }
+  // Collect the per-segment MP3 blobs in order, paired with any known Drive id
+  // (for in-place re-export). Returns null if any segment's audio is missing.
+  async function buildEpisodeSegments(ep) {
+    const segs = [];
+    for (let i = 0; i < ep.segments.length; i++) {
+      const blob = await idbGet(ep.id + ':' + i);
+      if (!blob) return null;
+      segs.push({ blob, id: (ep.driveAudioIds && ep.driveAudioIds[i]) || null });
+    }
+    return segs;
+  }
+  // Fires after audio generation completes. No-op (silent) unless Drive is
+  // configured, so it never forces an auth popup on users who don't use sync.
+  async function autoExportToDrive(ep) {
+    if (typeof DriveSync === 'undefined' || !DriveSync.exportRadioEpisode) return;
+    let cfg = {};
+    try { cfg = DriveSync.loadConfig() || {}; } catch (e) {}
+    if (!cfg.clientId) return;   // Drive not set up — skip silently
+    try {
+      const scriptText = await buildEpisodeScript(ep);
+      const segments = await buildEpisodeSegments(ep);
+      if (!segments || !segments.length) return;
+      const res = await DriveSync.exportRadioEpisode({
+        baseName: driveBaseName(ep), scriptText, segments,
+        scriptId: ep.driveScriptId || null,
+      });
+      const fresh = getEpisode(ep.id);
+      if (!fresh) return;
+      fresh.driveFolderId = res.folderId;
+      fresh.driveScriptId = res.scriptId;
+      fresh.driveAudioIds = res.audioIds;
+      fresh.driveExportedAt = Date.now();
+      fresh.driveError = null;
+      saveEpisode(fresh);
+      rerenderActive();
+    } catch (e) {
+      const fresh = getEpisode(ep.id);
+      if (fresh) { fresh.driveError = String((e && e.message) || e); saveEpisode(fresh); rerenderActive(); }
     }
   }
 
@@ -547,7 +614,7 @@
         </div>
         <div class="rv-progress" id="rv-progress">${synth
           ? `Creating audio… ${ep.segments.filter(s => s.hasAudio).length}/${ep.segments.length} segments`
-          : (ready ? 'All audio ready.' : 'Read the script below, then tap Create audio.')}</div>
+          : (ready ? ('All audio ready.' + (driveBadge(ep) ? ' · ' + escapeHtml(driveBadge(ep)) : '')) : 'Read the script below, then tap Create audio.')}</div>
         <div class="rv-list">${segHtml}</div>
       </div>`;
 
@@ -587,7 +654,8 @@
         statusLine = `<div class="rc-status">✍ Writing script… ${g.segments.length}/${tot || '?'} <button class="rc-cancel" data-cancel="1">stop</button></div>`;
       }
     } else if (ep && ep.status === 'ready') {
-      statusLine = `<div class="rc-status">✓ Episode ready · ~${Math.round(epSeconds(ep) / 60)} min</div>`;
+      const db = driveBadge(ep);
+      statusLine = `<div class="rc-status">✓ Episode ready · ~${Math.round(epSeconds(ep) / 60)} min${db ? ' · ' + escapeHtml(db) : ''}</div>`;
     } else if (ep && ep.status === 'draft') {
       statusLine = `<div class="rc-status">📝 Draft script ready — review &amp; create audio</div>`;
     } else if (ep && ep.status === 'error') {
