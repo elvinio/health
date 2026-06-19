@@ -1624,13 +1624,30 @@ const DriveSync = (() => {
     return res.text();
   }
 
+  // Radio channel config (edited preset prompts + custom channels) lives under
+  // its own localStorage keys, so fold it into the backup payload under _radio.
+  // Episode audio (IndexedDB) is intentionally device-local and not synced.
+  const RADIO_KEYS = { presetOverrides: 'health:radioPresetOverrides', channels: 'health:radioChannels' };
+
+  function buildBackup() {
+    let main = {};
+    try { main = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { main = {}; }
+    const radio = {};
+    for (const [k, key] of Object.entries(RADIO_KEYS)) {
+      const raw = localStorage.getItem(key);
+      if (raw != null) { try { radio[k] = JSON.parse(raw); } catch {} }
+    }
+    if (Object.keys(radio).length) main._radio = radio; else delete main._radio;
+    return JSON.stringify(main);
+  }
+
   async function save(onStatus) {
     try {
       onStatus('Authorizing…');
       const token = await authorize();
       onStatus('Saving…');
       const cfg = loadConfig();
-      const content = localStorage.getItem(STORAGE_KEY) || '{}';
+      const content = buildBackup();
       const result = await uploadFile(token, cfg.fileId || null, content);
       const now = new Date().toLocaleString();
       saveConfig({ fileId: result.id, lastSaved: now });
@@ -1652,7 +1669,15 @@ const DriveSync = (() => {
       const parsed = JSON.parse(content);
       if (!parsed.perProfile && !parsed.config && !parsed.sessions && !parsed.baselines) throw new Error('Not a valid backup');
       if (!confirm('Replace all local data with Drive backup?')) { onStatus('Cancelled.'); return; }
-      localStorage.setItem(STORAGE_KEY, content);
+      // Restore radio channel config to its own keys, then strip it from the main blob.
+      const radio = parsed._radio;
+      if (radio && typeof radio === 'object') {
+        for (const [k, key] of Object.entries(RADIO_KEYS)) {
+          if (radio[k] != null) localStorage.setItem(key, JSON.stringify(radio[k]));
+        }
+      }
+      delete parsed._radio;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
       onStatus('Loaded — reloading…');
       setTimeout(() => location.reload(), 800);
     } catch (e) {
