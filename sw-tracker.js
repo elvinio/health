@@ -1,6 +1,6 @@
-const CACHE = 'health-tracker-v4';
+const CACHE = 'health-tracker-v5';
 const EXT_CACHE = 'health-tracker-ext-v1';
-const ASSETS = ['/health/tracker.html', '/health/tracker-chat.js'];
+const ASSETS = ['/health/tracker.html', '/health/tracker-chat.js', '/health/tracker-radio.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
