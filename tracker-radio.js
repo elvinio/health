@@ -27,6 +27,7 @@
   const TTS_KEY    = 'health:googleTtsKey';    // new — Cloud TTS API key
   const EP_KEY     = 'health:radio:episodes';  // episode manifests (localStorage)
   const CH_KEY     = 'health:radioChannels';   // custom channels (localStorage)
+  const PRESET_OV_KEY = 'health:radioPresetOverrides'; // per-preset prompt/setting edits (localStorage)
   const PROG_KEY   = 'health:radio:progress';  // { [epId]: { idx, time } }
   const CHAT_MODELS = { 'claude-sonnet-4-6': 1, 'claude-opus-4-8': 1 };
   const DEFAULT_MODEL = 'claude-sonnet-4-6';
@@ -102,7 +103,11 @@
   /* ── Channels (presets + custom) ───────────────────────────────────────── */
   function loadCustom() { try { return JSON.parse(localStorage.getItem(CH_KEY) || '[]'); } catch (e) { return []; } }
   function saveCustom(list) { localStorage.setItem(CH_KEY, JSON.stringify(list)); }
-  function allChannels() { return [...RADIO_PRESETS, ...loadCustom()]; }
+  // Per-preset edits (e.g. an edited prompt/persona) keyed by preset id; absent = use the built-in default.
+  function loadPresetOv() { try { return JSON.parse(localStorage.getItem(PRESET_OV_KEY) || '{}'); } catch (e) { return {}; } }
+  function savePresetOv(o) { localStorage.setItem(PRESET_OV_KEY, JSON.stringify(o)); }
+  function presetChannels() { const ov = loadPresetOv(); return RADIO_PRESETS.map(p => { const o = ov[p.id]; return o ? { ...p, ...o, edited: true } : p; }); }
+  function allChannels() { return [...presetChannels(), ...loadCustom()]; }
   function getChannel(id) { return allChannels().find(c => c.id === id); }
 
   /* ── Episodes (manifests in localStorage; audio Blobs in IndexedDB) ────── */
@@ -340,21 +345,22 @@
 
   /* ── Custom channel editor ─────────────────────────────────────────────── */
   function openChannelEditor(existing) {
+    const isPreset = !!(existing && !existing.custom);
     const c = existing || { id: '', name: '', emoji: '🎙️', topic: '', persona: '', voice: 'en-US-Neural2-J' };
     const voiceOpts = VOICE_OPTIONS.map(o => `<option value="${o.v}" ${o.v === c.voice ? 'selected' : ''}>${escapeHtml(o.l)}</option>`).join('');
     showModal(`
       <div class="field"><label>Channel name</label><input type="text" id="rc-name" placeholder="e.g. Night Market" value="${escapeHtml(c.name)}"></div>
       <div class="field"><label>Emoji</label><input type="text" id="rc-emoji" maxlength="4" placeholder="🎙️" value="${escapeHtml(c.emoji)}"></div>
       <div class="field"><label>Topic / theme</label><input type="text" id="rc-topic" placeholder="e.g. food history and street cuisine" value="${escapeHtml(c.topic)}"></div>
-      <div class="field"><label>Host persona <span class="text-muted text-xs">(how the DJ talks)</span></label>
-        <textarea id="rc-persona" rows="4" placeholder="You are …, a host who …">${escapeHtml(c.persona)}</textarea></div>
+      <div class="field"><label>Host persona <span class="text-muted text-xs">(the prompt — how the DJ talks)</span></label>
+        <textarea id="rc-persona" rows="6" placeholder="You are …, a host who …">${escapeHtml(c.persona)}</textarea></div>
       <div class="field"><label>Voice</label>
         <select id="rc-voice" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);">${voiceOpts}</select></div>
       <div class="row gap-sm mt-2">
-        <button class="btn block" id="rc-save">${existing ? 'Save channel' : 'Create channel'}</button>
-        ${existing ? '<button class="btn secondary" id="rc-del">Delete</button>' : ''}
+        <button class="btn block" id="rc-save">${existing ? 'Save' : 'Create channel'}</button>
+        ${isPreset ? '<button class="btn secondary" id="rc-reset">Reset</button>' : existing ? '<button class="btn secondary" id="rc-del">Delete</button>' : ''}
       </div>
-    `, existing ? 'Edit channel' : 'New custom channel');
+    `, !existing ? 'New custom channel' : isPreset ? 'Edit channel prompt' : 'Edit channel');
 
     document.getElementById('rc-save').onclick = () => {
       const name = document.getElementById('rc-name').value.trim();
@@ -362,15 +368,31 @@
       const persona = document.getElementById('rc-persona').value.trim();
       if (!name || !topic || !persona) { alert('Name, topic and persona are all required.'); return; }
       const voice = document.getElementById('rc-voice').value;
-      const list = loadCustom();
-      if (existing) {
-        const i = list.findIndex(x => x.id === existing.id);
-        const updated = { ...existing, name, topic, persona, voice, languageCode: LANG_OF(voice), emoji: document.getElementById('rc-emoji').value.trim() || '🎙️' };
-        if (i >= 0) list[i] = updated; else list.push(updated);
+      const emoji = document.getElementById('rc-emoji').value.trim() || '🎙️';
+      if (isPreset) {
+        const ov = loadPresetOv();
+        ov[existing.id] = { name, topic, persona, voice, languageCode: LANG_OF(voice), emoji };
+        savePresetOv(ov);
       } else {
-        list.push({ id: 'custom-' + uid(), name, topic, persona, voice, languageCode: LANG_OF(voice), emoji: document.getElementById('rc-emoji').value.trim() || '🎙️', custom: true });
+        const list = loadCustom();
+        if (existing) {
+          const i = list.findIndex(x => x.id === existing.id);
+          const updated = { ...existing, name, topic, persona, voice, languageCode: LANG_OF(voice), emoji };
+          if (i >= 0) list[i] = updated; else list.push(updated);
+        } else {
+          list.push({ id: 'custom-' + uid(), name, topic, persona, voice, languageCode: LANG_OF(voice), emoji, custom: true });
+        }
+        saveCustom(list);
       }
-      saveCustom(list);
+      closeModal();
+      renderRadio();
+    };
+    const reset = document.getElementById('rc-reset');
+    if (reset) reset.onclick = () => {
+      if (!confirm('Reset this channel to its default prompt and settings?')) return;
+      const ov = loadPresetOv();
+      delete ov[existing.id];
+      savePresetOv(ov);
       closeModal();
       renderRadio();
     };
@@ -576,9 +598,9 @@
     const draft = ep && ep.status === 'draft';
     return `
       <div class="rc-card">
-        <div class="rc-head" data-edit="${ch.custom ? ch.id : ''}">
+        <div class="rc-head" data-edit="${ch.id}" title="Edit prompt">
           <span class="rc-emoji">${escapeHtml(ch.emoji || '🎙️')}</span>
-          <div><div class="rc-name">${escapeHtml(ch.name)}${ch.custom ? ' <span class="rc-tag">custom</span>' : ''}</div>
+          <div><div class="rc-name">${escapeHtml(ch.name)}${ch.custom ? ' <span class="rc-tag">custom</span>' : ch.edited ? ' <span class="rc-tag">edited</span>' : ''}</div>
             <div class="rc-topic">${escapeHtml(ch.topic)}</div></div>
         </div>
         ${statusLine}
