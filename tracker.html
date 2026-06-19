@@ -1664,29 +1664,39 @@ const DriveSync = (() => {
     return (await res.json()).id;
   }
 
-  // Export one radio episode to Drive as two paired files sharing a base name:
-  //   <base>.md  (full script)   and   <base>.mp3  (combined audio)
-  // Both land in a single "Radio" folder (created once, id cached in config).
+  // Export one radio episode to Drive as files sharing a base name:
+  //   <base>.md         (full script)
+  //   <base> - 01.mp3   (one file per segment, in order)
+  // All land in a single "Radio" folder (created once, id cached in config).
   // Re-export reuses the stored file ids so it updates in place. Called
   // automatically after audio generation finishes (radio: autoExportToDrive).
-  async function exportRadioEpisode({ baseName, scriptText, audioBlob, scriptId, audioId }, onStatus) {
+  // segments: [{ blob, id }] in playback order; returns audioIds in that order.
+  async function exportRadioEpisode({ baseName, scriptText, scriptId, segments }, onStatus) {
     const token = await authorize();
-    onStatus && onStatus('Saving to Drive…');
     let folderId = loadConfig().radioFolderId || null;
     if (!folderId) { folderId = await createFolder(token, 'Radio'); saveConfig({ radioFolderId: folderId }); }
-    let sId, aId;
+    const pad2 = i => String(i + 1).padStart(2, '0');
+    const doUpload = async fresh => {
+      onStatus && onStatus('Saving script…');
+      const sId = await uploadNamed(token, fresh ? null : scriptId, baseName + '.md', 'text/markdown', scriptText, [folderId]);
+      const audioIds = [];
+      for (let i = 0; i < segments.length; i++) {
+        onStatus && onStatus(`Saving audio ${i + 1}/${segments.length}…`);
+        const id = await uploadNamed(token, fresh ? null : (segments[i].id || null), `${baseName} - ${pad2(i)}.mp3`, 'audio/mpeg', segments[i].blob, [folderId]);
+        audioIds.push(id);
+      }
+      return { folderId, scriptId: sId, audioIds };
+    };
     try {
-      sId = await uploadNamed(token, scriptId, baseName + '.md', 'text/markdown', scriptText, [folderId]);
-      aId = await uploadNamed(token, audioId, baseName + '.mp3', 'audio/mpeg', audioBlob, [folderId]);
+      return await doUpload(false);
     } catch (e) {
-      // Folder may have been deleted/trashed on Drive → recreate once and retry as fresh files.
-      if (e.status === 404 && (scriptId || audioId || folderId)) {
+      // Folder/file may have been deleted/trashed on Drive → recreate once and retry as fresh files.
+      if (e.status === 404) {
         folderId = await createFolder(token, 'Radio'); saveConfig({ radioFolderId: folderId });
-        sId = await uploadNamed(token, null, baseName + '.md', 'text/markdown', scriptText, [folderId]);
-        aId = await uploadNamed(token, null, baseName + '.mp3', 'audio/mpeg', audioBlob, [folderId]);
-      } else { throw e; }
+        return await doUpload(true);
+      }
+      throw e;
     }
-    return { folderId, scriptId: sId, audioId: aId };
   }
 
   // Radio channel config (edited preset prompts + custom channels) lives under

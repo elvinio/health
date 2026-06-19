@@ -369,14 +369,16 @@
     }
     return parts.join('\n');
   }
-  // Concatenate the per-segment MP3 blobs into a single playable episode file.
-  async function buildEpisodeAudio(ep) {
-    const blobs = [];
+  // Collect the per-segment MP3 blobs in order, paired with any known Drive id
+  // (for in-place re-export). Returns null if any segment's audio is missing.
+  async function buildEpisodeSegments(ep) {
+    const segs = [];
     for (let i = 0; i < ep.segments.length; i++) {
-      const b = await idbGet(ep.id + ':' + i);
-      if (b) blobs.push(b);
+      const blob = await idbGet(ep.id + ':' + i);
+      if (!blob) return null;
+      segs.push({ blob, id: (ep.driveAudioIds && ep.driveAudioIds[i]) || null });
     }
-    return blobs.length ? new Blob(blobs, { type: 'audio/mpeg' }) : null;
+    return segs;
   }
   // Fires after audio generation completes. No-op (silent) unless Drive is
   // configured, so it never forces an auth popup on users who don't use sync.
@@ -387,17 +389,17 @@
     if (!cfg.clientId) return;   // Drive not set up — skip silently
     try {
       const scriptText = await buildEpisodeScript(ep);
-      const audioBlob = await buildEpisodeAudio(ep);
-      if (!audioBlob) return;
+      const segments = await buildEpisodeSegments(ep);
+      if (!segments || !segments.length) return;
       const res = await DriveSync.exportRadioEpisode({
-        baseName: driveBaseName(ep), scriptText, audioBlob,
-        scriptId: ep.driveScriptId || null, audioId: ep.driveAudioId || null,
+        baseName: driveBaseName(ep), scriptText, segments,
+        scriptId: ep.driveScriptId || null,
       });
       const fresh = getEpisode(ep.id);
       if (!fresh) return;
       fresh.driveFolderId = res.folderId;
       fresh.driveScriptId = res.scriptId;
-      fresh.driveAudioId = res.audioId;
+      fresh.driveAudioIds = res.audioIds;
       fresh.driveExportedAt = Date.now();
       fresh.driveError = null;
       saveEpisode(fresh);
