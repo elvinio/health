@@ -2267,7 +2267,7 @@ function go(path) { location.hash = path; }
 function route() {
   const { path, params } = parseHash();
   const cfg = Storage.getConfig();
-  const navMap = { '/today': 'today', '/setup': 'setup', '/history': 'history', '/day': 'today', '/health': 'health', '/chat': 'chat', '/radio': 'radio' };
+  const navMap = { '/today': 'today', '/setup': 'setup', '/history': 'history', '/day': 'today', '/health': 'health', '/chat': 'chat', '/radio': 'radio', '/setup-ai': 'setup', '/setup-data': 'setup', '/setup-app': 'setup' };
   const navKey = navMap[path] || (path === '/' ? 'today' : '');
   document.querySelectorAll('.bottom-nav a').forEach(a => {
     a.classList.toggle('active', a.dataset.route === navKey);
@@ -2283,6 +2283,9 @@ function route() {
     return renderDay(t.week, t.day);
   }
   if (path === '/setup') return renderSetup(false);
+  if (path === '/setup-ai')   return renderSetupAi();
+  if (path === '/setup-data') return renderSetupData();
+  if (path === '/setup-app')  return renderSetupApp();
   if (path === '/history') return renderHistory();
   if (path === '/health') return renderHealth();
   if (path === '/chat') return renderChat();
@@ -2315,7 +2318,6 @@ function renderSetup(isFirstRun) {
   document.getElementById('topbar-title').textContent = isFirstRun ? 'Welcome' : 'Setup';
   document.getElementById('topbar-sub').textContent  = isFirstRun ? 'Set start date + Week-1 weights' : `Cycle ${cycle}`;
 
-  const driveCfg = DriveSync.loadConfig();
   const view = document.getElementById('view');
   view.innerHTML = `
     ${isFirstRun ? `
@@ -2406,107 +2408,16 @@ function renderSetup(isFirstRun) {
       </div>
     </div>
 
-    <div class="card">
-      <h2>AI Chat</h2>
-      <div class="field">
-        <label for="ai-key">Claude API key</label>
-        <input type="password" id="ai-key" placeholder="sk-ant-..." autocomplete="off" value="${escapeHtml(localStorage.getItem('health:anthropicKey') || '')}">
-        <div class="text-xs text-muted">Stored only in this browser. Get one at console.anthropic.com.</div>
-      </div>
-      <div class="field">
-        <label for="ai-model">Default model</label>
-        ${(() => {
-          const m = localStorage.getItem('health:chatModel') || 'claude-sonnet-4-6';
-          const opt = (id, label) => `<option value="${id}" ${m === id ? 'selected' : ''}>${label}</option>`;
-          return `<select id="ai-model" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:0.9rem;">
-            ${opt('claude-sonnet-4-6', 'Sonnet 4.6 — $3 / $15 per 1M tok')}
-            ${opt('claude-opus-4-8', 'Opus 4.8 — $5 / $25 per 1M tok')}
-          </select>`;
-        })()}
-      </div>
-      <button class="btn secondary sm" id="ai-save-btn">Save AI settings</button>
-    </div>
-
-    <div class="card">
-      <h2>Radio station</h2>
-      <details class="mb-2">
-        <summary class="text-xs text-muted" style="cursor:pointer;user-select:none;padding:4px 0;">How to get a key ▾</summary>
-        <ol class="note mt-1" style="padding-left:1.4em;line-height:1.9;font-size:0.8rem;">
-          <li>Sign in at <strong>elevenlabs.io</strong></li>
-          <li>Open your account menu → <em>API Keys</em> (elevenlabs.io/app/settings/api-keys)</li>
-          <li><em>Create API Key</em>, copy it, then paste the key below</li>
-          <li>Pick each show's voice later in the Radio tab's review screen (tap “Load” to list your account voices)</li>
-        </ol>
-      </details>
-      <div class="field">
-        <label for="eleven-key">ElevenLabs API key</label>
-        <input type="password" id="eleven-key" placeholder="sk_..." autocomplete="off" value="${escapeHtml(localStorage.getItem('health:elevenLabsKey') || '')}">
-        <div class="text-xs text-muted">Speaks the radio shows. Stored only in this browser. Uses your Claude key (above) to write them.</div>
-      </div>
-      <button class="btn secondary sm" id="tts-save-btn">Save ElevenLabs key</button>
-      <div class="field" style="margin-top:14px;">
-        <label for="radio-music-proxy">Interstitial music URL (Apps Script)</label>
-        <input type="text" id="radio-music-proxy" placeholder="https://script.google.com/.../exec" value="${escapeHtml(localStorage.getItem('health:radio:musicProxyUrl') || '')}">
-        <div class="text-xs text-muted">Plays royalty-free piano (classicals.de) between radio segments. Deploy <code>apps-script/classicals-proxy.gs</code> and paste its web-app URL.</div>
-      </div>
-      <button class="btn secondary sm" id="radio-music-save-btn">Save music URL</button>
-    </div>
-
-    <div class="card">
-      <h2>Data backup</h2>
-      <div class="row mb-2">
-        <button class="btn secondary" id="export-btn">Export JSON</button>
-        <button class="btn secondary" id="import-btn">Import JSON</button>
-        <input type="file" id="import-file" accept=".json" style="display:none">
-      </div>
-      <div class="text-xs text-muted">Download a backup of all workout data, or restore from a previous export.</div>
-    </div>
-
-    <div class="card">
-      <h2>Google Drive sync</h2>
-      <details class="mb-2">
-        <summary class="text-xs text-muted" style="cursor:pointer;user-select:none;padding:4px 0;">Setup instructions ▾</summary>
-        <ol class="note mt-1" style="padding-left:1.4em;line-height:1.9;font-size:0.8rem;">
-          <li>Go to <strong>console.cloud.google.com</strong> → create a project</li>
-          <li>Enable the <em>Google Drive API</em></li>
-          <li>Create an <em>OAuth 2.0 Client ID</em> (Web application) — add this page's URL as an authorised JavaScript origin</li>
-          <li>Paste the Client ID below and tap Save credentials</li>
-          <li>Click <em>Save to Drive</em> to create the backup file — the File ID is saved automatically</li>
-          <li>To load from an existing file, paste its Drive File ID below</li>
-        </ol>
-      </details>
-      <div class="field">
-        <label for="drive-client-id">OAuth Client ID</label>
-        <input type="text" id="drive-client-id" placeholder="xxxx.apps.googleusercontent.com" value="${escapeHtml(driveCfg.clientId || '')}">
-      </div>
-      <div class="field">
-        <label for="drive-file-id">File ID <span class="text-muted">(auto-saved after first upload; paste to load an existing file)</span></label>
-        <input type="text" id="drive-file-id" placeholder="1BxiM…" value="${escapeHtml(driveCfg.fileId || '')}">
-      </div>
-      <button class="btn secondary sm" id="drive-cred-btn">Save credentials</button>
-      <div id="drive-controls" ${driveCfg.clientId ? '' : 'hidden'} style="margin-top:14px;">
-        <div class="row">
-          <button class="btn secondary" id="drive-save-btn">Save to Drive</button>
-          <button class="btn secondary" id="drive-load-btn">Load from Drive</button>
-        </div>
-        <div class="drive-status" id="drive-status">${driveCfg.lastSaved ? 'Last saved: ' + escapeHtml(driveCfg.lastSaved) : ''}</div>
+    <div class=”card subtle”>
+      <h3 style=”margin:0 0 10px;font-size:0.9rem;color:var(--muted);”>More settings</h3>
+      <div class=”row” style=”flex-wrap:wrap;gap:8px;”>
+        <button class=”btn secondary sm” onclick=”go('/setup-ai')”>AI &amp; Radio</button>
+        <button class=”btn secondary sm” onclick=”go('/setup-data')”>Data &amp; Backup</button>
+        <button class=”btn secondary sm” onclick=”go('/setup-app')”>App &amp; Cache</button>
       </div>
     </div>
 
-    <div class="card">
-      <h2>Danger zone</h2>
-      <button class="btn secondary block" id="reset-btn">Reset all data</button>
-      <div class="text-xs text-muted mt-1">Wipes config, baselines, and all session history.</div>
-    </div>
-
-    <div class="card">
-      <h2>App cache</h2>
-      <div class="text-xs text-muted mb-2">Cache version: <strong>${escapeHtml(TRACKER_CACHE_VERSION)}</strong></div>
-      <button class="btn secondary block" id="refresh-cache-btn">Refresh cache</button>
-      <div class="text-xs text-muted mt-1">Clears cached files and reloads to pick up the latest version.</div>
-    </div>
-
-    <button class="btn block" id="save-btn" style="margin: 18px 0 28px;">
+    <button class=”btn block” id=”save-btn” style=”margin: 18px 0 28px;”>
       Save and continue
     </button>
   `;
@@ -2574,20 +2485,6 @@ function renderSetup(isFirstRun) {
     go('/today');
   };
 
-  document.getElementById('reset-btn').onclick = () => {
-    if (confirm('Wipe ALL data (config, weights, session history)? This cannot be undone.')) {
-      Storage.reset();
-      location.hash = '';
-      location.reload();
-    }
-  };
-
-  document.getElementById('refresh-cache-btn').onclick = () => {
-    if (confirm('Clear the app cache and reload? The page will fetch the latest files from the server.')) {
-      refreshTrackerCache();
-    }
-  };
-
   document.getElementById('save-names-btn').onclick = () => {
     const n1 = document.getElementById('p1-name').value.trim() || 'Person 1';
     const n2 = document.getElementById('p2-name').value.trim() || 'Person 2';
@@ -2595,29 +2492,6 @@ function renderSetup(isFirstRun) {
     updateProfileSwitcherUI();
     alert('Names saved.');
   };
-
-  document.getElementById('ai-save-btn').onclick = () => {
-    localStorage.setItem('health:anthropicKey', document.getElementById('ai-key').value.trim());
-    localStorage.setItem('health:chatModel', document.getElementById('ai-model').value);
-    alert('AI settings saved.');
-  };
-
-  document.getElementById('tts-save-btn').onclick = () => {
-    localStorage.setItem('health:elevenLabsKey', document.getElementById('eleven-key').value.trim());
-    alert('ElevenLabs key saved.');
-  };
-
-  document.getElementById('radio-music-save-btn').onclick = () => {
-    localStorage.setItem('health:radio:musicProxyUrl', document.getElementById('radio-music-proxy').value.trim());
-    localStorage.removeItem('health:radio:musicTracks');  // force a fresh scrape on next play
-    alert('Music URL saved.');
-  };
-
-  document.getElementById('export-btn').onclick = exportData;
-
-  const importFile = document.getElementById('import-file');
-  document.getElementById('import-btn').onclick = () => importFile.click();
-  importFile.onchange = () => importData(importFile);
 
   // Programme card
   document.getElementById('prog-select').onchange = e => {
@@ -2640,6 +2514,139 @@ function renderSetup(isFirstRun) {
     };
   }
 
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VIEW: SETUP — AI & SERVICES
+   ════════════════════════════════════════════════════════════════ */
+function renderSetupAi() {
+  document.getElementById('topbar-title').textContent = 'AI & Services';
+  document.getElementById('topbar-sub').textContent = 'AI · Radio';
+  const view = document.getElementById('view');
+  view.innerHTML = `
+    <a href="#/setup" class="text-muted text-sm" style="display:block;margin-bottom:12px;">← Setup</a>
+
+    <div class="card">
+      <h2>AI Chat</h2>
+      <div class="field">
+        <label for="ai-key">Claude API key</label>
+        <input type="password" id="ai-key" placeholder="sk-ant-..." autocomplete="off" value="${escapeHtml(localStorage.getItem('health:anthropicKey') || '')}">
+        <div class="text-xs text-muted">Stored only in this browser. Get one at console.anthropic.com.</div>
+      </div>
+      <div class="field">
+        <label for="ai-model">Default model</label>
+        ${(() => {
+          const m = localStorage.getItem('health:chatModel') || 'claude-sonnet-4-6';
+          const opt = (id, label) => `<option value="${id}" ${m === id ? 'selected' : ''}>${label}</option>`;
+          return `<select id="ai-model" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:0.9rem;">
+            ${opt('claude-sonnet-4-6', 'Sonnet 4.6 — $3 / $15 per 1M tok')}
+            ${opt('claude-opus-4-8', 'Opus 4.8 — $5 / $25 per 1M tok')}
+          </select>`;
+        })()}
+      </div>
+      <button class="btn secondary sm" id="ai-save-btn">Save AI settings</button>
+    </div>
+
+    <div class="card">
+      <h2>Radio station</h2>
+      <details class="mb-2">
+        <summary class="text-xs text-muted" style="cursor:pointer;user-select:none;padding:4px 0;">How to get a key ▾</summary>
+        <ol class="note mt-1" style="padding-left:1.4em;line-height:1.9;font-size:0.8rem;">
+          <li>Sign in at <strong>elevenlabs.io</strong></li>
+          <li>Open your account menu → <em>API Keys</em> (elevenlabs.io/app/settings/api-keys)</li>
+          <li><em>Create API Key</em>, copy it, then paste the key below</li>
+          <li>Pick each show's voice later in the Radio tab's review screen (tap "Load" to list your account voices)</li>
+        </ol>
+      </details>
+      <div class="field">
+        <label for="eleven-key">ElevenLabs API key</label>
+        <input type="password" id="eleven-key" placeholder="sk_..." autocomplete="off" value="${escapeHtml(localStorage.getItem('health:elevenLabsKey') || '')}">
+        <div class="text-xs text-muted">Speaks the radio shows. Stored only in this browser. Uses your Claude key (above) to write them.</div>
+      </div>
+      <button class="btn secondary sm" id="tts-save-btn">Save ElevenLabs key</button>
+      <div class="field" style="margin-top:14px;">
+        <label for="radio-music-proxy">Interstitial music URL (Apps Script)</label>
+        <input type="text" id="radio-music-proxy" placeholder="https://script.google.com/.../exec" value="${escapeHtml(localStorage.getItem('health:radio:musicProxyUrl') || '')}">
+        <div class="text-xs text-muted">Plays royalty-free piano (classicals.de) between radio segments. Deploy <code>apps-script/classicals-proxy.gs</code> and paste its web-app URL.</div>
+      </div>
+      <button class="btn secondary sm" id="radio-music-save-btn">Save music URL</button>
+    </div>
+  `;
+
+  document.getElementById('ai-save-btn').onclick = () => {
+    localStorage.setItem('health:anthropicKey', document.getElementById('ai-key').value.trim());
+    localStorage.setItem('health:chatModel', document.getElementById('ai-model').value);
+    alert('AI settings saved.');
+  };
+  document.getElementById('tts-save-btn').onclick = () => {
+    localStorage.setItem('health:elevenLabsKey', document.getElementById('eleven-key').value.trim());
+    alert('ElevenLabs key saved.');
+  };
+  document.getElementById('radio-music-save-btn').onclick = () => {
+    localStorage.setItem('health:radio:musicProxyUrl', document.getElementById('radio-music-proxy').value.trim());
+    localStorage.removeItem('health:radio:musicTracks');
+    alert('Music URL saved.');
+  };
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VIEW: SETUP — DATA MANAGEMENT
+   ════════════════════════════════════════════════════════════════ */
+function renderSetupData() {
+  document.getElementById('topbar-title').textContent = 'Data Management';
+  document.getElementById('topbar-sub').textContent = 'Backup · Drive';
+  const driveCfg = DriveSync.loadConfig();
+  const view = document.getElementById('view');
+  view.innerHTML = `
+    <a href="#/setup" class="text-muted text-sm" style="display:block;margin-bottom:12px;">← Setup</a>
+
+    <div class="card">
+      <h2>Data backup</h2>
+      <div class="row mb-2">
+        <button class="btn secondary" id="export-btn">Export JSON</button>
+        <button class="btn secondary" id="import-btn">Import JSON</button>
+        <input type="file" id="import-file" accept=".json" style="display:none">
+      </div>
+      <div class="text-xs text-muted">Download a backup of all workout data, or restore from a previous export.</div>
+    </div>
+
+    <div class="card">
+      <h2>Google Drive sync</h2>
+      <details class="mb-2">
+        <summary class="text-xs text-muted" style="cursor:pointer;user-select:none;padding:4px 0;">Setup instructions ▾</summary>
+        <ol class="note mt-1" style="padding-left:1.4em;line-height:1.9;font-size:0.8rem;">
+          <li>Go to <strong>console.cloud.google.com</strong> → create a project</li>
+          <li>Enable the <em>Google Drive API</em></li>
+          <li>Create an <em>OAuth 2.0 Client ID</em> (Web application) — add this page's URL as an authorised JavaScript origin</li>
+          <li>Paste the Client ID below and tap Save credentials</li>
+          <li>Click <em>Save to Drive</em> to create the backup file — the File ID is saved automatically</li>
+          <li>To load from an existing file, paste its Drive File ID below</li>
+        </ol>
+      </details>
+      <div class="field">
+        <label for="drive-client-id">OAuth Client ID</label>
+        <input type="text" id="drive-client-id" placeholder="xxxx.apps.googleusercontent.com" value="${escapeHtml(driveCfg.clientId || '')}">
+      </div>
+      <div class="field">
+        <label for="drive-file-id">File ID <span class="text-muted">(auto-saved after first upload; paste to load an existing file)</span></label>
+        <input type="text" id="drive-file-id" placeholder="1BxiM…" value="${escapeHtml(driveCfg.fileId || '')}">
+      </div>
+      <button class="btn secondary sm" id="drive-cred-btn">Save credentials</button>
+      <div id="drive-controls" ${driveCfg.clientId ? '' : 'hidden'} style="margin-top:14px;">
+        <div class="row">
+          <button class="btn secondary" id="drive-save-btn">Save to Drive</button>
+          <button class="btn secondary" id="drive-load-btn">Load from Drive</button>
+        </div>
+        <div class="drive-status" id="drive-status">${driveCfg.lastSaved ? 'Last saved: ' + escapeHtml(driveCfg.lastSaved) : ''}</div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('export-btn').onclick = exportData;
+  const importFile = document.getElementById('import-file');
+  document.getElementById('import-btn').onclick = () => importFile.click();
+  importFile.onchange = () => importData(importFile);
+
   document.getElementById('drive-cred-btn').onclick = () => {
     const clientId = document.getElementById('drive-client-id').value.trim();
     const fileId   = document.getElementById('drive-file-id').value.trim();
@@ -2647,7 +2654,6 @@ function renderSetup(isFirstRun) {
     document.getElementById('drive-controls').hidden = !clientId;
     alert('Credentials saved.');
   };
-
   if (driveCfg.clientId) {
     const driveStatus = document.getElementById('drive-status');
     document.getElementById('drive-save-btn').onclick = () =>
@@ -2655,6 +2661,44 @@ function renderSetup(isFirstRun) {
     document.getElementById('drive-load-btn').onclick = () =>
       DriveSync.load(msg => { driveStatus.textContent = msg; });
   }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   VIEW: SETUP — APP MAINTENANCE
+   ════════════════════════════════════════════════════════════════ */
+function renderSetupApp() {
+  document.getElementById('topbar-title').textContent = 'App Maintenance';
+  document.getElementById('topbar-sub').textContent = `v${TRACKER_CACHE_VERSION}`;
+  const view = document.getElementById('view');
+  view.innerHTML = `
+    <a href="#/setup" class="text-muted text-sm" style="display:block;margin-bottom:12px;">← Setup</a>
+
+    <div class="card">
+      <h2>App cache</h2>
+      <div class="text-xs text-muted mb-2">Cache version: <strong>${escapeHtml(TRACKER_CACHE_VERSION)}</strong></div>
+      <button class="btn secondary block" id="refresh-cache-btn">Refresh cache</button>
+      <div class="text-xs text-muted mt-1">Clears cached files and reloads to pick up the latest version.</div>
+    </div>
+
+    <div class="card">
+      <h2>Danger zone</h2>
+      <button class="btn secondary block" id="reset-btn">Reset all data</button>
+      <div class="text-xs text-muted mt-1">Wipes config, baselines, and all session history.</div>
+    </div>
+  `;
+
+  document.getElementById('refresh-cache-btn').onclick = () => {
+    if (confirm('Clear the app cache and reload? The page will fetch the latest files from the server.')) {
+      refreshTrackerCache();
+    }
+  };
+  document.getElementById('reset-btn').onclick = () => {
+    if (confirm('Wipe ALL data (config, weights, session history)? This cannot be undone.')) {
+      Storage.reset();
+      location.hash = '';
+      location.reload();
+    }
+  };
 }
 
 /* ════════════════════════════════════════════════════════════════
