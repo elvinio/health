@@ -2430,18 +2430,18 @@ function renderSetup(isFirstRun) {
       <details class="mb-2">
         <summary class="text-xs text-muted" style="cursor:pointer;user-select:none;padding:4px 0;">How to get a key ▾</summary>
         <ol class="note mt-1" style="padding-left:1.4em;line-height:1.9;font-size:0.8rem;">
-          <li>Go to <strong>console.cloud.google.com</strong> → create a project &amp; enable billing</li>
-          <li>Enable the <em>Cloud Text-to-Speech API</em> (APIs &amp; Services → Library)</li>
-          <li><em>Credentials → Create credentials → API key</em>, then restrict it to the Text-to-Speech API</li>
-          <li>Set a billing budget cap, then paste the key below</li>
+          <li>Sign in at <strong>elevenlabs.io</strong></li>
+          <li>Open your account menu → <em>API Keys</em> (elevenlabs.io/app/settings/api-keys)</li>
+          <li><em>Create API Key</em>, copy it, then paste the key below</li>
+          <li>Pick each show's voice later in the Radio tab's review screen (tap “Load” to list your account voices)</li>
         </ol>
       </details>
       <div class="field">
-        <label for="tts-key">Google TTS API key</label>
-        <input type="password" id="tts-key" placeholder="AIza..." autocomplete="off" value="${escapeHtml(localStorage.getItem('health:googleTtsKey') || '')}">
+        <label for="eleven-key">ElevenLabs API key</label>
+        <input type="password" id="eleven-key" placeholder="sk_..." autocomplete="off" value="${escapeHtml(localStorage.getItem('health:elevenLabsKey') || '')}">
         <div class="text-xs text-muted">Speaks the radio shows. Stored only in this browser. Uses your Claude key (above) to write them.</div>
       </div>
-      <button class="btn secondary sm" id="tts-save-btn">Save TTS key</button>
+      <button class="btn secondary sm" id="tts-save-btn">Save ElevenLabs key</button>
     </div>
 
     <div class="card">
@@ -2582,8 +2582,8 @@ function renderSetup(isFirstRun) {
   };
 
   document.getElementById('tts-save-btn').onclick = () => {
-    localStorage.setItem('health:googleTtsKey', document.getElementById('tts-key').value.trim());
-    alert('TTS key saved.');
+    localStorage.setItem('health:elevenLabsKey', document.getElementById('eleven-key').value.trim());
+    alert('ElevenLabs key saved.');
   };
 
   document.getElementById('export-btn').onclick = exportData;
