@@ -19,6 +19,7 @@ and the `themes.css` stylesheet, but **no JS** with finance. It is served under
 | `sw-tracker.js` | Service worker for `tracker.html`. |
 | `manifest-tracker.json` | PWA manifest (`start_url`/`scope` = `/health/tracker.html`). |
 | `icons/tracker-icon.png` | Maskable app icon (512px); shares `icon-192.png` with finance. |
+| `apps-script/classicals-proxy.gs` | Optional Apps Script — server-side scraper/proxy for Radio interstitial piano music (see "Interstitial music" below). |
 
 `tracker.html` loads `themes.css`, then `tracker-chat.js` and `tracker-radio.js`
 as plain `<script src>` tags at the bottom (no ES modules; same global-scope
@@ -87,6 +88,8 @@ shape:
 | `health:radio:episodes` | Episode metadata index (status, segments, voice) |
 | `health:radio:progress` | Per-episode playback position (resume) |
 | `health:radio:elevenVoices` | Cached ElevenLabs voice list (`GET /v1/voices`) |
+| `health:radio:musicProxyUrl` | Web-app URL of `apps-script/classicals-proxy.gs` — enables Radio interstitial music (set in Setup → Radio station) |
+| `health:radio:musicTracks` | Cached scraped piano-track list (weekly refresh) |
 | `tracker:drive-config` | `DriveSync` config — `{ clientId, fileId }` for Google Drive backup |
 
 ## Chat tab (`tracker-chat.js`)
@@ -127,9 +130,19 @@ So phase 1 works without a Claude API key.
 free `preview_url` sample. API key in `health:elevenLabsKey`.
 
 **Storage** — script text + audio Blobs both live in IndexedDB (DB `health-radio`,
-store `radioAudio`; keys `epId:idx` for audio, `epId:idx:txt` for script). Episode
-metadata indexes in `health:radio:episodes`; playback position in
-`health:radio:progress`.
+store `radioAudio`; keys `epId:idx` for audio, `epId:idx:txt` for script, and
+`music:<id>` for cached interstitial MP3 Blobs). Episode metadata indexes in
+`health:radio:episodes`; playback position in `health:radio:progress`.
+
+**Interstitial music** — between every spoken segment (not after the last), the
+player drops in a random 3–5 min slice of a random royalty-free piano piece with
+fade in/out, captioned with the piece title. Tracks are scraped server-side by
+`apps-script/classicals-proxy.gs` (web-app URL in `health:radio:musicProxyUrl`,
+set in Setup → Radio station; bypasses classicals.de's 403/CORS and returns each
+MP3 as base64). The track list is cached in `health:radio:musicTracks` (weekly
+refresh) and decoded Blobs in IndexedDB under `music:<id>`. It's always on when a
+proxy URL is set, and a no-op otherwise. A second `<audio id="rp-music">` element
+plus `activeAudio()` route the transport controls during a break.
 
 **Playback** — synthesis is progressive, resumable, and cancelable; a custom
 `<audio>` player offers pause/seek/±15s/segment-nav + resume + a Script
