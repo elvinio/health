@@ -956,6 +956,8 @@
 <script>
 'use strict';
 
+const TRACKER_CACHE_VERSION = 'health-tracker-v12';
+
 // ── Theme ─────────────────────────────────────────────────────────────────────
 const THEMES = [
   { id: 'earth',  label: 'Earth',  bg: '#faf6ee', primary: '#8b5e3c' },
@@ -2491,6 +2493,13 @@ function renderSetup(isFirstRun) {
       <div class="text-xs text-muted mt-1">Wipes config, baselines, and all session history.</div>
     </div>
 
+    <div class="card">
+      <h2>App cache</h2>
+      <div class="text-xs text-muted mb-2">Cache version: <strong>${escapeHtml(TRACKER_CACHE_VERSION)}</strong></div>
+      <button class="btn secondary block" id="refresh-cache-btn">Refresh cache</button>
+      <div class="text-xs text-muted mt-1">Clears cached files and reloads to pick up the latest version.</div>
+    </div>
+
     <button class="btn block" id="save-btn" style="margin: 18px 0 28px;">
       Save and continue
     </button>
@@ -2564,6 +2573,12 @@ function renderSetup(isFirstRun) {
       Storage.reset();
       location.hash = '';
       location.reload();
+    }
+  };
+
+  document.getElementById('refresh-cache-btn').onclick = () => {
+    if (confirm('Clear the app cache and reload? The page will fetch the latest files from the server.')) {
+      refreshTrackerCache();
     }
   };
 
@@ -3770,6 +3785,20 @@ document.getElementById('profile-switcher').addEventListener('click', () => {
   updateProfileSwitcherUI();
   route();
 });
+
+async function refreshTrackerCache() {
+  try {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(k => !k.startsWith('finance-')).map(k => caches.delete(k)));
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.getRegistration('/health/tracker.html');
+      if (reg) await reg.unregister();
+    }
+    location.reload(true);
+  } catch (e) {
+    alert('Error clearing cache: ' + e.message);
+  }
+}
 
 // Register separate service worker (does not conflict with finance app's sw.js)
 if ('serviceWorker' in navigator) {
