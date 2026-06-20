@@ -25,10 +25,12 @@
  *   { "83139": { lat, lng, name }, "12345": { ... } }
  *
  * ── Rain radar cache ──
- * Keeps the last 24h of NEA rain-radar frames (weather.gov.sg publishes a
+ * Keeps the last 30 days of NEA rain-radar frames (weather.gov.sg publishes a
  * frame every 5 min but only retains ~1 hour). A time-driven trigger saves
- * each frame as <YYYYMMDDHHMM>.png (SGT slot key) into a Drive folder named
- * "rain-radar-cache" and prunes frames older than 24h (~288 small PNGs).
+ * each frame as <YYYYMMDDHHMM>.png (SGT slot key) into a day-of-month subfolder
+ * ("01".."31") of a Drive folder named "rain-radar-cache". The day subfolders
+ * act as a ring buffer: each is reused ~30 days later, so the first write of a
+ * new day simply wipes that one small folder — no scan of the ~8640-file cache.
  *
  * One-time setup (in addition to the steps above):
  *   1. Run cacheRainFrame once manually — this triggers the authorization
@@ -44,6 +46,11 @@
  * GET {webAppUrl}?action=RainImg&t=202606090800&token=<secret>
  *   → { "t": "202606090800", "png": "<base64>" }
  *   (Apps Script can't serve binary; the PWA builds a data: URI.)
+ *
+ * GET {webAppUrl}?action=RainImgBatch&t=202606090800,202606090805,...&token=<secret>
+ *   → { "images": { "202606090800": "<base64>", "202606090805": "<base64>", ... } }
+ *   Returns many frames in one round-trip (the PWA batches ~4h per request),
+ *   which is far faster than one HTTP call per 5-min frame.
  *
  * If PROXY_TOKEN is not set in Script Properties, the token check is skipped.
  */
@@ -70,6 +77,7 @@ function doGet(e) {
     // Rain actions need Drive only, not the LTA key.
     if (action === 'RainList') return handleRainList();
     if (action === 'RainImg') return handleRainImg(e);
+    if (action === 'RainImgBatch') return handleRainImgBatch(e);
 
     var apiKey = props.getProperty(LTA_API_KEY_PROP);
     if (!apiKey) {
@@ -158,7 +166,7 @@ function handleBusStopCoords(e, apiKey) {
 var RAIN_URL_PREFIX    = 'https://www.weather.gov.sg/files/rainarea/50km/v2/dpsri_70km_';
 var RAIN_URL_SUFFIX    = '0000dBR.dpsri.png';
 var RAIN_FOLDER_NAME   = 'rain-radar-cache';
-var RAIN_RETENTION_MS  = 24 * 60 * 60 * 1000;
+var RAIN_RETENTION_MS  = 30 * 24 * 60 * 60 * 1000;
 
 // Run once manually to install the every-5-minutes trigger (idempotent).
 function installRainTrigger() {
@@ -181,41 +189,60 @@ function getRainFolder_() {
   return it.hasNext() ? it.next() : DriveApp.createFolder(RAIN_FOLDER_NAME);
 }
 
+// Frames are stored in day-of-month subfolders ("01".."31") of the cache
+// folder. This turns retention into an automatic ring buffer: a day folder is
+// reused 28-31 days later, so the first write of a new day just wipes that one
+// small folder (~288 files) instead of scanning the whole multi-thousand-file
+// cache. No periodic prune pass is needed.
+function getRainBucket_(main, dd, createIfMissing) {
+  var it = main.getFoldersByName(dd);
+  if (it.hasNext()) return it.next();
+  return createIfMissing ? main.createFolder(dd) : null;
+}
+
 // Trigger handler: fetch the newest available frame (NEA publishes with a
-// little lag, so fall back up to 2 slots) and prune frames older than 24h.
+// little lag, so fall back up to 2 slots) into its day-of-month bucket.
 function cacheRainFrame() {
-  var folder = getRainFolder_();
+  var main = getRainFolder_();
   var now = new Date();
   for (var off = 0; off <= 2; off++) {
     var key = sgtSlotKey_(now, off);
-    var name = key + '.png';
-    if (folder.getFilesByName(name).hasNext()) break; // newest slot already cached
+    var dd = key.substring(6, 8);
+    var bucket = getRainBucket_(main, dd, true);
+    if (bucket.getFilesByName(key + '.png').hasNext()) return; // newest slot already cached
     var resp = UrlFetchApp.fetch(RAIN_URL_PREFIX + key + RAIN_URL_SUFFIX, { muteHttpExceptions: true });
     if (resp.getResponseCode() === 200 && (resp.getBlob().getContentType() || '').indexOf('image') === 0) {
-      folder.createFile(resp.getBlob().setName(name));
-      break;
+      rolloverBucket_(bucket, key.substring(0, 6)); // wipe if it still holds a previous month
+      bucket.createFile(resp.getBlob().setName(key + '.png'));
+      return;
     }
   }
-  pruneRainCache_(folder, now);
 }
 
-function pruneRainCache_(folder, now) {
-  // Slot keys are yyyyMMddHHmm, so lexicographic compare == chronological.
-  var cutoffKey = sgtSlotKey_(new Date(now.getTime() - RAIN_RETENTION_MS), 0);
-  var files = folder.getFiles();
-  while (files.hasNext()) {
-    var f = files.next();
-    var m = f.getName().match(/^(\d{12})\.png$/);
-    if (m && m[1] < cutoffKey) f.setTrashed(true);
-  }
+// If the bucket's existing frames belong to a different month than `ym`
+// (yyyyMM), this day has rolled over — trash everything so the day is reused.
+function rolloverBucket_(bucket, ym) {
+  var files = bucket.getFiles();
+  if (!files.hasNext()) return;
+  var first = files.next();
+  if (first.getName().substring(0, 6) === ym) return; // same month → still current
+  first.setTrashed(true);
+  while (files.hasNext()) files.next().setTrashed(true);
 }
 
 function handleRainList() {
-  var files = getRainFolder_().getFiles();
+  var main = getRainFolder_();
+  // Strict 30-day cutoff so stale buckets (e.g. day "31" lingering until the
+  // next 31-day month) never surface in the UI even before they're overwritten.
+  var cutoffKey = sgtSlotKey_(new Date(Date.now() - RAIN_RETENTION_MS), 0);
   var frames = [];
-  while (files.hasNext()) {
-    var m = files.next().getName().match(/^(\d{12})\.png$/);
-    if (m) frames.push(m[1]);
+  var folders = main.getFolders();
+  while (folders.hasNext()) {
+    var files = folders.next().getFiles();
+    while (files.hasNext()) {
+      var m = files.next().getName().match(/^(\d{12})\.png$/);
+      if (m && m[1] >= cutoffKey) frames.push(m[1]); // keys sort lexically == chronologically
+    }
   }
   frames.sort();
   return jsonOut({ frames: frames });
@@ -224,9 +251,33 @@ function handleRainList() {
 function handleRainImg(e) {
   var key = e.parameter && e.parameter.t;
   if (!key || !/^\d{12}$/.test(key)) return jsonOut({ error: 'Bad t parameter' });
-  var it = getRainFolder_().getFilesByName(key + '.png');
-  if (!it.hasNext()) return jsonOut({ error: 'Not found' });
+  var bucket = getRainBucket_(getRainFolder_(), key.substring(6, 8), false);
+  var it = bucket && bucket.getFilesByName(key + '.png');
+  if (!it || !it.hasNext()) return jsonOut({ error: 'Not found' });
   return jsonOut({ t: key, png: Utilities.base64Encode(it.next().getBlob().getBytes()) });
+}
+
+// Batched variant: t is a comma-separated list of slot keys; returns every
+// matching frame in one response so the PWA can load ~4h of frames per HTTP
+// round-trip instead of one call per 5-min frame. A 4h window spans at most
+// two day buckets, so folder lookups are memoised by day-of-month.
+function handleRainImgBatch(e) {
+  var keysParam = e.parameter && e.parameter.t;
+  if (!keysParam) return jsonOut({ error: 'Missing t parameter' });
+  var main = getRainFolder_();
+  var buckets = {}; // dd -> folder | null
+  var images = {};
+  keysParam.split(',').forEach(function(raw) {
+    var key = (raw || '').trim();
+    if (!/^\d{12}$/.test(key) || images[key]) return;
+    var dd = key.substring(6, 8);
+    if (!(dd in buckets)) buckets[dd] = getRainBucket_(main, dd, false);
+    var bucket = buckets[dd];
+    if (!bucket) return;
+    var it = bucket.getFilesByName(key + '.png');
+    if (it.hasNext()) images[key] = Utilities.base64Encode(it.next().getBlob().getBytes());
+  });
+  return jsonOut({ images: images });
 }
 
 function jsonOut(obj) {
