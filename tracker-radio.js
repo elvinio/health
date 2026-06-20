@@ -206,6 +206,14 @@
     return new Blob([bytes], { type: 'audio/mpeg' });
   }
 
+  // First N sentences of a block of speech — used for the voice preview sample.
+  function firstSentences(text, n) {
+    const t = String(text || '').replace(/\s+/g, ' ').trim();
+    if (!t) return '';
+    const parts = t.match(/[^.!?…]+[.!?…]+|\S.+$/g) || [t];
+    return parts.slice(0, n).join(' ').trim();
+  }
+
   /* ── Generation pipeline ───────────────────────────────────────────────── */
   function parsePlan(text, want) {
     let t = text.replace(/```json/gi, '').replace(/```/g, '').trim();
@@ -473,7 +481,17 @@
   }
 
   /* ── Player ────────────────────────────────────────────────────────────── */
+  // Throwaway audio for the voice preview on the review screen (never persisted).
+  let _preview = null;
+  function stopPreview() {
+    if (!_preview) return;
+    try { _preview.audio.pause(); } catch (e) {}
+    try { URL.revokeObjectURL(_preview.url); } catch (e) {}
+    _preview = null;
+  }
+
   function teardownAudio() {
+    stopPreview();
     if (RadioState.audio) { try { RadioState.audio.pause(); } catch (e) {} RadioState.audio = null; }
     if (RadioState.objUrl) { try { URL.revokeObjectURL(RadioState.objUrl); } catch (e) {} RadioState.objUrl = null; }
     if (RadioState.saveTimer) { clearInterval(RadioState.saveTimer); RadioState.saveTimer = 0; }
@@ -590,6 +608,11 @@
     const busy = RadioState.generating && RadioState.genEpId === ep.id;
     const synth = ep.status === 'synthesizing';
     const ready = ep.segments.length && ep.segments.every(s => s.hasAudio);
+    // Voice is chosen here, before audio is created. Once audio exists it is locked.
+    const voiceOpts = (VOICE_OPTIONS.some(o => o.v === ep.voice)
+      ? VOICE_OPTIONS
+      : [{ v: ep.voice, l: ep.voice }, ...VOICE_OPTIONS])
+      .map(o => `<option value="${escapeHtml(o.v)}" ${o.v === ep.voice ? 'selected' : ''}>${escapeHtml(o.l)}</option>`).join('');
     const segHtml = ep.segments.map(s => `
       <div class="rv-seg">
         <div class="rv-seg-title">${s.idx + 1}. ${escapeHtml(s.title || '')} ${s.hasAudio ? '<span class="rv-aud">🔊</span>' : ''}</div>
@@ -605,6 +628,13 @@
             <div class="rc-topic">${ready ? 'Episode' : 'Draft script'} · ${ep.segments.length} segments · ~${Math.round(epSeconds(ep) / 60)} min</div></div>
         </div>
         ${ep.error ? `<div class="rc-status err">⚠ ${escapeHtml(ep.error)}</div>` : ''}
+        ${ready ? '' : `
+        <div class="rv-voice">
+          <label for="rv-voice">Voice</label>
+          <select id="rv-voice" ${busy ? 'disabled' : ''}>${voiceOpts}</select>
+          <button class="btn secondary sm" id="rv-preview" ${busy ? 'disabled' : ''}>🔊 Preview</button>
+          <span class="rv-preview-status" id="rv-preview-status"></span>
+        </div>`}
         <div class="rv-actions">
           ${ready
             ? `<button class="btn" id="rv-listen">▶ Listen</button>`
@@ -618,11 +648,48 @@
         <div class="rv-list">${segHtml}</div>
       </div>`;
 
-    document.getElementById('rv-back').onclick = () => { RadioState.view = 'home'; renderRadio(); };
-    const mk = document.getElementById('rv-makeaudio'); if (mk) mk.onclick = () => synthesizeEpisode(ep.id);
+    document.getElementById('rv-back').onclick = () => { stopPreview(); RadioState.view = 'home'; renderRadio(); };
+
+    const vsel = document.getElementById('rv-voice');
+    if (vsel) vsel.onchange = () => {
+      stopPreview();
+      const fresh = getEpisode(ep.id); if (!fresh) return;
+      fresh.voice = vsel.value;
+      fresh.languageCode = LANG_OF(vsel.value);
+      saveEpisode(fresh);
+    };
+    const pv = document.getElementById('rv-preview');
+    if (pv) pv.onclick = async () => {
+      stopPreview();
+      const st = document.getElementById('rv-preview-status');
+      const voice = (vsel && vsel.value) || ep.voice;
+      const first = ep.segments[0];
+      if (!first) { if (st) st.textContent = 'No script to preview yet.'; return; }
+      pv.disabled = true;
+      if (st) st.textContent = 'Generating…';
+      try {
+        const full = await idbGet(ep.id + ':' + first.idx + ':txt');
+        const sample = firstSentences(full, 2);
+        if (!sample) { if (st) st.textContent = 'Segment text not ready.'; pv.disabled = false; return; }
+        const blob = await synthesizeTTS(sample, voice, LANG_OF(voice));
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        _preview = { audio, url };
+        audio.onended = () => { const s = document.getElementById('rv-preview-status'); if (s) s.textContent = ''; stopPreview(); };
+        await audio.play();
+        if (st) st.textContent = '▶ Playing sample…';
+      } catch (e) {
+        if (st) st.textContent = '⚠ ' + ((e && e.message) || 'Preview failed');
+      } finally {
+        pv.disabled = false;
+      }
+    };
+
+    const mk = document.getElementById('rv-makeaudio'); if (mk) mk.onclick = () => { stopPreview(); synthesizeEpisode(ep.id); };
     const ls = document.getElementById('rv-listen'); if (ls) ls.onclick = () => openPlayer(ep.id);
     const st = document.getElementById('rv-stop'); if (st) st.onclick = () => { RadioState.cancel = true; st.textContent = 'stopping…'; };
     const rg = document.getElementById('rv-regen'); if (rg) rg.onclick = async () => {
+      stopPreview();
       const ch = getChannel(ep.channelId);
       if (!ch) { alert('This channel no longer exists.'); return; }
       if (!confirm('Discard this script (and any audio made so far) and write a new one?')) return;
@@ -795,6 +862,10 @@
       .radio-review { padding-bottom:40px; }
       .rv-head { display:flex; align-items:flex-start; gap:10px; margin:8px 0 4px; }
       .radio-review .rc-name { font-weight:700; color:var(--accent-d); }
+      .rv-voice { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:12px 0 0; }
+      .rv-voice label { font-size:0.82rem; font-weight:600; color:var(--muted); }
+      .rv-voice select { flex:1; min-width:150px; padding:7px 8px; border-radius:6px; border:1px solid var(--border); background:var(--card); color:var(--text); }
+      .rv-preview-status { font-size:0.8rem; color:var(--muted); width:100%; }
       .rv-actions { display:flex; gap:8px; flex-wrap:wrap; margin:12px 0 4px; }
       .rv-progress { font-size:0.8rem; color:var(--muted); margin:4px 0 14px; }
       .rv-list { display:flex; flex-direction:column; gap:12px; }
