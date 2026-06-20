@@ -289,26 +289,32 @@
     return Array.from({ length: want }, (_, i) => ({ title: 'Segment ' + (i + 1), angle: '' }));
   }
 
-  async function planEpisode(channel, lenMin) {
-    const n = segmentCount(lenMin);
+  async function planEpisode(channel, lenMin, segSec) {
+    segSec = segSec || SEC_PER_SEGMENT;
+    const n = segmentCount(lenMin, segSec);
+    const minLo = Math.floor(segSec / 60);
+    const minHi = Math.ceil(segSec / 60) + 1;
     const client = await getClient();
     const sys = channel.persona + '\n\nYou are planning a single radio show episode for broadcast.';
-    const prompt = `Plan a ${lenMin}-minute spoken radio show on the theme "${channel.topic}". Break it into exactly ${n} consecutive segments of roughly 2-3 minutes each. Each segment should flow naturally from the one before, building an arc across the whole show. For each, give a short "title" and a one-sentence "angle". Return ONLY a JSON array like [{"title":"...","angle":"..."}] with no prose and no markdown fences.`;
+    const prompt = `Plan a ${lenMin}-minute spoken radio show on the theme "${channel.topic}". Break it into exactly ${n} consecutive segments of roughly ${minLo}-${minHi} minutes each. Each segment should flow naturally from the one before, building an arc across the whole show. For each, give a short "title" and a one-sentence "angle". Return ONLY a JSON array like [{"title":"...","angle":"..."}] with no prose and no markdown fences.`;
     const msg = await client.messages.create({ model: defaultModel(), max_tokens: 3000, system: sys, messages: [{ role: 'user', content: prompt }] });
     return parsePlan(claudeText(msg), n);
   }
 
-  async function generateSegmentScript(channel, seg, priorTitles, idx, total) {
+  async function generateSegmentScript(channel, seg, priorTitles, idx, total, segSec) {
+    segSec = segSec || SEC_PER_SEGMENT;
+    const wordsLo = Math.round(segSec * WORDS_PER_SEC * 0.85);
+    const wordsHi = Math.round(segSec * WORDS_PER_SEC * 1.02);
     const client = await getClient();
     const sys = channel.persona +
       `\n\nYou are recording segment ${idx + 1} of ${total} of a radio show on "${channel.topic}". ` +
       'Output ONLY the spoken words — no stage directions, no bracketed cues like [pause], no markdown, no segment labels, no headings. ' +
-      'Use natural punctuation (commas, em-dashes, ellipses) to control pacing. Write roughly 320-380 words of flowing speech.';
+      `Use natural punctuation (commas, em-dashes, ellipses) to control pacing. Write roughly ${wordsLo}-${wordsHi} words of flowing speech.`;
     const ctx = priorTitles.length
       ? `Earlier in this show you have already covered: ${priorTitles.join('; ')}. Do not repeat them; continue the arc.`
       : 'This is the opening segment — set the mood and welcome the listener without clichés.';
     const prompt = `${ctx}\n\nNow deliver this segment.\nTitle: ${seg.title}\nAngle: ${seg.angle || '(your choice, on theme)'}`;
-    const msg = await client.messages.create({ model: defaultModel(), max_tokens: 1500, system: sys, messages: [{ role: 'user', content: prompt }] });
+    const msg = await client.messages.create({ model: defaultModel(), max_tokens: 2000, system: sys, messages: [{ role: 'user', content: prompt }] });
     return claudeText(msg);
   }
 
@@ -335,14 +341,15 @@
   }
 
   // Phase 1 — write the whole script (Claude only, no TTS). Leaves a 'draft'.
-  async function generateScripts(channel, lenMin) {
+  async function generateScripts(channel, lenMin, segSec) {
+    segSec = segSec || SEC_PER_SEGMENT;
     if (RadioState.generating) { alert('Already busy. Please wait or stop the current job first.'); return; }
     if (!hasClaudeKey()) { alert('Add your Claude API key in Setup → AI Chat first.'); return; }
 
     const ep = {
       id: uid(), channelId: channel.id, channelName: channel.name, emoji: channel.emoji,
       voice: channel.voice, voiceName: channel.voiceName || '',
-      targetMin: lenMin, createdAt: Date.now(), status: 'scripting', plannedCount: 0, segments: [], error: null,
+      targetMin: lenMin, segSec, createdAt: Date.now(), status: 'scripting', plannedCount: 0, segments: [], error: null,
     };
     saveEpisode(ep);
     RadioState.generating = true; RadioState.cancel = false; RadioState.genEpId = ep.id;
@@ -350,12 +357,12 @@
     rerenderActive();
 
     try {
-      const plan = await planEpisode(channel, lenMin);
+      const plan = await planEpisode(channel, lenMin, segSec);
       ep.plannedCount = plan.length; saveEpisode(ep);
       const priorTitles = [];
       for (let i = 0; i < plan.length; i++) {
         if (RadioState.cancel) break;
-        const script = await generateSegmentScript(channel, plan[i], priorTitles, i, plan.length);
+        const script = await generateSegmentScript(channel, plan[i], priorTitles, i, plan.length, segSec);
         if (!script) continue;
         const idx = ep.segments.length;
         await idbPut(ep.id + ':' + idx + ':txt', script);
@@ -425,15 +432,20 @@
   // Lets you write a show without an API key: one self-contained prompt produces
   // the whole multi-segment script in a paste-friendly "## N. Title" format that
   // parsePastedScript() reads straight back into a draft episode.
-  function segmentCount(lenMin) {
-    return Math.max(1, Math.min(120, Math.round((lenMin * 60) / SEC_PER_SEGMENT)));
+  function segmentCount(lenMin, segSec) {
+    segSec = segSec || SEC_PER_SEGMENT;
+    return Math.max(1, Math.min(120, Math.round((lenMin * 60) / segSec)));
   }
 
-  function buildCopyPrompt(channel, lenMin) {
-    const n = segmentCount(lenMin);
+  function buildCopyPrompt(channel, lenMin, segSec) {
+    segSec = segSec || SEC_PER_SEGMENT;
+    const n = segmentCount(lenMin, segSec);
+    const minPerSeg = Math.round(segSec / 60);
+    const wordsLo = Math.round(segSec * WORDS_PER_SEC * 0.85);
+    const wordsHi = Math.round(segSec * WORDS_PER_SEC * 1.02);
     return `${channel.persona}
 
-You are writing a complete spoken radio show on the theme "${channel.topic}". The show runs about ${lenMin} minute${lenMin === 1 ? '' : 's'}, broken into exactly ${n} consecutive segment${n === 1 ? '' : 's'} of roughly 2-3 minutes (about 320-380 words) each. Each segment flows naturally from the one before, building a single arc across the whole show.
+You are writing a complete spoken radio show on the theme "${channel.topic}". The show runs about ${lenMin} minute${lenMin === 1 ? '' : 's'}, broken into exactly ${n} consecutive segment${n === 1 ? '' : 's'} of roughly ${minPerSeg}-${minPerSeg + 1} minutes (about ${wordsLo}-${wordsHi} words) each. Each segment flows naturally from the one before, building a single arc across the whole show.
 
 Write the FULL script now, formatted as Markdown with one section per segment, exactly like this:
 
@@ -509,8 +521,8 @@ Rules for the spoken text under each heading:
     RadioState.view = 'review'; RadioState.epId = ep.id; renderRadio();
   }
 
-  function openPromptModal(channel, lenMin) {
-    const prompt = buildCopyPrompt(channel, lenMin);
+  function openPromptModal(channel, lenMin, segSec) {
+    const prompt = buildCopyPrompt(channel, lenMin, segSec);
     showModal(`
       <p class="note text-xs text-muted">Copy this into a Claude chat (claude.ai). When it replies with the script, come back and tap <strong>📥 Paste</strong> on this channel.</p>
       <textarea id="rmp-text" rows="12" readonly class="rmp-area">${escapeHtml(prompt)}</textarea>
@@ -893,10 +905,10 @@ Rules for the spoken text under each heading:
     // Voice is chosen here, before audio is created. Once audio exists it is locked.
     const voiceOpts = voiceOptionsHtml(ep.voice, ep.voiceName);
     const segHtml = ep.segments.map(s => `
-      <div class="rv-seg">
-        <div class="rv-seg-title">${s.idx + 1}. ${escapeHtml(s.title || '')} ${s.hasAudio ? '<span class="rv-aud">🔊</span>' : ''}</div>
+      <details class="rv-seg" open>
+        <summary class="rv-seg-title">${s.idx + 1}. ${escapeHtml(s.title || '')} ${s.hasAudio ? '<span class="rv-aud">🔊</span>' : ''}</summary>
         <div class="rv-seg-text" id="rv-txt-${s.idx}">…</div>
-      </div>`).join('');
+      </details>`).join('');
 
     view.innerHTML = `
       <div class="radio-review">
@@ -977,9 +989,10 @@ Rules for the spoken text under each heading:
       if (!ch) { alert('This channel no longer exists.'); return; }
       if (!confirm('Discard this script (and any audio made so far) and write a new one?')) return;
       const len = ep.targetMin;
+      const segSz = ep.segSec || SEC_PER_SEGMENT;
       await deleteEpisode(ep.id);
       RadioState.view = 'home';
-      generateScripts(ch, len);
+      generateScripts(ch, len, segSz);
     };
 
     // fill in the script bodies from IndexedDB
@@ -1000,7 +1013,7 @@ Rules for the spoken text under each heading:
         const done = g.segments.filter(s => s.hasAudio).length;
         statusLine = `<div class="rc-status">🔊 Creating audio… ${done}/${g.segments.length} <button class="rc-cancel" data-cancel="1">stop</button></div>`;
       } else {
-        const tot = g.plannedCount || Math.round((g.targetMin * 60) / SEC_PER_SEGMENT);
+        const tot = g.plannedCount || Math.round((g.targetMin * 60) / (g.segSec || SEC_PER_SEGMENT));
         statusLine = `<div class="rc-status">✍ Writing script… ${g.segments.length}/${tot || '?'} <button class="rc-cancel" data-cancel="1">stop</button></div>`;
       }
     } else if (ep && ep.status === 'ready') {
@@ -1012,9 +1025,12 @@ Rules for the spoken text under each heading:
       statusLine = `<div class="rc-status err">⚠ ${escapeHtml(ep.error || 'generation failed')}</div>`;
     }
     const lenOpts = LENGTHS.map(m => `<option value="${m}" ${m === 30 ? 'selected' : ''}>${m >= 60 ? (m / 60) + 'h' : m + ' min'}</option>`).join('');
+    const segSzOpts = [
+      [150, 'Short (~2.5 min)'],
+      [300, 'Long (~5 min)'],
+    ].map(([val, label]) => `<option value="${val}">${label}</option>`).join('');
     const ready = ep && ep.status === 'ready' && ep.segments.some(s => s.hasAudio);
     const draft = ep && ep.status === 'draft';
-    const noKey = !hasClaudeKey();
     return `
       <div class="rc-card">
         <div class="rc-head" data-edit="${ch.id}" title="Edit prompt">
@@ -1025,7 +1041,7 @@ Rules for the spoken text under each heading:
         ${statusLine}
         <div class="rc-actions">
           <select class="rc-len" data-ch="${ch.id}" ${RadioState.generating ? 'disabled' : ''}>${lenOpts}</select>
-          ${noKey ? '' : `<button class="btn secondary sm rc-gen" data-ch="${ch.id}" ${RadioState.generating ? 'disabled' : ''}>${ep ? 'New script' : 'Write script'}</button>`}
+          <select class="rc-segsz" data-ch="${ch.id}" ${RadioState.generating ? 'disabled' : ''}>${segSzOpts}</select>
           <button class="btn secondary sm rc-prompt" data-ch="${ch.id}" title="Copy a prompt for claude.ai">📋 Prompt</button>
           <button class="btn secondary sm rc-paste" data-ch="${ch.id}" title="Paste a script from claude.ai">📥 Paste</button>
           ${draft ? `<button class="btn sm rc-review" data-ep="${ep.id}">📝 Review</button>` : ''}
@@ -1073,8 +1089,8 @@ Rules for the spoken text under each heading:
       </div>`;
 
     const lenFor = chId => { const sel = view.querySelector(`.rc-len[data-ch="${chId}"]`); return Number(sel ? sel.value : 30); };
-    view.querySelectorAll('.rc-gen').forEach(b => b.onclick = () => generateScripts(getChannel(b.dataset.ch), lenFor(b.dataset.ch)));
-    view.querySelectorAll('.rc-prompt').forEach(b => b.onclick = () => openPromptModal(getChannel(b.dataset.ch), lenFor(b.dataset.ch)));
+    const segSecFor = chId => { const sel = view.querySelector(`.rc-segsz[data-ch="${chId}"]`); return Number(sel ? sel.value : SEC_PER_SEGMENT); };
+    view.querySelectorAll('.rc-prompt').forEach(b => b.onclick = () => openPromptModal(getChannel(b.dataset.ch), lenFor(b.dataset.ch), segSecFor(b.dataset.ch)));
     view.querySelectorAll('.rc-paste').forEach(b => b.onclick = () => openPasteModal(getChannel(b.dataset.ch), lenFor(b.dataset.ch)));
     const gs = document.getElementById('radio-go-setup'); if (gs) gs.onclick = () => go('/setup');
     view.querySelectorAll('.rc-review').forEach(b => b.onclick = () => openReview(b.dataset.ep));
@@ -1146,8 +1162,11 @@ Rules for the spoken text under each heading:
       .rv-progress { font-size:0.8rem; color:var(--muted); margin:4px 0 14px; }
       .rv-list { display:flex; flex-direction:column; gap:12px; }
       .rv-seg { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:11px 13px; }
-      .rv-seg-title { font-weight:700; color:var(--accent-d); font-size:0.9rem; margin-bottom:6px; }
+      .rv-seg-title { font-weight:700; color:var(--accent-d); font-size:0.9rem; cursor:pointer; user-select:none; list-style:none; }
+      .rv-seg-title::-webkit-details-marker { display:none; }
+      details.rv-seg[open] .rv-seg-title { margin-bottom:6px; }
       .rv-seg-text { font-size:0.92rem; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
+      .rc-segsz { padding:6px 8px; border-radius:8px; border:1px solid var(--border); background:var(--paper); color:var(--text); font-size:0.82rem; }
       .rmp-area { width:100%; font-size:0.82rem; line-height:1.5; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--card); color:var(--text); white-space:pre-wrap; overflow-wrap:anywhere; box-sizing:border-box; }
       .rc-keybanner { font-size:0.78rem; color:var(--muted); border:1px dashed var(--border); border-radius:10px; padding:9px 11px; line-height:1.5; }
       .rc-link { color:var(--accent); font-weight:600; text-decoration:underline; }
