@@ -207,22 +207,21 @@
   .setup-tabs {
     display: flex;
     border-bottom: 2px solid var(--border);
-    margin: 0 -16px 16px;
-    padding: 0 16px;
+    margin-bottom: 16px;
     overflow-x: auto;
-    gap: 0;
     scrollbar-width: none;
+    gap: 0;
   }
   .setup-tabs::-webkit-scrollbar { display: none; }
   .setup-tab {
     flex-shrink: 0;
-    padding: 10px 16px;
+    padding: 10px 14px;
     font-size: 0.85rem;
     font-weight: 600;
     color: var(--muted);
     background: none;
     border: none;
-    border-bottom: 2px solid transparent;
+    border-bottom: 3px solid transparent;
     margin-bottom: -2px;
     cursor: pointer;
     white-space: nowrap;
@@ -231,8 +230,6 @@
     color: var(--accent);
     border-bottom-color: var(--accent);
   }
-  .setup-section { display: none; }
-  .setup-section.active { display: block; }
   /* ── Setup view specific ─────────────────────────────── */
   .ex-row {
     display: flex;
@@ -2359,7 +2356,7 @@ function renderSetup(isFirstRun) {
       <button class=”setup-tab ${_initialTab === 'app'      ? 'active' : ''}” data-tab=”app”>App</button>
     </nav>
 
-    <div class=”setup-section ${_initialTab === 'training' ? 'active' : ''}” id=”setup-section-training”>
+    <div id=”setup-section-training” ${_initialTab !== 'training' ? 'hidden' : ''}>
       ${isFirstRun ? `
       <div class=”card subtle”>
         <div class=”note”>
@@ -2453,7 +2450,7 @@ function renderSetup(isFirstRun) {
       </button>
     </div>
 
-    <div class=”setup-section ${_initialTab === 'ai' ? 'active' : ''}” id=”setup-section-ai”>
+    <div id=”setup-section-ai” ${_initialTab !== 'ai' ? 'hidden' : ''}>
       <div class=”card”>
         <h2>AI Chat</h2>
         <div class=”field”>
@@ -2501,7 +2498,7 @@ function renderSetup(isFirstRun) {
       </div>
     </div>
 
-    <div class=”setup-section ${_initialTab === 'data' ? 'active' : ''}” id=”setup-section-data”>
+    <div id=”setup-section-data” ${_initialTab !== 'data' ? 'hidden' : ''}>
       <div class=”card”>
         <h2>Data backup</h2>
         <div class=”row mb-2”>
@@ -2544,7 +2541,7 @@ function renderSetup(isFirstRun) {
       </div>
     </div>
 
-    <div class=”setup-section ${_initialTab === 'app' ? 'active' : ''}” id=”setup-section-app”>
+    <div id=”setup-section-app” ${_initialTab !== 'app' ? 'hidden' : ''}>
       <div class=”card”>
         <h2>App cache</h2>
         <div class=”text-xs text-muted mb-2”>Cache version: <strong>${escapeHtml(TRACKER_CACHE_VERSION)}</strong></div>
@@ -2561,13 +2558,15 @@ function renderSetup(isFirstRun) {
   `;
 
   // Tab switching
+  const _sectionIds = ['training', 'ai', 'data', 'app'];
   view.querySelectorAll('.setup-tab').forEach(tab => {
     tab.onclick = () => {
       _setupActiveTab = tab.dataset.tab;
-      view.querySelectorAll('.setup-tab').forEach(t => t.classList.remove('active'));
-      view.querySelectorAll('.setup-section').forEach(s => s.classList.remove('active'));
-      tab.classList.add('active');
-      view.querySelector(`#setup-section-${_setupActiveTab}`).classList.add('active');
+      view.querySelectorAll('.setup-tab').forEach(t => t.classList.toggle('active', t === tab));
+      _sectionIds.forEach(id => {
+        const el = document.getElementById(`setup-section-${id}`);
+        if (el) el.hidden = (id !== _setupActiveTab);
+      });
     };
   });
 
