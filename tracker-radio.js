@@ -31,6 +31,12 @@
   const CH_KEY     = 'health:radioChannels';   // custom channels (localStorage)
   const PRESET_OV_KEY = 'health:radioPresetOverrides'; // per-preset prompt/setting edits (localStorage)
   const PROG_KEY   = 'health:radio:progress';  // { [epId]: { idx, time } }
+  const MUSIC_PROXY_KEY = 'health:radio:musicProxyUrl'; // Apps Script web-app URL (classicals.de proxy)
+  const MUSIC_CACHE_KEY = 'health:radio:musicTracks';   // { tracks:[{id,title,url}], ts } cached track list
+  const MUSIC_MIN_SEC = 180;   // interstitial music: min slice length
+  const MUSIC_MAX_SEC = 300;   //                     max slice length (3–5 min)
+  const MUSIC_FADE_SEC = 3;    //                     fade in / out duration
+  const MUSIC_LIST_TTL = 7 * 24 * 60 * 60 * 1000; // refresh the scraped list weekly
   const CHAT_MODELS = { 'claude-sonnet-4-6': 1, 'claude-opus-4-8': 1 };
   const DEFAULT_MODEL = 'claude-sonnet-4-6';
   const WORDS_PER_SEC = 2.5;        // ~150 wpm spoken pace
@@ -78,6 +84,10 @@
     objUrl: null,
     curIdx: 0,
     saveTimer: 0,
+    music: null,         // second <audio> element for interstitial music
+    musicActive: false,  // true while a between-segment music break is playing
+    musicUrl: null,      // object URL for the current music blob
+    musicTimer: 0,       // setInterval handle driving the fade-out / advance
   };
 
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
@@ -155,6 +165,49 @@
   async function idbDel(key) {
     const db = await idb();
     return new Promise((res, rej) => { const tx = db.transaction('radioAudio', 'readwrite'); tx.objectStore('radioAudio').delete(key); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); });
+  }
+
+  /* ── Interstitial music (royalty-free piano via the classicals.de proxy) ──
+     Played between spoken segments. The Apps Script scrapes the track list and
+     returns each MP3 as base64; we decode to a Blob, cache it in the same
+     IndexedDB store (key `music:<id>`) and play a random 3–5 min slice. */
+  function musicProxyUrl() { return (localStorage.getItem(MUSIC_PROXY_KEY) || '').trim(); }
+  function loadMusicCache() { try { return JSON.parse(localStorage.getItem(MUSIC_CACHE_KEY) || 'null'); } catch (e) { return null; } }
+
+  async function fetchMusicTracks() {
+    const proxy = musicProxyUrl();
+    const cache = loadMusicCache();
+    if (!proxy) return (cache && cache.tracks) || [];
+    if (cache && cache.tracks && cache.tracks.length && Date.now() - (cache.ts || 0) < MUSIC_LIST_TTL) return cache.tracks;
+    try {
+      const sep = proxy.indexOf('?') >= 0 ? '&' : '?';
+      const res = await fetch(proxy + sep + 'action=List');
+      const data = await res.json();
+      const tracks = Array.isArray(data.tracks) ? data.tracks.filter(t => t && t.url && t.id) : [];
+      if (tracks.length) { localStorage.setItem(MUSIC_CACHE_KEY, JSON.stringify({ tracks, ts: Date.now() })); return tracks; }
+    } catch (e) { /* fall through to whatever we had cached */ }
+    return (cache && cache.tracks) || [];
+  }
+
+  function pickMusicTrack(tracks) { return tracks && tracks.length ? tracks[Math.floor(Math.random() * tracks.length)] : null; }
+
+  // Return a cached MP3 Blob for `track`, downloading + caching it on first use.
+  async function getMusicBlob(track) {
+    const key = 'music:' + track.id;
+    const hit = await idbGet(key).catch(() => null);
+    if (hit) return hit;
+    const proxy = musicProxyUrl();
+    if (!proxy) return null;
+    const sep = proxy.indexOf('?') >= 0 ? '&' : '?';
+    const res = await fetch(proxy + sep + 'action=Track&url=' + encodeURIComponent(track.url) + '&title=' + encodeURIComponent(track.title || ''));
+    const data = await res.json();
+    if (!data || !data.mp3) throw new Error(data && data.error || 'No audio returned');
+    const bin = atob(data.mp3);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const blob = new Blob([bytes], { type: 'audio/mpeg' });
+    await idbPut(key, blob).catch(() => {});
+    return blob;
   }
 
   /* ── Claude client (lazy ESM import, same key as the Chat tab) ─────────── */
@@ -647,9 +700,65 @@ Rules for the spoken text under each heading:
 
   function teardownAudio() {
     stopPreview();
+    stopInterstitial();
+    if (RadioState.music) { try { RadioState.music.pause(); } catch (e) {} RadioState.music = null; }
     if (RadioState.audio) { try { RadioState.audio.pause(); } catch (e) {} RadioState.audio = null; }
     if (RadioState.objUrl) { try { URL.revokeObjectURL(RadioState.objUrl); } catch (e) {} RadioState.objUrl = null; }
     if (RadioState.saveTimer) { clearInterval(RadioState.saveTimer); RadioState.saveTimer = 0; }
+  }
+
+  // The element the transport controls (play/pause, seek, ±15) currently drive.
+  function activeAudio() { return RadioState.musicActive ? RadioState.music : RadioState.audio; }
+
+  // Cancel an in-progress music break (used on skip/seek/teardown).
+  function stopInterstitial() {
+    if (RadioState.musicTimer) { clearInterval(RadioState.musicTimer); RadioState.musicTimer = 0; }
+    if (RadioState.music) { try { RadioState.music.pause(); } catch (e) {} }
+    if (RadioState.musicUrl) { try { URL.revokeObjectURL(RadioState.musicUrl); } catch (e) {} RadioState.musicUrl = null; }
+    RadioState.musicActive = false;
+  }
+
+  // Play a random 3–5 min slice of a random piano piece, then call onDone().
+  // Falls straight through to onDone() if no music is configured/available.
+  async function playInterstitial(onDone) {
+    let track;
+    try {
+      const tracks = await fetchMusicTracks();
+      track = pickMusicTrack(tracks);
+      if (!track) return onDone();
+      const blob = await getMusicBlob(track);
+      if (!blob || !RadioState.music) return onDone();
+      stopInterstitial();
+      RadioState.musicActive = true;
+      RadioState.musicUrl = URL.createObjectURL(blob);
+      const music = RadioState.music;
+      music.src = RadioState.musicUrl;
+      const titleEl = document.getElementById('rp-segtitle');
+      if (titleEl) titleEl.textContent = '♪ ' + (track.title || 'Piano interlude');
+      const finish = () => { if (!RadioState.musicActive) return; stopInterstitial(); onDone(); };
+      music.onended = finish;
+      music.onloadedmetadata = () => {
+        const dur = music.duration || 0;
+        const playLen = Math.min(MUSIC_MIN_SEC + Math.random() * (MUSIC_MAX_SEC - MUSIC_MIN_SEC), dur || MUSIC_MAX_SEC);
+        const start = dur > playLen ? Math.random() * (dur - playLen) : 0;
+        const endAt = start + playLen;
+        try { music.currentTime = start; } catch (e) {}
+        music.volume = 0;
+        music.play().catch(() => finish());
+        RadioState.musicTimer = setInterval(() => {
+          if (!RadioState.musicActive) return;
+          const t = music.currentTime;
+          const into = t - start, left = endAt - t;
+          // fade in, hold, fade out
+          let v = 1;
+          if (into < MUSIC_FADE_SEC) v = Math.max(0, into / MUSIC_FADE_SEC);
+          else if (left < MUSIC_FADE_SEC) v = Math.max(0, left / MUSIC_FADE_SEC);
+          if (!music.paused) music.volume = Math.min(1, v);
+          if (t >= endAt) finish();
+        }, 120);
+      };
+      music.load();
+    } catch (e) { stopInterstitial(); onDone(); }
   }
 
   function openPlayer(epId) {
@@ -662,6 +771,7 @@ Rules for the spoken text under each heading:
   }
 
   async function loadSegment(idx, autoplay, startTime) {
+    stopInterstitial();
     const ep = getEpisode(RadioState.epId);
     if (!ep) return;
     const done = ep.segments.length;
@@ -690,7 +800,7 @@ Rules for the spoken text under each heading:
   }
 
   function setStatus(t) { const el = document.getElementById('rp-status'); if (el) el.textContent = t; }
-  function updatePlayBtn() { const b = document.getElementById('rp-play'); const a = RadioState.audio; if (b && a) b.textContent = a.paused ? '▶' : '⏸'; }
+  function updatePlayBtn() { const b = document.getElementById('rp-play'); const a = activeAudio(); if (b && a) b.textContent = a.paused ? '▶' : '⏸'; }
 
   function renderPlayer() {
     const ep = getEpisode(RadioState.epId);
@@ -707,6 +817,7 @@ Rules for the spoken text under each heading:
         <div class="rp-meta">${escapeHtml(fmtDate(new Date(ep.createdAt).toISOString().slice(0, 10)))} · ~${Math.round(epSeconds(ep) / 60)} min${ep.status === 'generating' ? ' · still baking…' : ''}</div>
         <div class="rp-seg">Segment <span id="rp-segn">1</span>/<span id="rp-segtot">${ep.segments.length}</span> · <span id="rp-segtitle"></span></div>
         <audio id="rp-audio" preload="metadata"></audio>
+        <audio id="rp-music" preload="metadata"></audio>
         <input type="range" id="rp-seek" min="0" max="1000" value="0">
         <div class="rp-time"><span id="rp-cur">0:00</span><span id="rp-dur">0:00</span></div>
         <div class="rp-controls">
@@ -722,25 +833,41 @@ Rules for the spoken text under each heading:
 
     const audio = document.getElementById('rp-audio');
     RadioState.audio = audio;
+    RadioState.music = document.getElementById('rp-music');
     const seek = document.getElementById('rp-seek');
     let seeking = false;
 
-    audio.addEventListener('timeupdate', () => {
-      if (!seeking && audio.duration) seek.value = String(Math.round((audio.currentTime / audio.duration) * 1000));
-      const cur = document.getElementById('rp-cur'); if (cur) cur.textContent = mmss(audio.currentTime);
-      const dur = document.getElementById('rp-dur'); if (dur) dur.textContent = mmss(audio.duration);
-    });
+    // Reflect whichever element is currently driving (segment audio or music break).
+    const syncTransport = () => {
+      const a = activeAudio(); if (!a) return;
+      if (!seeking && a.duration) seek.value = String(Math.round((a.currentTime / a.duration) * 1000));
+      const cur = document.getElementById('rp-cur'); if (cur) cur.textContent = mmss(a.currentTime);
+      const dur = document.getElementById('rp-dur'); if (dur) dur.textContent = mmss(a.duration);
+    };
+    audio.addEventListener('timeupdate', syncTransport);
+    RadioState.music.addEventListener('timeupdate', syncTransport);
     audio.addEventListener('play', updatePlayBtn);
+    RadioState.music.addEventListener('play', updatePlayBtn);
+    RadioState.music.addEventListener('pause', updatePlayBtn);
     audio.addEventListener('pause', () => { updatePlayBtn(); saveProgress(ep.id, RadioState.curIdx, audio.currentTime); });
-    audio.addEventListener('ended', () => { saveProgress(ep.id, RadioState.curIdx, 0); loadSegment(RadioState.curIdx + 1, true, 0); });
-    seek.addEventListener('input', () => { seeking = true; const c = document.getElementById('rp-cur'); if (c && audio.duration) c.textContent = mmss((seek.value / 1000) * audio.duration); });
-    seek.addEventListener('change', () => { if (audio.duration) audio.currentTime = (seek.value / 1000) * audio.duration; seeking = false; });
+    // A finished segment plays a music interstitial before the next one (not after the last).
+    audio.addEventListener('ended', () => {
+      saveProgress(ep.id, RadioState.curIdx, 0);
+      const next = RadioState.curIdx + 1;
+      if (next < ep.segments.length) playInterstitial(() => loadSegment(next, true, 0));
+      else loadSegment(next, true, 0);
+    });
+    seek.addEventListener('input', () => { seeking = true; const a = activeAudio(); const c = document.getElementById('rp-cur'); if (c && a && a.duration) c.textContent = mmss((seek.value / 1000) * a.duration); });
+    seek.addEventListener('change', () => { const a = activeAudio(); if (a && a.duration) a.currentTime = (seek.value / 1000) * a.duration; seeking = false; });
 
     document.getElementById('rp-back').onclick = () => { teardownAudio(); RadioState.view = 'home'; renderRadio(); };
-    document.getElementById('rp-play').onclick = () => { if (audio.paused) audio.play().catch(() => {}); else audio.pause(); };
-    document.getElementById('rp-back15').onclick = () => { audio.currentTime = Math.max(0, audio.currentTime - 15); };
-    document.getElementById('rp-fwd15').onclick = () => { audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 15); };
-    document.getElementById('rp-prev').onclick = () => { if (audio.currentTime > 3) { audio.currentTime = 0; } else { loadSegment(RadioState.curIdx - 1, true, 0); } };
+    document.getElementById('rp-play').onclick = () => { const a = activeAudio(); if (!a) return; if (a.paused) a.play().catch(() => {}); else a.pause(); };
+    document.getElementById('rp-back15').onclick = () => { const a = activeAudio(); if (a) a.currentTime = Math.max(0, a.currentTime - 15); };
+    document.getElementById('rp-fwd15').onclick = () => { const a = activeAudio(); if (a) a.currentTime = Math.min(a.duration || 0, a.currentTime + 15); };
+    document.getElementById('rp-prev').onclick = () => {
+      if (RadioState.musicActive) { loadSegment(RadioState.curIdx, true, 0); return; }  // replay the segment the break followed
+      if (audio.currentTime > 3) { audio.currentTime = 0; } else { loadSegment(RadioState.curIdx - 1, true, 0); }
+    };
     document.getElementById('rp-next').onclick = () => { loadSegment(RadioState.curIdx + 1, true, 0); };
 
     // periodic progress save while playing
