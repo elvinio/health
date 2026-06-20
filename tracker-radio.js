@@ -290,7 +290,7 @@
   }
 
   async function planEpisode(channel, lenMin) {
-    const n = Math.max(1, Math.min(120, Math.round((lenMin * 60) / SEC_PER_SEGMENT)));
+    const n = segmentCount(lenMin);
     const client = await getClient();
     const sys = channel.persona + '\n\nYou are planning a single radio show episode for broadcast.';
     const prompt = `Plan a ${lenMin}-minute spoken radio show on the theme "${channel.topic}". Break it into exactly ${n} consecutive segments of roughly 2-3 minutes each. Each segment should flow naturally from the one before, building an arc across the whole show. For each, give a short "title" and a one-sentence "angle". Return ONLY a JSON array like [{"title":"...","angle":"..."}] with no prose and no markdown fences.`;
@@ -419,6 +419,133 @@
       releaseWake();
       rerenderActive();
     }
+  }
+
+  /* ── Manual path — copy the prompt into claude.ai, paste the reply back ──── */
+  // Lets you write a show without an API key: one self-contained prompt produces
+  // the whole multi-segment script in a paste-friendly "## N. Title" format that
+  // parsePastedScript() reads straight back into a draft episode.
+  function segmentCount(lenMin) {
+    return Math.max(1, Math.min(120, Math.round((lenMin * 60) / SEC_PER_SEGMENT)));
+  }
+
+  function buildCopyPrompt(channel, lenMin) {
+    const n = segmentCount(lenMin);
+    return `${channel.persona}
+
+You are writing a complete spoken radio show on the theme "${channel.topic}". The show runs about ${lenMin} minute${lenMin === 1 ? '' : 's'}, broken into exactly ${n} consecutive segment${n === 1 ? '' : 's'} of roughly 2-3 minutes (about 320-380 words) each. Each segment flows naturally from the one before, building a single arc across the whole show.
+
+Write the FULL script now, formatted as Markdown with one section per segment, exactly like this:
+
+## 1. <short segment title>
+<the words the host speaks aloud for segment 1>
+
+## 2. <short segment title>
+<the words the host speaks aloud for segment 2>
+
+…and so on through ## ${n}.
+
+Rules for the spoken text under each heading:
+- Output ONLY the words the host says aloud — no stage directions, no bracketed cues like [pause], no sound-effect notes, no markdown emphasis or lists.
+- The only headings are the "## N. Title" lines; never add any other heading.
+- Use natural punctuation (commas, em-dashes, ellipses) to control pacing.
+- The opening segment sets the mood and welcomes the listener without clichés; the closing one lands the arc.
+- Do not number or label sentences inside the spoken text.`;
+  }
+
+  // Inverse of buildEpisodeScript(): split a pasted reply on "## N. Title" headings.
+  // Anything before the first heading (a "# Title" line, a "*~X min*" note) is ignored.
+  function parsePastedScript(text) {
+    const src = String(text || '').replace(/\r\n/g, '\n');
+    const headRe = /^#{2,6}\s+(.*\S)\s*$/;
+    const segs = [];
+    let cur = null;
+    for (const line of src.split('\n')) {
+      const m = line.match(headRe);
+      if (m) {
+        if (cur) segs.push(cur);
+        const title = m[1].replace(/^\d+\s*[.)\-:]\s*/, '').trim() || ('Segment ' + (segs.length + 1));
+        cur = { title, body: '' };
+      } else if (cur) {
+        cur.body += (cur.body ? '\n' : '') + line;
+      }
+    }
+    if (cur) segs.push(cur);
+    const cleaned = segs.map(s => ({ title: s.title, body: s.body.trim() })).filter(s => s.body);
+    return cleaned.length ? cleaned : chunkIntoSegments(src);
+  }
+
+  // Fallback when the reply has no "## N." headings: split on blank lines into
+  // ~segment-sized chunks so TTS never gets one giant block.
+  function chunkIntoSegments(text) {
+    const paras = String(text).split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+    if (!paras.length) return [];
+    const out = [];
+    let buf = [], words = 0;
+    for (const p of paras) {
+      const w = p.split(/\s+/).filter(Boolean).length;
+      if (words && words + w > 420) { out.push(buf.join('\n\n')); buf = []; words = 0; }
+      buf.push(p); words += w;
+    }
+    if (buf.length) out.push(buf.join('\n\n'));
+    return out.map((body, i) => ({ title: 'Segment ' + (i + 1), body }));
+  }
+
+  // Build a 'draft' episode from pasted segments, then drop into the review screen
+  // (the "station preview") — same place the API script path lands.
+  async function createDraftFromPaste(channel, lenMin, segs) {
+    const ep = {
+      id: uid(), channelId: channel.id, channelName: channel.name, emoji: channel.emoji,
+      voice: channel.voice, voiceName: channel.voiceName || '',
+      targetMin: lenMin, createdAt: Date.now(), status: 'draft',
+      plannedCount: segs.length, segments: [], error: null, source: 'pasted',
+    };
+    for (let i = 0; i < segs.length; i++) {
+      await idbPut(ep.id + ':' + i + ':txt', segs[i].body);
+      const words = segs[i].body.split(/\s+/).filter(Boolean).length;
+      ep.segments.push({ idx: i, title: segs[i].title, words, approxSec: Math.round(words / WORDS_PER_SEC), hasAudio: false });
+    }
+    saveEpisode(ep);
+    RadioState.view = 'review'; RadioState.epId = ep.id; renderRadio();
+  }
+
+  function openPromptModal(channel, lenMin) {
+    const prompt = buildCopyPrompt(channel, lenMin);
+    showModal(`
+      <p class="note text-xs text-muted">Copy this into a Claude chat (claude.ai). When it replies with the script, come back and tap <strong>📥 Paste</strong> on this channel.</p>
+      <textarea id="rmp-text" rows="12" readonly class="rmp-area">${escapeHtml(prompt)}</textarea>
+      <button class="btn block mt-2" id="rmp-copy">📋 Copy prompt</button>
+      <div class="text-xs text-muted mt-1" id="rmp-note"></div>
+    `, channel.name + ' — show prompt');
+    document.getElementById('rmp-copy').onclick = async () => {
+      const note = document.getElementById('rmp-note');
+      try {
+        await navigator.clipboard.writeText(prompt);
+        if (note) note.textContent = '✓ Copied to clipboard.';
+      } catch (e) {
+        const ta = document.getElementById('rmp-text');
+        ta.focus(); ta.select();
+        let ok = false; try { ok = document.execCommand('copy'); } catch (e2) {}
+        if (note) note.textContent = ok ? '✓ Copied.' : 'Select the text above and copy manually.';
+      }
+    };
+  }
+
+  function openPasteModal(channel, lenMin) {
+    showModal(`
+      <p class="note text-xs text-muted">Paste the full script Claude wrote for <strong>${escapeHtml(channel.name)}</strong>. Keep the “## 1. Title” headings so it splits into segments.</p>
+      <textarea id="rps-text" rows="12" class="rmp-area" placeholder="## 1. Opening&#10;Good evening…"></textarea>
+      <div class="text-xs text-muted mt-1" id="rps-note"></div>
+      <button class="btn block mt-2" id="rps-import">Import script</button>
+    `, channel.name + ' — paste script');
+    document.getElementById('rps-import').onclick = async () => {
+      const ta = document.getElementById('rps-text');
+      const note = document.getElementById('rps-note');
+      const segs = parsePastedScript(ta.value);
+      if (!segs.length) { if (note) note.textContent = '⚠ No script text found. Paste Claude’s reply, keeping the “## N. Title” headings.'; return; }
+      closeModal();
+      await createDraftFromPaste(channel, lenMin, segs);
+    };
   }
 
   /* ── Auto-export to Google Drive (script + combined audio, paired names) ─── */
@@ -887,6 +1014,7 @@
     const lenOpts = LENGTHS.map(m => `<option value="${m}" ${m === 30 ? 'selected' : ''}>${m >= 60 ? (m / 60) + 'h' : m + ' min'}</option>`).join('');
     const ready = ep && ep.status === 'ready' && ep.segments.some(s => s.hasAudio);
     const draft = ep && ep.status === 'draft';
+    const noKey = !hasClaudeKey();
     return `
       <div class="rc-card">
         <div class="rc-head" data-edit="${ch.id}" title="Edit prompt">
@@ -897,7 +1025,9 @@
         ${statusLine}
         <div class="rc-actions">
           <select class="rc-len" data-ch="${ch.id}" ${RadioState.generating ? 'disabled' : ''}>${lenOpts}</select>
-          <button class="btn secondary sm rc-gen" data-ch="${ch.id}" ${RadioState.generating ? 'disabled' : ''}>${ep ? 'New script' : 'Write script'}</button>
+          ${noKey ? '' : `<button class="btn secondary sm rc-gen" data-ch="${ch.id}" ${RadioState.generating ? 'disabled' : ''}>${ep ? 'New script' : 'Write script'}</button>`}
+          <button class="btn secondary sm rc-prompt" data-ch="${ch.id}" title="Copy a prompt for claude.ai">📋 Prompt</button>
+          <button class="btn secondary sm rc-paste" data-ch="${ch.id}" title="Paste a script from claude.ai">📥 Paste</button>
           ${draft ? `<button class="btn sm rc-review" data-ep="${ep.id}">📝 Review</button>` : ''}
           ${ready ? `<button class="btn sm rc-listen" data-ep="${ep.id}">▶ Listen</button>` : ''}
         </div>
@@ -928,35 +1058,25 @@
     document.getElementById('topbar-title').textContent = 'Radio';
     document.getElementById('topbar-sub').textContent = 'DJ stations';
 
-    if (!hasClaudeKey()) {
-      view.innerHTML = `
-        <div class="card">
-          <h2>📻 Radio station</h2>
-          <p class="note">Generate on-demand, talk-radio style audio shows — pick a topic & host, read the script, then turn it into audio you can play with pause / rewind / resume. You'll need a <strong>Claude API key</strong> to write the shows (and an <strong>ElevenLabs API key</strong> to voice them).</p>
-          <button class="btn block mt-2" id="radio-go-setup">Go to Setup</button>
-          <div class="text-xs text-muted mt-1">Keys are stored only in this browser.</div>
-        </div>`;
-      document.getElementById('radio-go-setup').onclick = () => go('/setup');
-      return;
-    }
-
+    const keyBanner = hasClaudeKey() ? '' :
+      `<div class="rc-keybanner" style="margin-bottom:10px;">No Claude API key — tap <strong>📋 Prompt</strong> to copy a show prompt into claude.ai, then <strong>📥 Paste</strong> the reply back here. <button class="rc-link" id="radio-go-setup">Add a key</button> to write shows automatically.</div>`;
     const ttsBanner = hasElevenKey() ? '' :
       `<div class="rc-status err" style="margin-bottom:10px;">Add an ElevenLabs key in Setup to turn scripts into audio. You can still write & read scripts now.</div>`;
     const cards = allChannels().map(channelCard).join('');
     view.innerHTML = `
       <div class="radio-home">
-        ${ttsBanner}
+        ${keyBanner}${ttsBanner}
         <div class="rc-grid">${cards}</div>
         <button class="btn secondary block" id="radio-add" style="margin-top:12px;" ${RadioState.generating ? 'disabled' : ''}>＋ Custom channel</button>
         ${episodesSection()}
         <div class="text-xs text-muted" style="margin:14px 0 28px;text-align:center;">Audio is generated once and saved on this device for offline listening.</div>
       </div>`;
 
-    view.querySelectorAll('.rc-gen').forEach(b => b.onclick = () => {
-      const ch = getChannel(b.dataset.ch);
-      const sel = view.querySelector(`.rc-len[data-ch="${b.dataset.ch}"]`);
-      generateScripts(ch, Number(sel ? sel.value : 30));
-    });
+    const lenFor = chId => { const sel = view.querySelector(`.rc-len[data-ch="${chId}"]`); return Number(sel ? sel.value : 30); };
+    view.querySelectorAll('.rc-gen').forEach(b => b.onclick = () => generateScripts(getChannel(b.dataset.ch), lenFor(b.dataset.ch)));
+    view.querySelectorAll('.rc-prompt').forEach(b => b.onclick = () => openPromptModal(getChannel(b.dataset.ch), lenFor(b.dataset.ch)));
+    view.querySelectorAll('.rc-paste').forEach(b => b.onclick = () => openPasteModal(getChannel(b.dataset.ch), lenFor(b.dataset.ch)));
+    const gs = document.getElementById('radio-go-setup'); if (gs) gs.onclick = () => go('/setup');
     view.querySelectorAll('.rc-review').forEach(b => b.onclick = () => openReview(b.dataset.ep));
     view.querySelectorAll('.rc-cancel').forEach(b => b.onclick = () => { RadioState.cancel = true; b.textContent = 'stopping…'; });
     view.querySelectorAll('.rc-listen').forEach(b => b.onclick = () => openPlayer(b.dataset.ep));
@@ -1028,6 +1148,9 @@
       .rv-seg { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:11px 13px; }
       .rv-seg-title { font-weight:700; color:var(--accent-d); font-size:0.9rem; margin-bottom:6px; }
       .rv-seg-text { font-size:0.92rem; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
+      .rmp-area { width:100%; font-size:0.82rem; line-height:1.5; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--card); color:var(--text); white-space:pre-wrap; overflow-wrap:anywhere; box-sizing:border-box; }
+      .rc-keybanner { font-size:0.78rem; color:var(--muted); border:1px dashed var(--border); border-radius:10px; padding:9px 11px; line-height:1.5; }
+      .rc-link { color:var(--accent); font-weight:600; text-decoration:underline; }
     `;
     const el = document.createElement('style');
     el.id = 'radio-styles';
