@@ -2444,6 +2444,12 @@ function renderSetup(isFirstRun) {
         <div class="text-xs text-muted">Speaks the radio shows. Stored only in this browser. Uses your Claude key (above) to write them.</div>
       </div>
       <button class="btn secondary sm" id="tts-save-btn">Save ElevenLabs key</button>
+      <div class="field" style="margin-top:14px;">
+        <label for="radio-music-proxy">Interstitial music URL (Apps Script)</label>
+        <input type="text" id="radio-music-proxy" placeholder="https://script.google.com/.../exec" value="${escapeHtml(localStorage.getItem('health:radio:musicProxyUrl') || '')}">
+        <div class="text-xs text-muted">Plays royalty-free piano (classicals.de) between radio segments. Deploy <code>apps-script/classicals-proxy.gs</code> and paste its web-app URL.</div>
+      </div>
+      <button class="btn secondary sm" id="radio-music-save-btn">Save music URL</button>
     </div>
 
     <div class="card">
@@ -2599,6 +2605,12 @@ function renderSetup(isFirstRun) {
   document.getElementById('tts-save-btn').onclick = () => {
     localStorage.setItem('health:elevenLabsKey', document.getElementById('eleven-key').value.trim());
     alert('ElevenLabs key saved.');
+  };
+
+  document.getElementById('radio-music-save-btn').onclick = () => {
+    localStorage.setItem('health:radio:musicProxyUrl', document.getElementById('radio-music-proxy').value.trim());
+    localStorage.removeItem('health:radio:musicTracks');  // force a fresh scrape on next play
+    alert('Music URL saved.');
   };
 
   document.getElementById('export-btn').onclick = exportData;

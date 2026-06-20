@@ -1,10 +1,12 @@
 # Apps Script deployments
 
-Two scripts live in this folder:
+Three scripts live in this folder:
 
 - `quarterly-report.gs` — quarterly AI finance report (below).
 - `lta-proxy.gs` — bus arrivals proxy **and** the rain-radar cache (see
   "Rain radar cache" at the end; full setup steps are in the file header).
+- `classicals-proxy.gs` — royalty-free piano music for the Tracker Radio tab
+  (see "Radio interstitial music" at the end; full setup is in the file header).
 
 # Quarterly AI finance report
 
@@ -102,3 +104,40 @@ much faster than one HTTP round-trip per 5-minute frame. It generates the
 5-minute slot keys itself and lazily loads only the window being viewed
 (range pills: 1 day … 30 days), so `RainList` is no longer needed by the app —
 it's kept only for debugging / backwards compatibility.
+
+# Radio interstitial music (`classicals-proxy.gs`)
+
+The Tracker Radio tab plays a short piano interlude between spoken segments.
+The music is the royalty-free **solo-piano selection** from
+[classicals.de](https://www.classicals.de/solo-piano-selection) (the site
+owner's own recordings). classicals.de blocks generic fetchers (403) and the
+browser can't scrape it (CORS), so this separate web app does both the scrape
+and the audio download server-side and returns base64 to the PWA (Apps Script
+can't serve binary). Downloaded MP3s are cached in a Drive folder
+(`radio-music-cache`) so repeat plays don't re-hit classicals.de.
+
+Setup:
+
+1. [script.google.com](https://script.google.com) → **New project** → paste
+   `classicals-proxy.gs`.
+2. (optional) **Project Settings → Script Properties** → add
+   `PROXY_TOKEN = <secret>` (a separate deployment from the bus proxy; the
+   token is independent).
+3. Run `listTracks` once in the editor — authorise the external-request +
+   Drive scopes when prompted, and confirm it returns a track list.
+4. **Deploy → New deployment → Web app** — *Execute as: Me*, *Who has access:
+   Anyone*.
+5. Copy the `/exec` URL into the PWA: **Tracker → Setup → Radio station →
+   "Interstitial music URL"**.
+
+Endpoints (token optional):
+
+```
+GET {url}?action=List&token=…                       → { "tracks": [ { "id", "title", "url" }, … ] }
+GET {url}?action=Track&url=<encoded mp3 url>&token=… → { "title": "…", "mp3": "<base64>" }
+```
+
+The PWA caches the track list (weekly refresh) and each decoded MP3 Blob in its
+own IndexedDB store, so a track downloads through the proxy at most once per
+device. The interstitial is **always on** once a URL is configured; with no URL
+set, episodes play back-to-back as before.
