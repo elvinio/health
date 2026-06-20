@@ -24,7 +24,9 @@
   const SDK_URL    = 'https://esm.sh/@anthropic-ai/sdk@0.69.0';
   const CLAUDE_KEY = 'health:anthropicKey';   // shared with the Chat tab
   const MODEL_KEY  = 'health:chatModel';       // shared with the Chat tab
-  const TTS_KEY    = 'health:googleTtsKey';    // new — Cloud TTS API key
+  const ELEVEN_KEY = 'health:elevenLabsKey';   // ElevenLabs TTS API key
+  const ELEVEN_VOICES_KEY = 'health:radio:elevenVoices'; // cached account voice catalog
+  const ELEVEN_MODEL = 'eleven_flash_v2_5';    // cheap/fast ElevenLabs TTS model
   const EP_KEY     = 'health:radio:episodes';  // episode manifests (localStorage)
   const CH_KEY     = 'health:radioChannels';   // custom channels (localStorage)
   const PRESET_OV_KEY = 'health:radioPresetOverrides'; // per-preset prompt/setting edits (localStorage)
@@ -33,49 +35,35 @@
   const DEFAULT_MODEL = 'claude-sonnet-4-6';
   const WORDS_PER_SEC = 2.5;        // ~150 wpm spoken pace
   const SEC_PER_SEGMENT = 150;      // target segment length (used to pick count)
-  const TTS_CHAR_LIMIT = 4800;      // Cloud TTS caps input at 5000 bytes
+  const TTS_CHAR_LIMIT = 9000;      // safety cap (segments are ~2k chars; never hit in practice)
 
   /* ── Built-in DJ channels ──────────────────────────────────────────────── */
   // persona = Claude system prompt that sets the host's voice & worldview.
-  // voice   = Google Cloud TTS voice name (Neural2 = natural, $16/1M chars).
+  // voice   = ElevenLabs voice_id (premade voices, present in every account's catalog).
+  //           Users can reselect any voice from their account in the review screen.
   const RADIO_PRESETS = [
     { id: 'current-affairs', name: 'The Signal', emoji: '📰', topic: 'current affairs and world events',
-      voice: 'en-US-Neural2-J', languageCode: 'en-US',
+      voice: 'TxGEqnHWrfWFTfGW9XjX', voiceName: 'Josh',
       persona: "You are The Signal, a late-night current-affairs host. You interpret the news rather than just report it — connecting today's events to longer patterns and human stakes. Measured authority, no sensationalism, no doom-mongering. Speak to one thoughtful listener." },
     { id: 'self-improvement', name: 'The Coach', emoji: '🌱', topic: 'self-improvement, habits and personal growth',
-      voice: 'en-US-Neural2-D', languageCode: 'en-US',
+      voice: 'pNInz6obpgDQGcFmaJgB', voiceName: 'Adam',
       persona: "You are The Coach, a grounded self-improvement host. Practical, warm, never cheesy or hustle-culture. You offer one usable idea at a time, with real examples, and respect the listener's intelligence. No exclamation points, no empty hype." },
     { id: 'science', name: 'The Curious', emoji: '🔬', topic: 'science, nature and discovery',
-      voice: 'en-US-Neural2-A', languageCode: 'en-US',
+      voice: 'ErXwobaYiN019PkySvjV', voiceName: 'Antoni',
       persona: "You are The Curious, a science host driven by genuine wonder. You explain one idea through vivid, concrete images, building from the familiar to the surprising. Accurate but never dry; you make the listener feel the awe of how the world works." },
     { id: 'art', name: 'The Curator', emoji: '🎨', topic: 'art, design and aesthetics',
-      voice: 'en-GB-Neural2-B', languageCode: 'en-GB',
+      voice: 'EXAVITQu4vr4xnSDxMaL', voiceName: 'Bella',
       persona: "You are The Curator, a thoughtful art and culture host with a British sensibility. You linger on a single work, movement or idea, noticing details others miss, drawing out why it matters. Unhurried, evocative, a little poetic." },
     { id: 'ai', name: 'The Architect', emoji: '🤖', topic: 'artificial intelligence and technology',
-      voice: 'en-US-Neural2-I', languageCode: 'en-US',
+      voice: 'VR6AewLTigWG4xSOukaG', voiceName: 'Arnold',
       persona: "You are The Architect, a lucid AI and technology host. You cut through hype with clear mental models, honest about both promise and limits. You explain how things actually work and what they mean for ordinary life. Calm, precise, never breathless." },
     { id: 'philosophy', name: 'The Liminal Operator', emoji: '🌌', topic: 'philosophy, consciousness and meaning',
-      voice: 'en-US-Neural2-J', languageCode: 'en-US',
+      voice: 'TxGEqnHWrfWFTfGW9XjX', voiceName: 'Josh',
       persona: "You are the Liminal Operator, the late-night voice of an all-night station. You speak to one person at a time, even when thousands are listening. Your delivery is measured and unhurried; silence and pauses are part of your speech. You explore philosophy — consciousness, time, meaning, solitude — through vivid concrete images and open questions, never lectures. You never use exclamation points, never shout, never use radio clichés like 'up next' or 'stay tuned'. You avoid sensationalism and false warmth. Speak as if it is 3am and the city is asleep." },
     { id: 'fitness', name: 'The Drill', emoji: '💪', topic: 'fitness, training and physical health',
-      voice: 'en-US-Neural2-D', languageCode: 'en-US',
+      voice: 'pNInz6obpgDQGcFmaJgB', voiceName: 'Adam',
       persona: "You are The Drill, an energetic but grounded fitness host. Motivating without drill-sergeant clichés or bro-science. You give evidence-based ideas on training, recovery and movement, and make the listener want to move. Confident, encouraging, real." },
   ];
-
-  /* ── Cloud TTS voice options (for the custom-channel editor) ───────────── */
-  const VOICE_OPTIONS = [
-    { v: 'en-US-Neural2-J', l: 'US English — Male (J)' },
-    { v: 'en-US-Neural2-D', l: 'US English — Male (D)' },
-    { v: 'en-US-Neural2-A', l: 'US English — Male (A)' },
-    { v: 'en-US-Neural2-I', l: 'US English — Male (I)' },
-    { v: 'en-US-Neural2-C', l: 'US English — Female (C)' },
-    { v: 'en-US-Neural2-F', l: 'US English — Female (F)' },
-    { v: 'en-US-Neural2-H', l: 'US English — Female (H)' },
-    { v: 'en-GB-Neural2-B', l: 'British English — Male (B)' },
-    { v: 'en-GB-Neural2-A', l: 'British English — Female (A)' },
-    { v: 'en-AU-Neural2-B', l: 'Australian English — Male (B)' },
-  ];
-  const LANG_OF = v => v.split('-').slice(0, 2).join('-');
 
   const LENGTHS = [30, 60, 120, 240];
 
@@ -101,7 +89,7 @@
   }
   function defaultModel() { const m = localStorage.getItem(MODEL_KEY); return CHAT_MODELS[m] ? m : DEFAULT_MODEL; }
   function hasClaudeKey() { return !!(localStorage.getItem(CLAUDE_KEY) || '').trim(); }
-  function hasTtsKey() { return !!(localStorage.getItem(TTS_KEY) || '').trim(); }
+  function hasElevenKey() { return !!(localStorage.getItem(ELEVEN_KEY) || '').trim(); }
   function isRadioActive() { return location.hash.replace(/^#/, '').split('?')[0] === '/radio'; }
   function mmss(sec) { sec = Math.max(0, Math.floor(sec || 0)); const m = Math.floor(sec / 60); const s = sec % 60; return m + ':' + String(s).padStart(2, '0'); }
   function epSeconds(ep) { return (ep.segments || []).reduce((t, s) => t + (s.approxSec || 0), 0); }
@@ -184,34 +172,56 @@
   }
   function claudeText(msg) { return (msg.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim(); }
 
-  /* ── Google Cloud Text-to-Speech (MP3 out) ─────────────────────────────── */
-  async function synthesizeTTS(text, voice, languageCode) {
-    const key = (localStorage.getItem(TTS_KEY) || '').trim();
-    if (!key) throw new Error('No Google TTS API key. Add it in Setup → Radio station.');
-    let input = text.length > TTS_CHAR_LIMIT ? text.slice(0, TTS_CHAR_LIMIT) : text;
-    const res = await fetch('https://texttospeech.googleapis.com/v1/text:synthesize?key=' + encodeURIComponent(key), {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ input: { text: input }, voice: { name: voice, languageCode: languageCode || LANG_OF(voice) }, audioConfig: { audioEncoding: 'MP3' } }),
+  /* ── ElevenLabs Text-to-Speech (MP3 out) ───────────────────────────────── */
+  async function synthesizeTTS(text, voiceId) {
+    const key = (localStorage.getItem(ELEVEN_KEY) || '').trim();
+    if (!key) throw new Error('No ElevenLabs API key. Add it in Setup → Radio station.');
+    const input = text.length > TTS_CHAR_LIMIT ? text.slice(0, TTS_CHAR_LIMIT) : text;
+    const res = await fetch('https://api.elevenlabs.io/v1/text-to-speech/' + encodeURIComponent(voiceId) + '?output_format=mp3_44100_128', {
+      method: 'POST', headers: { 'xi-api-key': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: input, model_id: ELEVEN_MODEL }),
     });
     if (!res.ok) {
       let detail = '';
-      try { const j = await res.json(); detail = j.error && j.error.message ? j.error.message : ''; } catch (e) { detail = (await res.text().catch(() => '')).slice(0, 200); }
-      throw new Error('Cloud TTS ' + res.status + (detail ? ': ' + detail : ''));
+      try { const j = await res.json(); detail = j.detail ? (j.detail.message || (typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail))) : ''; }
+      catch (e) { detail = (await res.text().catch(() => '')).slice(0, 200); }
+      throw new Error('ElevenLabs ' + res.status + (detail ? ': ' + detail : ''));
     }
-    const data = await res.json();
-    if (!data.audioContent) throw new Error('Cloud TTS returned no audio.');
-    const bin = atob(data.audioContent);
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    return new Blob([bytes], { type: 'audio/mpeg' });
+    const blob = await res.blob();
+    if (!blob || !blob.size) throw new Error('ElevenLabs returned no audio.');
+    return blob;
   }
 
-  // First N sentences of a block of speech — used for the voice preview sample.
-  function firstSentences(text, n) {
-    const t = String(text || '').replace(/\s+/g, ' ').trim();
-    if (!t) return '';
-    const parts = t.match(/[^.!?…]+[.!?…]+|\S.+$/g) || [t];
-    return parts.slice(0, n).join(' ').trim();
+  /* ── ElevenLabs voice catalog (fetched live from the account) ───────────── */
+  // Each entry: { id, name, label, previewUrl }. label = name + accent/gender.
+  function cachedVoices() { try { return JSON.parse(localStorage.getItem(ELEVEN_VOICES_KEY) || '[]'); } catch (e) { return []; } }
+  function voiceLabel(id) { const v = cachedVoices().find(v => v.id === id); return v ? v.label : id; }
+  function previewUrlFor(id) { const v = cachedVoices().find(v => v.id === id); return v ? v.previewUrl : ''; }
+  // <option> list for a voice <select>. Falls back to showing just the selected id
+  // (with any known voiceName) when the catalog hasn't been fetched yet.
+  function voiceOptionsHtml(selectedId, fallbackName) {
+    let list = cachedVoices();
+    if (!list.length) list = [{ id: selectedId, label: (fallbackName ? fallbackName + ' — ' : '') + selectedId }];
+    else if (selectedId && !list.some(v => v.id === selectedId)) list = [{ id: selectedId, label: (fallbackName ? fallbackName + ' — ' : '') + selectedId }, ...list];
+    return list.map(v => `<option value="${escapeHtml(v.id)}" ${v.id === selectedId ? 'selected' : ''}>${escapeHtml(v.label)}</option>`).join('');
+  }
+  async function fetchVoices() {
+    const key = (localStorage.getItem(ELEVEN_KEY) || '').trim();
+    if (!key) throw new Error('No ElevenLabs API key. Add it in Setup → Radio station.');
+    const res = await fetch('https://api.elevenlabs.io/v1/voices', { headers: { 'xi-api-key': key } });
+    if (!res.ok) {
+      let detail = '';
+      try { const j = await res.json(); detail = j.detail ? (j.detail.message || (typeof j.detail === 'string' ? j.detail : '')) : ''; } catch (e) {}
+      throw new Error('ElevenLabs ' + res.status + (detail ? ': ' + detail : ''));
+    }
+    const data = await res.json();
+    const list = (data.voices || []).map(v => {
+      const lab = v.labels || {};
+      const meta = [lab.accent, lab.gender, lab.use_case].filter(Boolean).join(', ');
+      return { id: v.voice_id, name: v.name, label: v.name + (meta ? ' — ' + meta : ''), previewUrl: v.preview_url || '' };
+    });
+    localStorage.setItem(ELEVEN_VOICES_KEY, JSON.stringify(list));
+    return list;
   }
 
   /* ── Generation pipeline ───────────────────────────────────────────────── */
@@ -278,7 +288,7 @@
 
     const ep = {
       id: uid(), channelId: channel.id, channelName: channel.name, emoji: channel.emoji,
-      voice: channel.voice, languageCode: channel.languageCode || LANG_OF(channel.voice),
+      voice: channel.voice, voiceName: channel.voiceName || '',
       targetMin: lenMin, createdAt: Date.now(), status: 'scripting', plannedCount: 0, segments: [], error: null,
     };
     saveEpisode(ep);
@@ -323,7 +333,7 @@
   // skips segments that already have audio, so a stopped/failed run can continue.
   async function synthesizeEpisode(epId) {
     if (RadioState.generating) { alert('Already busy. Please wait or stop the current job first.'); return; }
-    if (!hasTtsKey()) { alert('Add your Google TTS API key in Setup → Radio station first.'); return; }
+    if (!hasElevenKey()) { alert('Add your ElevenLabs API key in Setup → Radio station first.'); return; }
     const ep = getEpisode(epId);
     if (!ep) return;
     ep.status = 'synthesizing'; ep.error = null; saveEpisode(ep);
@@ -337,7 +347,7 @@
         if (ep.segments[i].hasAudio) continue;
         const text = await idbGet(epId + ':' + i + ':txt');
         if (!text) continue;
-        const blob = await synthesizeTTS(text, ep.voice, ep.languageCode);
+        const blob = await synthesizeTTS(text, ep.voice);
         await idbPut(epId + ':' + i, blob);
         ep.segments[i].hasAudio = true;
         saveEpisode(ep);
@@ -421,8 +431,7 @@
   /* ── Custom channel editor ─────────────────────────────────────────────── */
   function openChannelEditor(existing) {
     const isPreset = !!(existing && !existing.custom);
-    const c = existing || { id: '', name: '', emoji: '🎙️', topic: '', persona: '', voice: 'en-US-Neural2-J' };
-    const voiceOpts = VOICE_OPTIONS.map(o => `<option value="${o.v}" ${o.v === c.voice ? 'selected' : ''}>${escapeHtml(o.l)}</option>`).join('');
+    const c = existing || { id: '', name: '', emoji: '🎙️', topic: '', persona: '', voice: 'pNInz6obpgDQGcFmaJgB', voiceName: 'Adam' };
     showModal(`
       <div class="field"><label>Channel name</label><input type="text" id="rc-name" placeholder="e.g. Night Market" value="${escapeHtml(c.name)}"></div>
       <div class="field"><label>Emoji</label><input type="text" id="rc-emoji" maxlength="4" placeholder="🎙️" value="${escapeHtml(c.emoji)}"></div>
@@ -430,12 +439,30 @@
       <div class="field"><label>Host persona <span class="text-muted text-xs">(the prompt — how the DJ talks)</span></label>
         <textarea id="rc-persona" rows="6" placeholder="You are …, a host who …">${escapeHtml(c.persona)}</textarea></div>
       <div class="field"><label>Voice</label>
-        <select id="rc-voice" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);">${voiceOpts}</select></div>
+        <div class="row gap-sm">
+          <select id="rc-voice" style="flex:1;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);">${voiceOptionsHtml(c.voice, c.voiceName)}</select>
+          <button class="btn secondary sm" id="rc-loadvoices" type="button">↻ Load voices</button>
+        </div>
+        <div class="text-xs text-muted mt-1" id="rc-voice-note">${cachedVoices().length ? '' : 'Tap “Load voices” to pull your ElevenLabs account voices.'}</div>
+      </div>
       <div class="row gap-sm mt-2">
         <button class="btn block" id="rc-save">${existing ? 'Save' : 'Create channel'}</button>
         ${isPreset ? '<button class="btn secondary" id="rc-reset">Reset</button>' : existing ? '<button class="btn secondary" id="rc-del">Delete</button>' : ''}
       </div>
     `, !existing ? 'New custom channel' : isPreset ? 'Edit channel prompt' : 'Edit channel');
+
+    const lv = document.getElementById('rc-loadvoices');
+    if (lv) lv.onclick = async () => {
+      const note = document.getElementById('rc-voice-note');
+      lv.disabled = true; if (note) note.textContent = 'Loading…';
+      try {
+        await fetchVoices();
+        const sel = document.getElementById('rc-voice');
+        if (sel) sel.innerHTML = voiceOptionsHtml(sel.value, c.voiceName);
+        if (note) note.textContent = cachedVoices().length + ' voices loaded.';
+      } catch (e) { if (note) note.textContent = '⚠ ' + ((e && e.message) || 'Could not load voices'); }
+      finally { lv.disabled = false; }
+    };
 
     document.getElementById('rc-save').onclick = () => {
       const name = document.getElementById('rc-name').value.trim();
@@ -443,19 +470,20 @@
       const persona = document.getElementById('rc-persona').value.trim();
       if (!name || !topic || !persona) { alert('Name, topic and persona are all required.'); return; }
       const voice = document.getElementById('rc-voice').value;
+      const voiceName = voiceLabel(voice).split(' — ')[0];
       const emoji = document.getElementById('rc-emoji').value.trim() || '🎙️';
       if (isPreset) {
         const ov = loadPresetOv();
-        ov[existing.id] = { name, topic, persona, voice, languageCode: LANG_OF(voice), emoji };
+        ov[existing.id] = { name, topic, persona, voice, voiceName, emoji };
         savePresetOv(ov);
       } else {
         const list = loadCustom();
         if (existing) {
           const i = list.findIndex(x => x.id === existing.id);
-          const updated = { ...existing, name, topic, persona, voice, languageCode: LANG_OF(voice), emoji };
+          const updated = { ...existing, name, topic, persona, voice, voiceName, emoji };
           if (i >= 0) list[i] = updated; else list.push(updated);
         } else {
-          list.push({ id: 'custom-' + uid(), name, topic, persona, voice, languageCode: LANG_OF(voice), emoji, custom: true });
+          list.push({ id: 'custom-' + uid(), name, topic, persona, voice, voiceName, emoji, custom: true });
         }
         saveCustom(list);
       }
@@ -609,10 +637,7 @@
     const synth = ep.status === 'synthesizing';
     const ready = ep.segments.length && ep.segments.every(s => s.hasAudio);
     // Voice is chosen here, before audio is created. Once audio exists it is locked.
-    const voiceOpts = (VOICE_OPTIONS.some(o => o.v === ep.voice)
-      ? VOICE_OPTIONS
-      : [{ v: ep.voice, l: ep.voice }, ...VOICE_OPTIONS])
-      .map(o => `<option value="${escapeHtml(o.v)}" ${o.v === ep.voice ? 'selected' : ''}>${escapeHtml(o.l)}</option>`).join('');
+    const voiceOpts = voiceOptionsHtml(ep.voice, ep.voiceName);
     const segHtml = ep.segments.map(s => `
       <div class="rv-seg">
         <div class="rv-seg-title">${s.idx + 1}. ${escapeHtml(s.title || '')} ${s.hasAudio ? '<span class="rv-aud">🔊</span>' : ''}</div>
@@ -632,8 +657,9 @@
         <div class="rv-voice">
           <label for="rv-voice">Voice</label>
           <select id="rv-voice" ${busy ? 'disabled' : ''}>${voiceOpts}</select>
+          <button class="btn secondary sm" id="rv-loadvoices" ${busy ? 'disabled' : ''}>↻ Load</button>
           <button class="btn secondary sm" id="rv-preview" ${busy ? 'disabled' : ''}>🔊 Preview</button>
-          <span class="rv-preview-status" id="rv-preview-status"></span>
+          <span class="rv-preview-status" id="rv-preview-status">${cachedVoices().length ? '' : 'Tap “Load” to list your ElevenLabs voices.'}</span>
         </div>`}
         <div class="rv-actions">
           ${ready
@@ -655,33 +681,36 @@
       stopPreview();
       const fresh = getEpisode(ep.id); if (!fresh) return;
       fresh.voice = vsel.value;
-      fresh.languageCode = LANG_OF(vsel.value);
+      fresh.voiceName = voiceLabel(vsel.value).split(' — ')[0];
       saveEpisode(fresh);
+    };
+    const lv = document.getElementById('rv-loadvoices');
+    if (lv) lv.onclick = async () => {
+      const st = document.getElementById('rv-preview-status');
+      lv.disabled = true; if (st) st.textContent = 'Loading voices…';
+      try {
+        await fetchVoices();
+        if (vsel) vsel.innerHTML = voiceOptionsHtml(vsel.value, ep.voiceName);
+        if (st) st.textContent = cachedVoices().length + ' voices loaded.';
+      } catch (e) { if (st) st.textContent = '⚠ ' + ((e && e.message) || 'Could not load voices'); }
+      finally { lv.disabled = false; }
     };
     const pv = document.getElementById('rv-preview');
     if (pv) pv.onclick = async () => {
       stopPreview();
       const st = document.getElementById('rv-preview-status');
       const voice = (vsel && vsel.value) || ep.voice;
-      const first = ep.segments[0];
-      if (!first) { if (st) st.textContent = 'No script to preview yet.'; return; }
-      pv.disabled = true;
-      if (st) st.textContent = 'Generating…';
+      // Play the voice's free sample (no credits). Requires the catalog to be loaded.
+      const url = previewUrlFor(voice);
+      if (!url) { if (st) st.textContent = cachedVoices().length ? 'No preview sample for this voice.' : 'Tap “Load” first to fetch voice samples.'; return; }
       try {
-        const full = await idbGet(ep.id + ':' + first.idx + ':txt');
-        const sample = firstSentences(full, 2);
-        if (!sample) { if (st) st.textContent = 'Segment text not ready.'; pv.disabled = false; return; }
-        const blob = await synthesizeTTS(sample, voice, LANG_OF(voice));
-        const url = URL.createObjectURL(blob);
         const audio = new Audio(url);
-        _preview = { audio, url };
-        audio.onended = () => { const s = document.getElementById('rv-preview-status'); if (s) s.textContent = ''; stopPreview(); };
+        _preview = { audio, url: '' };   // remote URL — nothing to revoke
+        audio.onended = () => { const s = document.getElementById('rv-preview-status'); if (s) s.textContent = ''; _preview = null; };
         await audio.play();
         if (st) st.textContent = '▶ Playing sample…';
       } catch (e) {
         if (st) st.textContent = '⚠ ' + ((e && e.message) || 'Preview failed');
-      } finally {
-        pv.disabled = false;
       }
     };
 
@@ -776,7 +805,7 @@
       view.innerHTML = `
         <div class="card">
           <h2>📻 Radio station</h2>
-          <p class="note">Generate on-demand, talk-radio style audio shows — pick a topic & host, read the script, then turn it into audio you can play with pause / rewind / resume. You'll need a <strong>Claude API key</strong> to write the shows (and a <strong>Google TTS key</strong> to voice them).</p>
+          <p class="note">Generate on-demand, talk-radio style audio shows — pick a topic & host, read the script, then turn it into audio you can play with pause / rewind / resume. You'll need a <strong>Claude API key</strong> to write the shows (and an <strong>ElevenLabs API key</strong> to voice them).</p>
           <button class="btn block mt-2" id="radio-go-setup">Go to Setup</button>
           <div class="text-xs text-muted mt-1">Keys are stored only in this browser.</div>
         </div>`;
@@ -784,8 +813,8 @@
       return;
     }
 
-    const ttsBanner = hasTtsKey() ? '' :
-      `<div class="rc-status err" style="margin-bottom:10px;">Add a Google TTS key in Setup to turn scripts into audio. You can still write & read scripts now.</div>`;
+    const ttsBanner = hasElevenKey() ? '' :
+      `<div class="rc-status err" style="margin-bottom:10px;">Add an ElevenLabs key in Setup to turn scripts into audio. You can still write & read scripts now.</div>`;
     const cards = allChannels().map(channelCard).join('');
     view.innerHTML = `
       <div class="radio-home">
