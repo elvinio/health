@@ -44,7 +44,7 @@ deep-dive doc rather than loading both.
 | **Health Tracker PWA** (details in `docs/tracker.md`) | | |
 | `tracker.html` | Health tracker shell — `Storage`, `DriveSync`, hash router, Today/History/Health/Setup tabs | — |
 | `tracker-chat.js` | Chat tab — browser Claude agent (`@anthropic-ai/sdk` via ESM CDN); history/program tools; streaming, prompt caching, per-profile sessions | — |
-| `tracker-radio.js` | Radio tab — on-demand AI radio: Claude script → ElevenLabs TTS; manual prompt/paste path; royalty-free piano interstitials; IndexedDB audio; custom player | — |
+| `tracker-radio.js` | Radio tab — on-demand AI radio: Claude script → self-hosted Kokoro TTS; manual prompt/paste path; royalty-free piano interstitials; IndexedDB audio; custom player | — |
 | `sw-tracker.js` | Service worker for `tracker.html` (caches `tracker-chat.js` + `tracker-radio.js`; `esm.sh` SDK in `EXT_CACHE`) | — |
 | `apps-script/classicals-proxy.gs` | Optional Google Apps Script — scrapes classicals.de solo-piano selection (server-side, bypasses 403/CORS) and returns each MP3 as base64; caches in a `radio-music-cache` Drive folder. Powers Radio interstitial music. | — |
 | **Shared / knowledgebase / assets** | | |

@@ -56,7 +56,11 @@ def fastapi_app():
     def tts(req: TTSRequest):
         from kokoro import KPipeline
 
-        pipeline = KPipeline(lang_code="a")
+        # British voice ids start with bf_/bm_ → lang_code "b"; all others use
+        # American English ("a"). Picking the matching phonemizer keeps
+        # pronunciation correct for both accents.
+        lang_code = "b" if req.voice[:1] == "b" else "a"
+        pipeline = KPipeline(lang_code=lang_code)
 
         # Start ffmpeg process (MP3 encoder)
         ffmpeg = subprocess.Popen(

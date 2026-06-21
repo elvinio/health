@@ -2477,18 +2477,23 @@ function renderSetup(isFirstRun) {
         <details class="mb-2">
           <summary class="text-xs text-muted" style="cursor:pointer;user-select:none;padding:4px 0;">How to get a key ▾</summary>
           <ol class="note mt-1" style="padding-left:1.4em;line-height:1.9;font-size:0.8rem;">
-            <li>Sign in at <strong>elevenlabs.io</strong></li>
-            <li>Open your account menu → <em>API Keys</em> (elevenlabs.io/app/settings/api-keys)</li>
-            <li><em>Create API Key</em>, copy it, then paste the key below</li>
-            <li>Pick each show's voice later in the Radio tab's review screen (tap "Load" to list your account voices)</li>
+            <li>Deploy your own Kokoro TTS instance (<code>tts/tts.py</code>) to Modal</li>
+            <li>Set its API key: <code>modal secret create tts-api-key TTS_API_KEY=$(openssl rand -hex 32)</code></li>
+            <li>Paste that same key below; leave the URL blank to use the default endpoint</li>
+            <li>Pick each show's voice later in the Radio tab's review screen</li>
           </ol>
         </details>
         <div class="field">
-          <label for="eleven-key">ElevenLabs API key</label>
-          <input type="password" id="eleven-key" placeholder="sk_..." autocomplete="off" value="${escapeHtml(localStorage.getItem('health:elevenLabsKey') || '')}">
+          <label for="kokoro-key">Kokoro API key</label>
+          <input type="password" id="kokoro-key" placeholder="your TTS_API_KEY" autocomplete="off" value="${escapeHtml(localStorage.getItem('health:kokoroKey') || '')}">
           <div class="text-xs text-muted">Speaks the radio shows. Stored only in this browser. Uses your Claude key (above) to write them.</div>
         </div>
-        <button class="btn secondary sm" id="tts-save-btn">Save ElevenLabs key</button>
+        <div class="field" style="margin-top:14px;">
+          <label for="kokoro-url">Kokoro endpoint URL <span class="text-muted text-xs">(optional)</span></label>
+          <input type="text" id="kokoro-url" placeholder="https://elvinio--kokoro-tts-fastapi-app.modal.run" autocomplete="off" value="${escapeHtml(localStorage.getItem('health:kokoroUrl') || '')}">
+          <div class="text-xs text-muted">Leave blank to use the default. The app POSTs to <code>&lt;URL&gt;/tts</code>.</div>
+        </div>
+        <button class="btn secondary sm" id="kokoro-save-btn">Save Kokoro settings</button>
         <div class="field" style="margin-top:14px;">
           <label for="radio-music-proxy">Interstitial music URL (Apps Script)</label>
           <input type="text" id="radio-music-proxy" placeholder="https://script.google.com/.../exec" value="${escapeHtml(localStorage.getItem('health:radio:musicProxyUrl') || '')}">
@@ -2668,9 +2673,12 @@ function renderSetup(isFirstRun) {
     localStorage.setItem('health:chatModel', document.getElementById('ai-model').value);
     alert('AI settings saved.');
   };
-  document.getElementById('tts-save-btn').onclick = () => {
-    localStorage.setItem('health:elevenLabsKey', document.getElementById('eleven-key').value.trim());
-    alert('ElevenLabs key saved.');
+  document.getElementById('kokoro-save-btn').onclick = () => {
+    localStorage.setItem('health:kokoroKey', document.getElementById('kokoro-key').value.trim());
+    const url = document.getElementById('kokoro-url').value.trim();
+    if (url) localStorage.setItem('health:kokoroUrl', url);
+    else localStorage.removeItem('health:kokoroUrl');
+    alert('Kokoro settings saved.');
   };
   document.getElementById('radio-music-save-btn').onclick = () => {
     localStorage.setItem('health:radio:musicProxyUrl', document.getElementById('radio-music-proxy').value.trim());
@@ -2714,79 +2722,6 @@ function renderSetup(isFirstRun) {
     }
   };
 
-}
-
-/* ════════════════════════════════════════════════════════════════
-   VIEW: SETUP — AI & SERVICES
-   ════════════════════════════════════════════════════════════════ */
-function renderSetupAi() {
-  document.getElementById('topbar-title').textContent = 'AI & Services';
-  document.getElementById('topbar-sub').textContent = 'AI · Radio';
-  const view = document.getElementById('view');
-  view.innerHTML = `
-    <a href="#/setup" class="text-muted text-sm" style="display:block;margin-bottom:12px;">← Setup</a>
-
-    <div class="card">
-      <h2>AI Chat</h2>
-      <div class="field">
-        <label for="ai-key">Claude API key</label>
-        <input type="password" id="ai-key" placeholder="sk-ant-..." autocomplete="off" value="${escapeHtml(localStorage.getItem('health:anthropicKey') || '')}">
-        <div class="text-xs text-muted">Stored only in this browser. Get one at console.anthropic.com.</div>
-      </div>
-      <div class="field">
-        <label for="ai-model">Default model</label>
-        ${(() => {
-          const m = localStorage.getItem('health:chatModel') || 'claude-sonnet-4-6';
-          const opt = (id, label) => `<option value="${id}" ${m === id ? 'selected' : ''}>${label}</option>`;
-          return `<select id="ai-model" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:0.9rem;">
-            ${opt('claude-sonnet-4-6', 'Sonnet 4.6 — $3 / $15 per 1M tok')}
-            ${opt('claude-opus-4-8', 'Opus 4.8 — $5 / $25 per 1M tok')}
-          </select>`;
-        })()}
-      </div>
-      <button class="btn secondary sm" id="ai-save-btn">Save AI settings</button>
-    </div>
-
-    <div class="card">
-      <h2>Radio station</h2>
-      <details class="mb-2">
-        <summary class="text-xs text-muted" style="cursor:pointer;user-select:none;padding:4px 0;">How to get a key ▾</summary>
-        <ol class="note mt-1" style="padding-left:1.4em;line-height:1.9;font-size:0.8rem;">
-          <li>Sign in at <strong>elevenlabs.io</strong></li>
-          <li>Open your account menu → <em>API Keys</em> (elevenlabs.io/app/settings/api-keys)</li>
-          <li><em>Create API Key</em>, copy it, then paste the key below</li>
-          <li>Pick each show's voice later in the Radio tab's review screen (tap "Load" to list your account voices)</li>
-        </ol>
-      </details>
-      <div class="field">
-        <label for="eleven-key">ElevenLabs API key</label>
-        <input type="password" id="eleven-key" placeholder="sk_..." autocomplete="off" value="${escapeHtml(localStorage.getItem('health:elevenLabsKey') || '')}">
-        <div class="text-xs text-muted">Speaks the radio shows. Stored only in this browser. Uses your Claude key (above) to write them.</div>
-      </div>
-      <button class="btn secondary sm" id="tts-save-btn">Save ElevenLabs key</button>
-      <div class="field" style="margin-top:14px;">
-        <label for="radio-music-proxy">Interstitial music URL (Apps Script)</label>
-        <input type="text" id="radio-music-proxy" placeholder="https://script.google.com/.../exec" value="${escapeHtml(localStorage.getItem('health:radio:musicProxyUrl') || '')}">
-        <div class="text-xs text-muted">Plays royalty-free piano (classicals.de) between radio segments. Deploy <code>apps-script/classicals-proxy.gs</code> and paste its web-app URL.</div>
-      </div>
-      <button class="btn secondary sm" id="radio-music-save-btn">Save music URL</button>
-    </div>
-  `;
-
-  document.getElementById('ai-save-btn').onclick = () => {
-    localStorage.setItem('health:anthropicKey', document.getElementById('ai-key').value.trim());
-    localStorage.setItem('health:chatModel', document.getElementById('ai-model').value);
-    alert('AI settings saved.');
-  };
-  document.getElementById('tts-save-btn').onclick = () => {
-    localStorage.setItem('health:elevenLabsKey', document.getElementById('eleven-key').value.trim());
-    alert('ElevenLabs key saved.');
-  };
-  document.getElementById('radio-music-save-btn').onclick = () => {
-    localStorage.setItem('health:radio:musicProxyUrl', document.getElementById('radio-music-proxy').value.trim());
-    localStorage.removeItem('health:radio:musicTracks');
-    alert('Music URL saved.');
-  };
 }
 
 /* ════════════════════════════════════════════════════════════════
