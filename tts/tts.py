@@ -32,6 +32,7 @@ def fastapi_app():
     import subprocess
 
     from fastapi import Depends, FastAPI, HTTPException, Response, status
+    from fastapi.middleware.cors import CORSMiddleware
     from fastapi.security import APIKeyHeader
     from pydantic import BaseModel
 
@@ -51,6 +52,17 @@ def fastapi_app():
         voice: str = "af_bella"
 
     web_app = FastAPI()
+
+    # The tracker PWA calls this from a different origin (GitHub Pages) with a
+    # custom X-API-Key header, so the browser sends a CORS preflight OPTIONS
+    # before the POST. Without this middleware that preflight 405s and the POST
+    # never fires. Auth is a header (not a cookie), so "*" origins are safe.
+    web_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["POST", "OPTIONS"],
+        allow_headers=["X-API-Key", "Content-Type"],
+    )
 
     @web_app.post("/tts", dependencies=[Depends(require_api_key)])
     def tts(req: TTSRequest):
