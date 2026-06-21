@@ -734,6 +734,8 @@ Rules for the spoken text under each heading:
   /* ── Player ────────────────────────────────────────────────────────────── */
   // Throwaway audio for the voice preview on the review screen (never persisted).
   let _preview = null;
+  // In-memory cache: voice id → Blob (survives across preview button taps).
+  const _previewCache = new Map();
   function stopPreview() {
     if (!_preview) return;
     try { _preview.audio.pause(); } catch (e) {}
@@ -985,14 +987,20 @@ Rules for the spoken text under each heading:
       stopPreview();
       const st = document.getElementById('rv-preview-status');
       const voice = (vsel && vsel.value) || ep.voice;
-      // Kokoro has no preview samples, so synthesize a short line on demand.
-      pv.disabled = true; if (st) st.textContent = 'Synthesizing sample…';
+      pv.disabled = true;
       try {
-        const blob = await synthesizeTTS('Hi, this is how this voice sounds on your radio.', voice, (bytes) => {
-          const kb = Math.round(bytes / 1024);
-          const s = document.getElementById('rv-preview-status');
-          if (s) s.textContent = `Receiving… ${kb} KB`;
-        });
+        let blob = _previewCache.get(voice);
+        if (blob) {
+          if (st) st.textContent = '▶ Playing sample…';
+        } else {
+          if (st) st.textContent = 'Synthesizing sample…';
+          blob = await synthesizeTTS('Hi, this is how this voice sounds on your radio.', voice, (bytes) => {
+            const kb = Math.round(bytes / 1024);
+            const s = document.getElementById('rv-preview-status');
+            if (s) s.textContent = `Receiving… ${kb} KB`;
+          });
+          _previewCache.set(voice, blob);
+        }
         const url = URL.createObjectURL(blob);
         const audio = new Audio(url);
         _preview = { audio, url };
