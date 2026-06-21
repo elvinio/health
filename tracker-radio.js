@@ -416,7 +416,7 @@
       RadioState.generating = false; RadioState.genEpId = null; RadioState.cancel = false;
       releaseWake();
       const fresh = getEpisode(ep.id);
-      if (fresh && fresh.status === 'draft' && isRadioActive()) { RadioState.view = 'review'; RadioState.epId = ep.id; renderRadio(); }
+      if (fresh && fresh.status === 'draft' && isRadioActive()) { RadioState.view = 'review'; RadioState.epId = ep.id; history.pushState({ radioView: 'review', epId: ep.id }, ''); renderRadio(); }
       else rerenderActive();
     }
   }
@@ -734,6 +734,8 @@ Rules for the spoken text under each heading:
   /* ── Player ────────────────────────────────────────────────────────────── */
   // Throwaway audio for the voice preview on the review screen (never persisted).
   let _preview = null;
+  // In-memory cache: voice id → Blob (survives across preview button taps).
+  const _previewCache = new Map();
   function stopPreview() {
     if (!_preview) return;
     try { _preview.audio.pause(); } catch (e) {}
@@ -810,6 +812,7 @@ Rules for the spoken text under each heading:
     RadioState.epId = epId;
     const prog = getProgress(epId);
     RadioState.curIdx = prog.idx || 0;
+    history.pushState({ radioView: 'player', epId }, '');
     renderRadio();
   }
 
@@ -903,7 +906,7 @@ Rules for the spoken text under each heading:
     seek.addEventListener('input', () => { seeking = true; const a = activeAudio(); const c = document.getElementById('rp-cur'); if (c && a && a.duration) c.textContent = mmss((seek.value / 1000) * a.duration); });
     seek.addEventListener('change', () => { const a = activeAudio(); if (a && a.duration) a.currentTime = (seek.value / 1000) * a.duration; seeking = false; });
 
-    document.getElementById('rp-back').onclick = () => { teardownAudio(); RadioState.view = 'home'; renderRadio(); };
+    document.getElementById('rp-back').onclick = () => history.back();
     document.getElementById('rp-play').onclick = () => { const a = activeAudio(); if (!a) return; if (a.paused) a.play().catch(() => {}); else a.pause(); };
     document.getElementById('rp-back15').onclick = () => { const a = activeAudio(); if (a) a.currentTime = Math.max(0, a.currentTime - 15); };
     document.getElementById('rp-fwd15').onclick = () => { const a = activeAudio(); if (a) a.currentTime = Math.min(a.duration || 0, a.currentTime + 15); };
@@ -921,7 +924,7 @@ Rules for the spoken text under each heading:
   }
 
   /* ── Review screen (read the script before TTS) ────────────────────────── */
-  function openReview(epId) { teardownAudio(); RadioState.view = 'review'; RadioState.epId = epId; renderRadio(); }
+  function openReview(epId) { teardownAudio(); RadioState.view = 'review'; RadioState.epId = epId; history.pushState({ radioView: 'review', epId }, ''); renderRadio(); }
 
   function renderReview() {
     const ep = getEpisode(RadioState.epId);
@@ -970,7 +973,7 @@ Rules for the spoken text under each heading:
         <div class="rv-list">${segHtml}</div>
       </div>`;
 
-    document.getElementById('rv-back').onclick = () => { stopPreview(); RadioState.view = 'home'; renderRadio(); };
+    document.getElementById('rv-back').onclick = () => history.back();
 
     const vsel = document.getElementById('rv-voice');
     if (vsel) vsel.onchange = () => {
@@ -985,14 +988,20 @@ Rules for the spoken text under each heading:
       stopPreview();
       const st = document.getElementById('rv-preview-status');
       const voice = (vsel && vsel.value) || ep.voice;
-      // Kokoro has no preview samples, so synthesize a short line on demand.
-      pv.disabled = true; if (st) st.textContent = 'Synthesizing sample…';
+      pv.disabled = true;
       try {
-        const blob = await synthesizeTTS('Hi, this is how this voice sounds on your radio.', voice, (bytes) => {
-          const kb = Math.round(bytes / 1024);
-          const s = document.getElementById('rv-preview-status');
-          if (s) s.textContent = `Receiving… ${kb} KB`;
-        });
+        let blob = _previewCache.get(voice);
+        if (blob) {
+          if (st) st.textContent = '▶ Playing sample…';
+        } else {
+          if (st) st.textContent = 'Synthesizing sample…';
+          blob = await synthesizeTTS('Hi, this is how this voice sounds on your radio.', voice, (bytes) => {
+            const kb = Math.round(bytes / 1024);
+            const s = document.getElementById('rv-preview-status');
+            if (s) s.textContent = `Receiving… ${kb} KB`;
+          });
+          _previewCache.set(voice, blob);
+        }
         const url = URL.createObjectURL(blob);
         const audio = new Audio(url);
         _preview = { audio, url };
@@ -1200,6 +1209,17 @@ Rules for the spoken text under each heading:
     el.textContent = css;
     document.head.appendChild(el);
   }
+
+  // Intercept browser back when inside a radio sub-view so it returns to the
+  // station grid instead of leaving the radio tab entirely.
+  window.addEventListener('popstate', function() {
+    if (!isRadioActive()) return;
+    if (RadioState.view !== 'home') {
+      teardownAudio();
+      RadioState.view = 'home';
+      renderRadio();
+    }
+  });
 
   window.renderRadio = renderRadio;
 })();
