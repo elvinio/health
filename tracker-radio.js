@@ -434,6 +434,17 @@
     if (isRadioActive()) renderRadio(); else rerenderActive();   // full render so the Stop button appears
 
     try {
+      // Reconcile hasAudio flags with IndexedDB — a crash between idbPut and
+      // saveEpisode can leave blobs in IDB with hasAudio still false, causing
+      // the loop below to re-synthesize segments that are already done.
+      let reconciled = false;
+      for (let i = 0; i < ep.segments.length; i++) {
+        if (ep.segments[i].hasAudio) continue;
+        const existing = await idbGet(epId + ':' + i).catch(() => null);
+        if (existing) { ep.segments[i].hasAudio = true; reconciled = true; }
+      }
+      if (reconciled) { saveEpisode(ep); rerenderActive(); }
+
       for (let i = 0; i < ep.segments.length; i++) {
         if (RadioState.cancel) break;
         if (ep.segments[i].hasAudio) continue;
