@@ -24,7 +24,7 @@ api_key_secret = modal.Secret.from_name("tts-api-key")
 #   modal deploy tts/tts.py  # production (persistent URL)
 # Add gpu="A10G" to the decorator if you want GPU-accelerated inference.
 # ---------------------------------------------------------------------------
-@app.function(secrets=[api_key_secret], timeout=600)
+@app.function(secrets=[api_key_secret], timeout=600, cpu=2.0)
 @modal.concurrent(max_inputs=4)
 @modal.asgi_app()
 def fastapi_app():
@@ -68,7 +68,12 @@ def fastapi_app():
 
     @web_app.post("/tts", dependencies=[Depends(require_api_key)])
     def tts(req: TTSRequest):
+        import torch
         from kokoro import KPipeline
+
+        # With cpu=2.0 and max_inputs=4, cap intra-op threads so 4 concurrent
+        # calls don't over-subscribe the 2 cores (4 × default ~4 = 16 threads).
+        torch.set_num_threads(1)
 
         # British voice ids start with bf_/bm_ → lang_code "b"; all others use
         # American English ("a"). Picking the matching phonemizer keeps
