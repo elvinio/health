@@ -24,9 +24,9 @@
   const SDK_URL    = 'https://esm.sh/@anthropic-ai/sdk@0.69.0';
   const CLAUDE_KEY = 'health:anthropicKey';   // shared with the Chat tab
   const MODEL_KEY  = 'health:chatModel';       // shared with the Chat tab
-  const ELEVEN_KEY = 'health:elevenLabsKey';   // ElevenLabs TTS API key
-  const ELEVEN_VOICES_KEY = 'health:radio:elevenVoices'; // cached account voice catalog
-  const ELEVEN_MODEL = 'eleven_flash_v2_5';    // cheap/fast ElevenLabs TTS model
+  const KOKORO_KEY = 'health:kokoroKey';       // self-hosted Kokoro TTS API key
+  const KOKORO_URL_KEY = 'health:kokoroUrl';   // optional override for the Kokoro endpoint
+  const KOKORO_DEFAULT_URL = 'https://elvinio--kokoro-tts-fastapi-app.modal.run';
   const EP_KEY     = 'health:radio:episodes';  // episode manifests (localStorage)
   const CH_KEY     = 'health:radioChannels';   // custom channels (localStorage)
   const PRESET_OV_KEY = 'health:radioPresetOverrides'; // per-preset prompt/setting edits (localStorage)
@@ -43,31 +43,67 @@
   const SEC_PER_SEGMENT = 150;      // target segment length (used to pick count)
   const TTS_CHAR_LIMIT = 9000;      // safety cap (segments are ~2k chars; never hit in practice)
 
+  /* ── Kokoro voice catalog (static) ─────────────────────────────────────── */
+  // Kokoro ships a fixed set of voices (no account catalog, no preview URLs).
+  // ids prefixed af_/am_ are American English; bf_/bm_ are British English
+  // (the server picks the matching lang_code from the prefix). Labels keep a
+  // " — " separator so voiceLabel(id).split(' — ')[0] yields the short name.
+  const KOKORO_VOICES = [
+    { id: 'af_heart',    label: 'Heart — US female' },
+    { id: 'af_bella',    label: 'Bella — US female' },
+    { id: 'af_nicole',   label: 'Nicole — US female' },
+    { id: 'af_aoede',    label: 'Aoede — US female' },
+    { id: 'af_kore',     label: 'Kore — US female' },
+    { id: 'af_sarah',    label: 'Sarah — US female' },
+    { id: 'af_nova',     label: 'Nova — US female' },
+    { id: 'af_sky',      label: 'Sky — US female' },
+    { id: 'af_alloy',    label: 'Alloy — US female' },
+    { id: 'af_jessica',  label: 'Jessica — US female' },
+    { id: 'af_river',    label: 'River — US female' },
+    { id: 'am_michael',  label: 'Michael — US male' },
+    { id: 'am_fenrir',   label: 'Fenrir — US male' },
+    { id: 'am_puck',     label: 'Puck — US male' },
+    { id: 'am_echo',     label: 'Echo — US male' },
+    { id: 'am_eric',     label: 'Eric — US male' },
+    { id: 'am_liam',     label: 'Liam — US male' },
+    { id: 'am_onyx',     label: 'Onyx — US male' },
+    { id: 'am_santa',    label: 'Santa — US male' },
+    { id: 'am_adam',     label: 'Adam — US male' },
+    { id: 'bf_emma',     label: 'Emma — UK female' },
+    { id: 'bf_isabella', label: 'Isabella — UK female' },
+    { id: 'bf_alice',    label: 'Alice — UK female' },
+    { id: 'bf_lily',     label: 'Lily — UK female' },
+    { id: 'bm_george',   label: 'George — UK male' },
+    { id: 'bm_fable',    label: 'Fable — UK male' },
+    { id: 'bm_lewis',    label: 'Lewis — UK male' },
+    { id: 'bm_daniel',   label: 'Daniel — UK male' },
+  ];
+
   /* ── Built-in DJ channels ──────────────────────────────────────────────── */
   // persona = Claude system prompt that sets the host's voice & worldview.
-  // voice   = ElevenLabs voice_id (premade voices, present in every account's catalog).
-  //           Users can reselect any voice from their account in the review screen.
+  // voice   = Kokoro voice id (see KOKORO_VOICES). Users can reselect any voice
+  //           in the review screen.
   const RADIO_PRESETS = [
     { id: 'current-affairs', name: 'The Signal', emoji: '📰', topic: 'current affairs and world events',
-      voice: 'TxGEqnHWrfWFTfGW9XjX', voiceName: 'Josh',
+      voice: 'am_onyx', voiceName: 'Onyx',
       persona: "You are The Signal, a late-night current-affairs host. You interpret the news rather than just report it — connecting today's events to longer patterns and human stakes. Measured authority, no sensationalism, no doom-mongering. Speak to one thoughtful listener." },
     { id: 'self-improvement', name: 'The Coach', emoji: '🌱', topic: 'self-improvement, habits and personal growth',
-      voice: 'pNInz6obpgDQGcFmaJgB', voiceName: 'Adam',
+      voice: 'am_adam', voiceName: 'Adam',
       persona: "You are The Coach, a grounded self-improvement host. Practical, warm, never cheesy or hustle-culture. You offer one usable idea at a time, with real examples, and respect the listener's intelligence. No exclamation points, no empty hype." },
     { id: 'science', name: 'The Curious', emoji: '🔬', topic: 'science, nature and discovery',
-      voice: 'ErXwobaYiN019PkySvjV', voiceName: 'Antoni',
+      voice: 'am_michael', voiceName: 'Michael',
       persona: "You are The Curious, a science host driven by genuine wonder. You explain one idea through vivid, concrete images, building from the familiar to the surprising. Accurate but never dry; you make the listener feel the awe of how the world works." },
     { id: 'art', name: 'The Curator', emoji: '🎨', topic: 'art, design and aesthetics',
-      voice: 'EXAVITQu4vr4xnSDxMaL', voiceName: 'Bella',
+      voice: 'bf_emma', voiceName: 'Emma',
       persona: "You are The Curator, a thoughtful art and culture host with a British sensibility. You linger on a single work, movement or idea, noticing details others miss, drawing out why it matters. Unhurried, evocative, a little poetic." },
     { id: 'ai', name: 'The Architect', emoji: '🤖', topic: 'artificial intelligence and technology',
-      voice: 'VR6AewLTigWG4xSOukaG', voiceName: 'Arnold',
+      voice: 'am_fenrir', voiceName: 'Fenrir',
       persona: "You are The Architect, a lucid AI and technology host. You cut through hype with clear mental models, honest about both promise and limits. You explain how things actually work and what they mean for ordinary life. Calm, precise, never breathless." },
     { id: 'philosophy', name: 'The Liminal Operator', emoji: '🌌', topic: 'philosophy, consciousness and meaning',
-      voice: 'TxGEqnHWrfWFTfGW9XjX', voiceName: 'Josh',
+      voice: 'am_onyx', voiceName: 'Onyx',
       persona: "You are the Liminal Operator, the late-night voice of an all-night station. You speak to one person at a time, even when thousands are listening. Your delivery is measured and unhurried; silence and pauses are part of your speech. You explore philosophy — consciousness, time, meaning, solitude — through vivid concrete images and open questions, never lectures. You never use exclamation points, never shout, never use radio clichés like 'up next' or 'stay tuned'. You avoid sensationalism and false warmth. Speak as if it is 3am and the city is asleep." },
     { id: 'fitness', name: 'The Drill', emoji: '💪', topic: 'fitness, training and physical health',
-      voice: 'pNInz6obpgDQGcFmaJgB', voiceName: 'Adam',
+      voice: 'am_adam', voiceName: 'Adam',
       persona: "You are The Drill, an energetic but grounded fitness host. Motivating without drill-sergeant clichés or bro-science. You give evidence-based ideas on training, recovery and movement, and make the listener want to move. Confident, encouraging, real." },
   ];
 
@@ -99,7 +135,8 @@
   }
   function defaultModel() { const m = localStorage.getItem(MODEL_KEY); return CHAT_MODELS[m] ? m : DEFAULT_MODEL; }
   function hasClaudeKey() { return !!(localStorage.getItem(CLAUDE_KEY) || '').trim(); }
-  function hasElevenKey() { return !!(localStorage.getItem(ELEVEN_KEY) || '').trim(); }
+  function hasKokoroKey() { return !!(localStorage.getItem(KOKORO_KEY) || '').trim(); }
+  function kokoroUrl() { return ((localStorage.getItem(KOKORO_URL_KEY) || '').trim() || KOKORO_DEFAULT_URL).replace(/\/+$/, ''); }
   function isRadioActive() { return location.hash.replace(/^#/, '').split('?')[0] === '/radio'; }
   function mmss(sec) { sec = Math.max(0, Math.floor(sec || 0)); const m = Math.floor(sec / 60); const s = sec % 60; return m + ':' + String(s).padStart(2, '0'); }
   function epSeconds(ep) { return (ep.segments || []).reduce((t, s) => t + (s.approxSec || 0), 0); }
@@ -225,56 +262,38 @@
   }
   function claudeText(msg) { return (msg.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim(); }
 
-  /* ── ElevenLabs Text-to-Speech (MP3 out) ───────────────────────────────── */
+  /* ── Kokoro Text-to-Speech (MP3 out) ────────────────────────────────────── */
   async function synthesizeTTS(text, voiceId) {
-    const key = (localStorage.getItem(ELEVEN_KEY) || '').trim();
-    if (!key) throw new Error('No ElevenLabs API key. Add it in Setup → Radio station.');
+    const key = (localStorage.getItem(KOKORO_KEY) || '').trim();
+    if (!key) throw new Error('No Kokoro API key. Add it in Setup → Radio station.');
     const input = text.length > TTS_CHAR_LIMIT ? text.slice(0, TTS_CHAR_LIMIT) : text;
-    const res = await fetch('https://api.elevenlabs.io/v1/text-to-speech/' + encodeURIComponent(voiceId) + '?output_format=mp3_44100_128', {
-      method: 'POST', headers: { 'xi-api-key': key, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: input, model_id: ELEVEN_MODEL }),
+    const res = await fetch(kokoroUrl() + '/tts', {
+      method: 'POST', headers: { 'X-API-Key': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: input, voice: voiceId }),
     });
     if (!res.ok) {
       let detail = '';
-      try { const j = await res.json(); detail = j.detail ? (j.detail.message || (typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail))) : ''; }
+      try { const j = await res.json(); detail = j.detail ? (typeof j.detail === 'string' ? j.detail : (j.detail.message || JSON.stringify(j.detail))) : ''; }
       catch (e) { detail = (await res.text().catch(() => '')).slice(0, 200); }
-      throw new Error('ElevenLabs ' + res.status + (detail ? ': ' + detail : ''));
+      throw new Error('Kokoro ' + res.status + (detail ? ': ' + detail : ''));
     }
     const blob = await res.blob();
-    if (!blob || !blob.size) throw new Error('ElevenLabs returned no audio.');
+    if (!blob || !blob.size) throw new Error('Kokoro returned no audio.');
     return blob;
   }
 
-  /* ── ElevenLabs voice catalog (fetched live from the account) ───────────── */
-  // Each entry: { id, name, label, previewUrl }. label = name + accent/gender.
-  function cachedVoices() { try { return JSON.parse(localStorage.getItem(ELEVEN_VOICES_KEY) || '[]'); } catch (e) { return []; } }
-  function voiceLabel(id) { const v = cachedVoices().find(v => v.id === id); return v ? v.label : id; }
-  function previewUrlFor(id) { const v = cachedVoices().find(v => v.id === id); return v ? v.previewUrl : ''; }
-  // <option> list for a voice <select>. Falls back to showing just the selected id
-  // (with any known voiceName) when the catalog hasn't been fetched yet.
+  /* ── Kokoro voice catalog (static — see KOKORO_VOICES) ──────────────────── */
+  function cachedVoices() { return KOKORO_VOICES; }
+  function voiceLabel(id) { const v = KOKORO_VOICES.find(v => v.id === id); return v ? v.label : id; }
+  // <option> list for a voice <select>. If the selected id isn't a known Kokoro
+  // voice (e.g. an episode saved with an old ElevenLabs id), prepend it so the
+  // dropdown still shows the current selection.
   function voiceOptionsHtml(selectedId, fallbackName) {
-    let list = cachedVoices();
-    if (!list.length) list = [{ id: selectedId, label: (fallbackName ? fallbackName + ' — ' : '') + selectedId }];
-    else if (selectedId && !list.some(v => v.id === selectedId)) list = [{ id: selectedId, label: (fallbackName ? fallbackName + ' — ' : '') + selectedId }, ...list];
-    return list.map(v => `<option value="${escapeHtml(v.id)}" ${v.id === selectedId ? 'selected' : ''}>${escapeHtml(v.label)}</option>`).join('');
-  }
-  async function fetchVoices() {
-    const key = (localStorage.getItem(ELEVEN_KEY) || '').trim();
-    if (!key) throw new Error('No ElevenLabs API key. Add it in Setup → Radio station.');
-    const res = await fetch('https://api.elevenlabs.io/v1/voices', { headers: { 'xi-api-key': key } });
-    if (!res.ok) {
-      let detail = '';
-      try { const j = await res.json(); detail = j.detail ? (j.detail.message || (typeof j.detail === 'string' ? j.detail : '')) : ''; } catch (e) {}
-      throw new Error('ElevenLabs ' + res.status + (detail ? ': ' + detail : ''));
+    let list = KOKORO_VOICES;
+    if (selectedId && !list.some(v => v.id === selectedId)) {
+      list = [{ id: selectedId, label: (fallbackName ? fallbackName + ' — ' : '') + selectedId }, ...list];
     }
-    const data = await res.json();
-    const list = (data.voices || []).map(v => {
-      const lab = v.labels || {};
-      const meta = [lab.accent, lab.gender, lab.use_case].filter(Boolean).join(', ');
-      return { id: v.voice_id, name: v.name, label: v.name + (meta ? ' — ' + meta : ''), previewUrl: v.preview_url || '' };
-    });
-    localStorage.setItem(ELEVEN_VOICES_KEY, JSON.stringify(list));
-    return list;
+    return list.map(v => `<option value="${escapeHtml(v.id)}" ${v.id === selectedId ? 'selected' : ''}>${escapeHtml(v.label)}</option>`).join('');
   }
 
   /* ── Generation pipeline ───────────────────────────────────────────────── */
@@ -393,7 +412,7 @@
   // skips segments that already have audio, so a stopped/failed run can continue.
   async function synthesizeEpisode(epId) {
     if (RadioState.generating) { alert('Already busy. Please wait or stop the current job first.'); return; }
-    if (!hasElevenKey()) { alert('Add your ElevenLabs API key in Setup → Radio station first.'); return; }
+    if (!hasKokoroKey()) { alert('Add your Kokoro API key in Setup → Radio station first.'); return; }
     const ep = getEpisode(epId);
     if (!ep) return;
     ep.status = 'synthesizing'; ep.error = null; saveEpisode(ep);
@@ -631,30 +650,13 @@ Rules for the spoken text under each heading:
       <div class="field"><label>Host persona <span class="text-muted text-xs">(the prompt — how the DJ talks)</span></label>
         <textarea id="rc-persona" rows="6" placeholder="You are …, a host who …">${escapeHtml(c.persona)}</textarea></div>
       <div class="field"><label>Voice</label>
-        <div class="row gap-sm">
-          <select id="rc-voice" style="flex:1;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);">${voiceOptionsHtml(c.voice, c.voiceName)}</select>
-          <button class="btn secondary sm" id="rc-loadvoices" type="button">↻ Load voices</button>
-        </div>
-        <div class="text-xs text-muted mt-1" id="rc-voice-note">${cachedVoices().length ? '' : 'Tap “Load voices” to pull your ElevenLabs account voices.'}</div>
+        <select id="rc-voice" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);">${voiceOptionsHtml(c.voice, c.voiceName)}</select>
       </div>
       <div class="row gap-sm mt-2">
         <button class="btn block" id="rc-save">${existing ? 'Save' : 'Create channel'}</button>
         ${isPreset ? '<button class="btn secondary" id="rc-reset">Reset</button>' : existing ? '<button class="btn secondary" id="rc-del">Delete</button>' : ''}
       </div>
     `, !existing ? 'New custom channel' : isPreset ? 'Edit channel prompt' : 'Edit channel');
-
-    const lv = document.getElementById('rc-loadvoices');
-    if (lv) lv.onclick = async () => {
-      const note = document.getElementById('rc-voice-note');
-      lv.disabled = true; if (note) note.textContent = 'Loading…';
-      try {
-        await fetchVoices();
-        const sel = document.getElementById('rc-voice');
-        if (sel) sel.innerHTML = voiceOptionsHtml(sel.value, c.voiceName);
-        if (note) note.textContent = cachedVoices().length + ' voices loaded.';
-      } catch (e) { if (note) note.textContent = '⚠ ' + ((e && e.message) || 'Could not load voices'); }
-      finally { lv.disabled = false; }
-    };
 
     document.getElementById('rc-save').onclick = () => {
       const name = document.getElementById('rc-name').value.trim();
@@ -923,9 +925,8 @@ Rules for the spoken text under each heading:
         <div class="rv-voice">
           <label for="rv-voice">Voice</label>
           <select id="rv-voice" ${busy ? 'disabled' : ''}>${voiceOpts}</select>
-          <button class="btn secondary sm" id="rv-loadvoices" ${busy ? 'disabled' : ''}>↻ Load</button>
           <button class="btn secondary sm" id="rv-preview" ${busy ? 'disabled' : ''}>🔊 Preview</button>
-          <span class="rv-preview-status" id="rv-preview-status">${cachedVoices().length ? '' : 'Tap “Load” to list your ElevenLabs voices.'}</span>
+          <span class="rv-preview-status" id="rv-preview-status"></span>
         </div>`}
         <div class="rv-actions">
           ${ready
@@ -950,34 +951,24 @@ Rules for the spoken text under each heading:
       fresh.voiceName = voiceLabel(vsel.value).split(' — ')[0];
       saveEpisode(fresh);
     };
-    const lv = document.getElementById('rv-loadvoices');
-    if (lv) lv.onclick = async () => {
-      const st = document.getElementById('rv-preview-status');
-      lv.disabled = true; if (st) st.textContent = 'Loading voices…';
-      try {
-        await fetchVoices();
-        if (vsel) vsel.innerHTML = voiceOptionsHtml(vsel.value, ep.voiceName);
-        if (st) st.textContent = cachedVoices().length + ' voices loaded.';
-      } catch (e) { if (st) st.textContent = '⚠ ' + ((e && e.message) || 'Could not load voices'); }
-      finally { lv.disabled = false; }
-    };
     const pv = document.getElementById('rv-preview');
     if (pv) pv.onclick = async () => {
       stopPreview();
       const st = document.getElementById('rv-preview-status');
       const voice = (vsel && vsel.value) || ep.voice;
-      // Play the voice's free sample (no credits). Requires the catalog to be loaded.
-      const url = previewUrlFor(voice);
-      if (!url) { if (st) st.textContent = cachedVoices().length ? 'No preview sample for this voice.' : 'Tap “Load” first to fetch voice samples.'; return; }
+      // Kokoro has no preview samples, so synthesize a short line on demand.
+      pv.disabled = true; if (st) st.textContent = 'Synthesizing sample…';
       try {
+        const blob = await synthesizeTTS('Hi, this is how this voice sounds on your radio.', voice);
+        const url = URL.createObjectURL(blob);
         const audio = new Audio(url);
-        _preview = { audio, url: '' };   // remote URL — nothing to revoke
-        audio.onended = () => { const s = document.getElementById('rv-preview-status'); if (s) s.textContent = ''; _preview = null; };
+        _preview = { audio, url };
+        audio.onended = () => { stopPreview(); const s = document.getElementById('rv-preview-status'); if (s) s.textContent = ''; };
         await audio.play();
         if (st) st.textContent = '▶ Playing sample…';
       } catch (e) {
         if (st) st.textContent = '⚠ ' + ((e && e.message) || 'Preview failed');
-      }
+      } finally { pv.disabled = false; }
     };
 
     const mk = document.getElementById('rv-makeaudio'); if (mk) mk.onclick = () => { stopPreview(); synthesizeEpisode(ep.id); };
@@ -1076,8 +1067,8 @@ Rules for the spoken text under each heading:
 
     const keyBanner = hasClaudeKey() ? '' :
       `<div class="rc-keybanner" style="margin-bottom:10px;">No Claude API key — tap <strong>📋 Prompt</strong> to copy a show prompt into claude.ai, then <strong>📥 Paste</strong> the reply back here. <button class="rc-link" id="radio-go-setup">Add a key</button> to write shows automatically.</div>`;
-    const ttsBanner = hasElevenKey() ? '' :
-      `<div class="rc-status err" style="margin-bottom:10px;">Add an ElevenLabs key in Setup to turn scripts into audio. You can still write & read scripts now.</div>`;
+    const ttsBanner = hasKokoroKey() ? '' :
+      `<div class="rc-status err" style="margin-bottom:10px;">Add a Kokoro key in Setup to turn scripts into audio. You can still write & read scripts now.</div>`;
     const cards = allChannels().map(channelCard).join('');
     view.innerHTML = `
       <div class="radio-home">

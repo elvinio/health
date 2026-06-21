@@ -15,7 +15,7 @@ and the `themes.css` stylesheet, but **no JS** with finance. It is served under
 |---|---|
 | `tracker.html` | App shell — single-file HTML/CSS/JS for the whole tracker except Chat & Radio. Defines `Storage`, `DriveSync`, the hash router, and the Today / History / Health / Setup tabs. Exposes `window.Tracker`, `window.go`. |
 | `tracker-chat.js` | **Chat tab** — Claude agent in the browser (`@anthropic-ai/sdk` via ESM CDN). Tools to browse workout/health history + create/modify/activate programs; streaming, prompt caching, per-message cost/tokens, per-profile saved sessions. Exposes `window.renderChat`. |
-| `tracker-radio.js` | **Radio tab** — on-demand AI "radio station" (script via Claude, voice via ElevenLabs). Exposes `window.renderRadio`. See "Radio" below. |
+| `tracker-radio.js` | **Radio tab** — on-demand AI "radio station" (script via Claude, voice via self-hosted Kokoro TTS). Exposes `window.renderRadio`. See "Radio" below. |
 | `sw-tracker.js` | Service worker for `tracker.html`. |
 | `manifest-tracker.json` | PWA manifest (`start_url`/`scope` = `/health/tracker.html`). |
 | `icons/tracker-icon.png` | Maskable app icon (512px); shares `icon-192.png` with finance. |
@@ -82,12 +82,12 @@ shape:
 | `health:v1` | Main tracker data (above) |
 | `health:anthropicKey` | Anthropic API key — shared by Chat **and** Radio script generation (local-only secret) |
 | `health:chatModel` | Selected Claude model for the Chat tab |
-| `health:elevenLabsKey` | ElevenLabs API key for Radio TTS (local-only secret) |
+| `health:kokoroKey` | Kokoro TTS API key for Radio TTS (local-only secret) |
+| `health:kokoroUrl` | Optional override for the Kokoro endpoint (blank → default Modal URL) |
 | `health:radioChannels` | User's radio channel/persona definitions |
 | `health:radioPresetOverrides` | Per-preset channel overrides |
 | `health:radio:episodes` | Episode metadata index (status, segments, voice) |
 | `health:radio:progress` | Per-episode playback position (resume) |
-| `health:radio:elevenVoices` | Cached ElevenLabs voice list (`GET /v1/voices`) |
 | `health:radio:musicProxyUrl` | Web-app URL of `apps-script/classicals-proxy.gs` — enables Radio interstitial music (set in Setup → Radio station) |
 | `health:radio:musicTracks` | Cached scraped piano-track list (weekly refresh) |
 | `tracker:drive-config` | `DriveSync` config — `{ clientId, fileId }` for Google Drive backup |
@@ -113,8 +113,10 @@ On-demand AI "radio station". **Two phases per episode**, with status
 1. **Script** — Claude (same browser SDK / `health:anthropicKey` as Chat) writes
    a segmented DJ script per channel/persona → `draft`. The user reads it on the
    **review screen** before synthesis.
-2. **Voice** — ElevenLabs TTS (`api.elevenlabs.io`, model `eleven_flash_v2_5`,
-   MP3) voices each segment → `ready`.
+2. **Voice** — self-hosted Kokoro TTS (`POST <health:kokoroUrl>/tts`, auth via
+   `X-API-Key`, MP3 out; server `tts/tts.py` on Modal) voices each segment →
+   `ready`. The endpoint picks `lang_code` from the voice prefix (`bf_`/`bm_` →
+   British, else American English).
 
 **Manual (no-Claude-key) path** — each channel card also has:
 - **📋 Prompt** (`openPromptModal` → `buildCopyPrompt`): one self-contained prompt
@@ -125,9 +127,10 @@ On-demand AI "radio station". **Two phases per episode**, with status
 
 So phase 1 works without a Claude API key.
 
-**Voices** are fetched live from the account (`GET /v1/voices`, cached in
-`health:radio:elevenVoices`) and are user-selectable per channel/episode with a
-free `preview_url` sample. API key in `health:elevenLabsKey`.
+**Voices** are a static built-in list (Kokoro's English voices — American
+`af_`/`am_` and British `bf_`/`bm_`; see `KOKORO_VOICES` in `tracker-radio.js`),
+user-selectable per channel/episode. There are no preview URLs, so **Preview**
+synthesizes a short live sample on demand. API key in `health:kokoroKey`.
 
 **Storage** — script text + audio Blobs both live in IndexedDB (DB `health-radio`,
 store `radioAudio`; keys `epId:idx` for audio, `epId:idx:txt` for script, and
