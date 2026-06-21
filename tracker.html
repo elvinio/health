@@ -2349,37 +2349,37 @@ function renderSetup(isFirstRun) {
 
   const view = document.getElementById('view');
   view.innerHTML = `
-    <nav class=”setup-tabs”>
-      <button class=”setup-tab ${_initialTab === 'training' ? 'active' : ''}” data-tab=”training”>Training</button>
-      <button class=”setup-tab ${_initialTab === 'ai'       ? 'active' : ''}” data-tab=”ai”>AI &amp; Radio</button>
-      <button class=”setup-tab ${_initialTab === 'data'     ? 'active' : ''}” data-tab=”data”>Data</button>
-      <button class=”setup-tab ${_initialTab === 'app'      ? 'active' : ''}” data-tab=”app”>App</button>
+    <nav class="setup-tabs">
+      <button class="setup-tab ${_initialTab === 'training' ? 'active' : ''}" data-tab="training">Training</button>
+      <button class="setup-tab ${_initialTab === 'ai'       ? 'active' : ''}" data-tab="ai">AI &amp; Radio</button>
+      <button class="setup-tab ${_initialTab === 'data'     ? 'active' : ''}" data-tab="data">Data</button>
+      <button class="setup-tab ${_initialTab === 'app'      ? 'active' : ''}" data-tab="app">App</button>
     </nav>
 
-    <div id=”setup-section-training” ${_initialTab !== 'training' ? 'hidden' : ''}>
+    <div id="setup-section-training" ${_initialTab !== 'training' ? 'hidden' : ''}>
       ${isFirstRun ? `
-      <div class=”card subtle”>
-        <div class=”note”>
+      <div class="card subtle">
+        <div class="note">
           One-time setup. Enter names for both people, pick the date <strong>Week 1 Day 1</strong> begins,
           then enter the weights for Week 1 working sets.
           Weeks 2/3/4 are auto-derived. You can edit any of this later.
         </div>
       </div>` : ''}
 
-      <div class=”card”>
+      <div class="card">
         <h2>Profiles</h2>
-        <div class=”field”>
-          <label for=”p1-name”>Person 1 name</label>
-          <input type=”text” id=”p1-name” value=”${escapeHtml(profiles.p1?.name || 'Person 1')}” placeholder=”Name”>
+        <div class="field">
+          <label for="p1-name">Person 1 name</label>
+          <input type="text" id="p1-name" value="${escapeHtml(profiles.p1?.name || 'Person 1')}" placeholder="Name">
         </div>
-        <div class=”field”>
-          <label for=”p2-name”>Person 2 name</label>
-          <input type=”text” id=”p2-name” value=”${escapeHtml(profiles.p2?.name || 'Person 2')}” placeholder=”Name”>
+        <div class="field">
+          <label for="p2-name">Person 2 name</label>
+          <input type="text" id="p2-name" value="${escapeHtml(profiles.p2?.name || 'Person 2')}" placeholder="Name">
         </div>
-        <button class=”btn secondary sm” id=”save-names-btn”>Save names</button>
+        <button class="btn secondary sm" id="save-names-btn">Save names</button>
       </div>
 
-      <div class=”card”>
+      <div class="card">
         <h2>Programme</h2>
         ${(() => {
           const activeProg = getActiveProgram();
@@ -2389,131 +2389,131 @@ function renderSetup(isFirstRun) {
             ...Object.values(imported),
           ];
           const opts = allProgs.map(p =>
-            `<option value=”${escapeHtml(p.id)}” ${p.id === activeProg.id ? 'selected' : ''}>${escapeHtml(p.name)}</option>`
+            `<option value="${escapeHtml(p.id)}" ${p.id === activeProg.id ? 'selected' : ''}>${escapeHtml(p.name)}</option>`
           ).join('');
           const numWeeks = Object.keys(activeProg.weeks).length;
           const numDays  = activeProg.days.length;
           const activeIsImported = !!imported[activeProg.id];
           return `
-            <div class=”field”>
-              <label for=”prog-select”>Active programme</label>
-              <select id=”prog-select” style=”width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:0.9rem;”>${opts}</select>
+            <div class="field">
+              <label for="prog-select">Active programme</label>
+              <select id="prog-select" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:0.9rem;">${opts}</select>
             </div>
-            <div class=”text-xs text-muted mb-2” id=”prog-desc”>${escapeHtml(activeProg.description || '')}</div>
-            <div class=”text-xs text-muted mb-2”>${numWeeks} weeks · ${numDays} days</div>
-            <div class=”row”>
-              <button class=”btn secondary sm” id=”import-prog-btn”>Import programme JSON</button>
-              <input type=”file” id=”import-prog-file” accept=”.json” style=”display:none”>
-              ${activeIsImported ? `<button class=”btn secondary sm” id=”delete-prog-btn” data-id=”${escapeHtml(activeProg.id)}”>Remove this programme</button>` : ''}
+            <div class="text-xs text-muted mb-2" id="prog-desc">${escapeHtml(activeProg.description || '')}</div>
+            <div class="text-xs text-muted mb-2">${numWeeks} weeks · ${numDays} days</div>
+            <div class="row">
+              <button class="btn secondary sm" id="import-prog-btn">Import programme JSON</button>
+              <input type="file" id="import-prog-file" accept=".json" style="display:none">
+              ${activeIsImported ? `<button class="btn secondary sm" id="delete-prog-btn" data-id="${escapeHtml(activeProg.id)}">Remove this programme</button>` : ''}
             </div>`;
         })()}
       </div>
 
-      <div class=”card”>
+      <div class="card">
         <h2>Cycle ${cycle} — start date</h2>
-        <div class=”field”>
-          <label for=”start-date”>Week 1, Day 1 begins</label>
-          <input type=”date” id=”start-date” value=”${cfg.startDate}”>
+        <div class="field">
+          <label for="start-date">Week 1, Day 1 begins</label>
+          <input type="date" id="start-date" value="${cfg.startDate}">
         </div>
-        <div class=”text-xs text-muted”>
+        <div class="text-xs text-muted">
           Day 1 doesn't have to be a Monday — pick any date. Day 1 = start, Day 7 = +6 days, repeating across 4 weeks.
         </div>
       </div>
 
-      <div class=”card”>
+      <div class="card">
         <h2>Week-1 working weights — ${escapeHtml(profileName)}</h2>
-        <div class=”text-xs text-muted mb-1”>
+        <div class="text-xs text-muted mb-1">
           Enter the weight you plan to lift for your <strong>working sets</strong> in Week 1 (RPE 7 — feels like 2–3 reps in reserve).
           Leave blank if you'll decide on the day. Switch profile above to set the other person's weights.
         </div>
-        <div id=”exercise-list”></div>
+        <div id="exercise-list"></div>
       </div>
 
-      <div class=”card”>
+      <div class="card">
         <h2>Workout settings</h2>
-        <div class=”field”>
-          <label for=”recovery-hr”>Recovery HR target (bpm)</label>
-          <input type=”number” id=”recovery-hr” min=”40” max=”220”
-                 placeholder=”e.g. 120” value=”${escapeHtml(String(cfg.recoveryHrTarget || ''))}”>
-          <div class=”text-xs text-muted”>Rest between strength sets until HR drops below this value. Leave blank to disable.</div>
+        <div class="field">
+          <label for="recovery-hr">Recovery HR target (bpm)</label>
+          <input type="number" id="recovery-hr" min="40" max="220"
+                 placeholder="e.g. 120" value="${escapeHtml(String(cfg.recoveryHrTarget || ''))}">
+          <div class="text-xs text-muted">Rest between strength sets until HR drops below this value. Leave blank to disable.</div>
         </div>
-        <div class=”field”>
-          <label for=”max-hr”>Max heart rate (bpm)</label>
-          <input type=”number” id=”max-hr” min=”120” max=”220”
-                 placeholder=”e.g. 178” value=”${escapeHtml(String(cfg.maxHr || ''))}”>
-          <div class=”text-xs text-muted”>Used for HR zones Z1–Z5 (&lt;60% / 60–70% / 70–80% / 80–90% / ≥90%). Tanaka formula: 208 − 0.7 × your age.</div>
+        <div class="field">
+          <label for="max-hr">Max heart rate (bpm)</label>
+          <input type="number" id="max-hr" min="120" max="220"
+                 placeholder="e.g. 178" value="${escapeHtml(String(cfg.maxHr || ''))}">
+          <div class="text-xs text-muted">Used for HR zones Z1–Z5 (&lt;60% / 60–70% / 70–80% / 80–90% / ≥90%). Tanaka formula: 208 − 0.7 × your age.</div>
         </div>
       </div>
 
-      <button class=”btn block” id=”save-btn” style=”margin: 18px 0 28px;”>
+      <button class="btn block" id="save-btn" style="margin: 18px 0 28px;">
         Save and continue
       </button>
     </div>
 
-    <div id=”setup-section-ai” ${_initialTab !== 'ai' ? 'hidden' : ''}>
-      <div class=”card”>
+    <div id="setup-section-ai" ${_initialTab !== 'ai' ? 'hidden' : ''}>
+      <div class="card">
         <h2>AI Chat</h2>
-        <div class=”field”>
-          <label for=”ai-key”>Claude API key</label>
-          <input type=”password” id=”ai-key” placeholder=”sk-ant-...” autocomplete=”off” value=”${escapeHtml(localStorage.getItem('health:anthropicKey') || '')}”>
-          <div class=”text-xs text-muted”>Stored only in this browser. Get one at console.anthropic.com.</div>
+        <div class="field">
+          <label for="ai-key">Claude API key</label>
+          <input type="password" id="ai-key" placeholder="sk-ant-..." autocomplete="off" value="${escapeHtml(localStorage.getItem('health:anthropicKey') || '')}">
+          <div class="text-xs text-muted">Stored only in this browser. Get one at console.anthropic.com.</div>
         </div>
-        <div class=”field”>
-          <label for=”ai-model”>Default model</label>
+        <div class="field">
+          <label for="ai-model">Default model</label>
           ${(() => {
             const m = localStorage.getItem('health:chatModel') || 'claude-sonnet-4-6';
-            const opt = (id, label) => `<option value=”${id}” ${m === id ? 'selected' : ''}>${label}</option>`;
-            return `<select id=”ai-model” style=”width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:0.9rem;”>
+            const opt = (id, label) => `<option value="${id}" ${m === id ? 'selected' : ''}>${label}</option>`;
+            return `<select id="ai-model" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:0.9rem;">
               ${opt('claude-sonnet-4-6', 'Sonnet 4.6 — $3 / $15 per 1M tok')}
               ${opt('claude-opus-4-8', 'Opus 4.8 — $5 / $25 per 1M tok')}
             </select>`;
           })()}
         </div>
-        <button class=”btn secondary sm” id=”ai-save-btn”>Save AI settings</button>
+        <button class="btn secondary sm" id="ai-save-btn">Save AI settings</button>
       </div>
 
-      <div class=”card”>
+      <div class="card">
         <h2>Radio station</h2>
-        <details class=”mb-2”>
-          <summary class=”text-xs text-muted” style=”cursor:pointer;user-select:none;padding:4px 0;”>How to get a key ▾</summary>
-          <ol class=”note mt-1” style=”padding-left:1.4em;line-height:1.9;font-size:0.8rem;”>
+        <details class="mb-2">
+          <summary class="text-xs text-muted" style="cursor:pointer;user-select:none;padding:4px 0;">How to get a key ▾</summary>
+          <ol class="note mt-1" style="padding-left:1.4em;line-height:1.9;font-size:0.8rem;">
             <li>Sign in at <strong>elevenlabs.io</strong></li>
             <li>Open your account menu → <em>API Keys</em> (elevenlabs.io/app/settings/api-keys)</li>
             <li><em>Create API Key</em>, copy it, then paste the key below</li>
-            <li>Pick each show's voice later in the Radio tab's review screen (tap “Load” to list your account voices)</li>
+            <li>Pick each show's voice later in the Radio tab's review screen (tap "Load" to list your account voices)</li>
           </ol>
         </details>
-        <div class=”field”>
-          <label for=”eleven-key”>ElevenLabs API key</label>
-          <input type=”password” id=”eleven-key” placeholder=”sk_...” autocomplete=”off” value=”${escapeHtml(localStorage.getItem('health:elevenLabsKey') || '')}”>
-          <div class=”text-xs text-muted”>Speaks the radio shows. Stored only in this browser. Uses your Claude key (above) to write them.</div>
+        <div class="field">
+          <label for="eleven-key">ElevenLabs API key</label>
+          <input type="password" id="eleven-key" placeholder="sk_..." autocomplete="off" value="${escapeHtml(localStorage.getItem('health:elevenLabsKey') || '')}">
+          <div class="text-xs text-muted">Speaks the radio shows. Stored only in this browser. Uses your Claude key (above) to write them.</div>
         </div>
-        <button class=”btn secondary sm” id=”tts-save-btn”>Save ElevenLabs key</button>
-        <div class=”field” style=”margin-top:14px;”>
-          <label for=”radio-music-proxy”>Interstitial music URL (Apps Script)</label>
-          <input type=”text” id=”radio-music-proxy” placeholder=”https://script.google.com/.../exec” value=”${escapeHtml(localStorage.getItem('health:radio:musicProxyUrl') || '')}”>
-          <div class=”text-xs text-muted”>Plays royalty-free piano (classicals.de) between radio segments. Deploy <code>apps-script/classicals-proxy.gs</code> and paste its web-app URL.</div>
+        <button class="btn secondary sm" id="tts-save-btn">Save ElevenLabs key</button>
+        <div class="field" style="margin-top:14px;">
+          <label for="radio-music-proxy">Interstitial music URL (Apps Script)</label>
+          <input type="text" id="radio-music-proxy" placeholder="https://script.google.com/.../exec" value="${escapeHtml(localStorage.getItem('health:radio:musicProxyUrl') || '')}">
+          <div class="text-xs text-muted">Plays royalty-free piano (classicals.de) between radio segments. Deploy <code>apps-script/classicals-proxy.gs</code> and paste its web-app URL.</div>
         </div>
-        <button class=”btn secondary sm” id=”radio-music-save-btn”>Save music URL</button>
+        <button class="btn secondary sm" id="radio-music-save-btn">Save music URL</button>
       </div>
     </div>
 
-    <div id=”setup-section-data” ${_initialTab !== 'data' ? 'hidden' : ''}>
-      <div class=”card”>
+    <div id="setup-section-data" ${_initialTab !== 'data' ? 'hidden' : ''}>
+      <div class="card">
         <h2>Data backup</h2>
-        <div class=”row mb-2”>
-          <button class=”btn secondary” id=”export-btn”>Export JSON</button>
-          <button class=”btn secondary” id=”import-btn”>Import JSON</button>
-          <input type=”file” id=”import-file” accept=”.json” style=”display:none”>
+        <div class="row mb-2">
+          <button class="btn secondary" id="export-btn">Export JSON</button>
+          <button class="btn secondary" id="import-btn">Import JSON</button>
+          <input type="file" id="import-file" accept=".json" style="display:none">
         </div>
-        <div class=”text-xs text-muted”>Download a backup of all workout data, or restore from a previous export.</div>
+        <div class="text-xs text-muted">Download a backup of all workout data, or restore from a previous export.</div>
       </div>
 
-      <div class=”card”>
+      <div class="card">
         <h2>Google Drive sync</h2>
-        <details class=”mb-2”>
-          <summary class=”text-xs text-muted” style=”cursor:pointer;user-select:none;padding:4px 0;”>Setup instructions ▾</summary>
-          <ol class=”note mt-1” style=”padding-left:1.4em;line-height:1.9;font-size:0.8rem;”>
+        <details class="mb-2">
+          <summary class="text-xs text-muted" style="cursor:pointer;user-select:none;padding:4px 0;">Setup instructions ▾</summary>
+          <ol class="note mt-1" style="padding-left:1.4em;line-height:1.9;font-size:0.8rem;">
             <li>Go to <strong>console.cloud.google.com</strong> → create a project</li>
             <li>Enable the <em>Google Drive API</em></li>
             <li>Create an <em>OAuth 2.0 Client ID</em> (Web application) — add this page's URL as an authorised JavaScript origin</li>
@@ -2522,37 +2522,37 @@ function renderSetup(isFirstRun) {
             <li>To load from an existing file, paste its Drive File ID below</li>
           </ol>
         </details>
-        <div class=”field”>
-          <label for=”drive-client-id”>OAuth Client ID</label>
-          <input type=”text” id=”drive-client-id” placeholder=”xxxx.apps.googleusercontent.com” value=”${escapeHtml(driveCfg.clientId || '')}”>
+        <div class="field">
+          <label for="drive-client-id">OAuth Client ID</label>
+          <input type="text" id="drive-client-id" placeholder="xxxx.apps.googleusercontent.com" value="${escapeHtml(driveCfg.clientId || '')}">
         </div>
-        <div class=”field”>
-          <label for=”drive-file-id”>File ID <span class=”text-muted”>(auto-saved after first upload; paste to load an existing file)</span></label>
-          <input type=”text” id=”drive-file-id” placeholder=”1BxiM…” value=”${escapeHtml(driveCfg.fileId || '')}”>
+        <div class="field">
+          <label for="drive-file-id">File ID <span class="text-muted">(auto-saved after first upload; paste to load an existing file)</span></label>
+          <input type="text" id="drive-file-id" placeholder="1BxiM…" value="${escapeHtml(driveCfg.fileId || '')}">
         </div>
-        <button class=”btn secondary sm” id=”drive-cred-btn”>Save credentials</button>
-        <div id=”drive-controls” ${driveCfg.clientId ? '' : 'hidden'} style=”margin-top:14px;”>
-          <div class=”row”>
-            <button class=”btn secondary” id=”drive-save-btn”>Save to Drive</button>
-            <button class=”btn secondary” id=”drive-load-btn”>Load from Drive</button>
+        <button class="btn secondary sm" id="drive-cred-btn">Save credentials</button>
+        <div id="drive-controls" ${driveCfg.clientId ? '' : 'hidden'} style="margin-top:14px;">
+          <div class="row">
+            <button class="btn secondary" id="drive-save-btn">Save to Drive</button>
+            <button class="btn secondary" id="drive-load-btn">Load from Drive</button>
           </div>
-          <div class=”drive-status” id=”drive-status”>${driveCfg.lastSaved ? 'Last saved: ' + escapeHtml(driveCfg.lastSaved) : ''}</div>
+          <div class="drive-status" id="drive-status">${driveCfg.lastSaved ? 'Last saved: ' + escapeHtml(driveCfg.lastSaved) : ''}</div>
         </div>
       </div>
     </div>
 
-    <div id=”setup-section-app” ${_initialTab !== 'app' ? 'hidden' : ''}>
-      <div class=”card”>
+    <div id="setup-section-app" ${_initialTab !== 'app' ? 'hidden' : ''}>
+      <div class="card">
         <h2>App cache</h2>
-        <div class=”text-xs text-muted mb-2”>Cache version: <strong>${escapeHtml(TRACKER_CACHE_VERSION)}</strong></div>
-        <button class=”btn secondary block” id=”refresh-cache-btn”>Refresh cache</button>
-        <div class=”text-xs text-muted mt-1”>Clears cached files and reloads to pick up the latest version.</div>
+        <div class="text-xs text-muted mb-2">Cache version: <strong>${escapeHtml(TRACKER_CACHE_VERSION)}</strong></div>
+        <button class="btn secondary block" id="refresh-cache-btn">Refresh cache</button>
+        <div class="text-xs text-muted mt-1">Clears cached files and reloads to pick up the latest version.</div>
       </div>
 
-      <div class=”card” style=”margin-bottom:28px;”>
+      <div class="card" style="margin-bottom:28px;">
         <h2>Danger zone</h2>
-        <button class=”btn secondary block” id=”reset-btn”>Reset all data</button>
-        <div class=”text-xs text-muted mt-1”>Wipes config, baselines, and all session history.</div>
+        <button class="btn secondary block" id="reset-btn">Reset all data</button>
+        <div class="text-xs text-muted mt-1">Wipes config, baselines, and all session history.</div>
       </div>
     </div>
   `;

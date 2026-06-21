@@ -1,4 +1,4 @@
-const CACHE = 'health-tracker-v15';
+const CACHE = 'health-tracker-v16';
 const EXT_CACHE = 'health-tracker-ext-v1';
 const ASSETS = ['/health/tracker.html', '/health/tracker-chat.js', '/health/tracker-radio.js'];
 
