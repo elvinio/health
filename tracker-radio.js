@@ -119,6 +119,7 @@
     audio: null,
     objUrl: null,
     curIdx: 0,
+    pendingStart: null,  // {idx,time,autoplay} when the player should jump to a chosen segment
     saveTimer: 0,
     speed: 1,            // playback rate for speech audio
     music: null,         // second <audio> element for interstitial music
@@ -372,6 +373,13 @@
     if (prog) prog.textContent = `Creating audio… ${done}/${ep.segments.length} segments`;
     const btn = document.getElementById('rv-makeaudio');
     if (btn) { btn.disabled = true; btn.textContent = 'Creating audio…'; }
+    // Reveal each segment's 🔊 badge + play button the moment its audio lands,
+    // without rebuilding the list (which would wipe the script the user is reading).
+    ep.segments.forEach(s => {
+      if (!s.hasAudio) return;
+      const badge = document.getElementById('rv-aud-' + s.idx); if (badge) badge.hidden = false;
+      const play = document.getElementById('rv-play-' + s.idx); if (play) play.hidden = false;
+    });
   }
 
   // Phase 1 — write the whole script (Claude only, no TTS). Leaves a 'draft'.
@@ -808,12 +816,15 @@ Rules for the spoken text under each heading:
     } catch (e) { stopInterstitial(); onDone(); }
   }
 
-  function openPlayer(epId) {
+  function openPlayer(epId, startIdx) {
     teardownAudio();
     RadioState.view = 'player';
     RadioState.epId = epId;
     const prog = getProgress(epId);
-    RadioState.curIdx = prog.idx || 0;
+    RadioState.curIdx = (startIdx != null) ? startIdx : (prog.idx || 0);
+    // Tapping a specific segment (e.g. on the review screen) jumps straight to it
+    // and auto-plays; otherwise resume where playback last left off.
+    RadioState.pendingStart = (startIdx != null) ? { idx: startIdx, time: 0, autoplay: true } : null;
     history.pushState({ radioView: 'player', epId }, '');
     renderRadio();
   }
@@ -827,7 +838,7 @@ Rules for the spoken text under each heading:
     if (idx >= done) { setStatus(ep.status === 'synthesizing' ? 'Creating more audio…' : 'End of episode.'); return; }
     RadioState.curIdx = idx;
     const blob = await idbGet(ep.id + ':' + idx);
-    if (!blob) { setStatus('Audio for this segment is missing.'); return; }
+    if (!blob) { setStatus(ep.status === 'synthesizing' ? 'This segment is still being created…' : 'Audio for this segment is missing.'); return; }
     if (RadioState.objUrl) { try { URL.revokeObjectURL(RadioState.objUrl); } catch (e) {} }
     RadioState.objUrl = URL.createObjectURL(blob);
     const audio = RadioState.audio;
@@ -936,7 +947,9 @@ Rules for the spoken text under each heading:
     RadioState.saveTimer = setInterval(() => { if (RadioState.audio && !RadioState.audio.paused) saveProgress(ep.id, RadioState.curIdx, RadioState.audio.currentTime); }, 4000);
 
     const prog = getProgress(ep.id);
-    loadSegment(prog.idx || 0, false, prog.time || 0);
+    const start = RadioState.pendingStart || { idx: prog.idx || 0, time: prog.time || 0, autoplay: false };
+    RadioState.pendingStart = null;
+    loadSegment(start.idx, start.autoplay, start.time);
   }
 
   /* ── Review screen (read the script before TTS) ────────────────────────── */
@@ -956,8 +969,9 @@ Rules for the spoken text under each heading:
     const voiceOpts = voiceOptionsHtml(ep.voice, ep.voiceName);
     const segHtml = ep.segments.map(s => `
       <details class="rv-seg" open>
-        <summary class="rv-seg-title">${s.idx + 1}. ${escapeHtml(s.title || '')} ${s.hasAudio ? '<span class="rv-aud">🔊</span>' : ''}</summary>
+        <summary class="rv-seg-title">${s.idx + 1}. ${escapeHtml(s.title || '')} <span class="rv-aud" id="rv-aud-${s.idx}"${s.hasAudio ? '' : ' hidden'}>🔊</span></summary>
         <div class="rv-seg-text" id="rv-txt-${s.idx}">…</div>
+        <button class="btn secondary sm rv-play" data-idx="${s.idx}" id="rv-play-${s.idx}"${s.hasAudio ? '' : ' hidden'}>▶ Play this segment</button>
       </details>`).join('');
 
     view.innerHTML = `
@@ -1043,6 +1057,10 @@ Rules for the spoken text under each heading:
       RadioState.view = 'home';
       generateScripts(ch, len, segSz);
     };
+
+    // Play a single finished segment — works mid-synthesis, so the user can
+    // listen to early segments while later ones are still baking.
+    view.querySelectorAll('.rv-play').forEach(b => b.onclick = () => openPlayer(ep.id, Number(b.dataset.idx)));
 
     // fill in the script bodies from IndexedDB
     ep.segments.forEach(s => idbGet(ep.id + ':' + s.idx + ':txt').then(t => {
@@ -1218,6 +1236,7 @@ Rules for the spoken text under each heading:
       .rv-seg-title::-webkit-details-marker { display:none; }
       details.rv-seg[open] .rv-seg-title { margin-bottom:6px; }
       .rv-seg-text { font-size:0.92rem; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
+      .rv-play { margin-top:10px; }
       .rc-segsz { padding:6px 8px; border-radius:8px; border:1px solid var(--border); background:var(--paper); color:var(--text); font-size:0.82rem; }
       .rmp-area { width:100%; font-size:0.82rem; line-height:1.5; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--card); color:var(--text); white-space:pre-wrap; overflow-wrap:anywhere; box-sizing:border-box; }
       .rc-keybanner { font-size:0.78rem; color:var(--muted); border:1px dashed var(--border); border-radius:10px; padding:9px 11px; line-height:1.5; }
