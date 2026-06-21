@@ -262,7 +262,7 @@
   }
   function claudeText(msg) { return (msg.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim(); }
 
-  /* ── Kokoro Text-to-Speech (MP3 out) ────────────────────────────────────── */
+  /* ── Kokoro Text-to-Speech ──────────────────────────────────────────────── */
   // onProgress(bytesReceived) is called as chunks arrive — use it to update UI.
   async function synthesizeTTS(text, voiceId, onProgress) {
     const key = (localStorage.getItem(KOKORO_KEY) || '').trim();
@@ -270,7 +270,7 @@
     const input = text.length > TTS_CHAR_LIMIT ? text.slice(0, TTS_CHAR_LIMIT) : text;
     const res = await fetch(kokoroUrl() + '/tts', {
       method: 'POST', headers: { 'X-API-Key': key, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: input, voice: voiceId }),
+      body: JSON.stringify({ text: input, voice: voiceId, format: 'opus' }),
     });
     if (!res.ok) {
       let detail = '';
@@ -280,6 +280,7 @@
     }
     // Stream the response so the connection stays alive during generation and
     // the user sees byte progress instead of a frozen UI.
+    const mimeType = res.headers.get('content-type') || 'audio/ogg';
     const reader = res.body.getReader();
     const chunks = [];
     let received = 0;
@@ -290,7 +291,7 @@
       received += value.length;
       if (onProgress) onProgress(received);
     }
-    const blob = new Blob(chunks, { type: 'audio/mpeg' });
+    const blob = new Blob(chunks, { type: mimeType });
     if (!blob.size) throw new Error('Kokoro returned no audio.');
     return blob;
   }
