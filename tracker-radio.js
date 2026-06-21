@@ -286,7 +286,7 @@
   function cachedVoices() { return KOKORO_VOICES; }
   function voiceLabel(id) { const v = KOKORO_VOICES.find(v => v.id === id); return v ? v.label : id; }
   // <option> list for a voice <select>. If the selected id isn't a known Kokoro
-  // voice (e.g. an episode saved with an old ElevenLabs id), prepend it so the
+  // voice (e.g. an episode saved with an old/unknown id), prepend it so the
   // dropdown still shows the current selection.
   function voiceOptionsHtml(selectedId, fallbackName) {
     let list = KOKORO_VOICES;
