@@ -263,7 +263,8 @@
   function claudeText(msg) { return (msg.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim(); }
 
   /* ── Kokoro Text-to-Speech (MP3 out) ────────────────────────────────────── */
-  async function synthesizeTTS(text, voiceId) {
+  // onProgress(bytesReceived) is called as chunks arrive — use it to update UI.
+  async function synthesizeTTS(text, voiceId, onProgress) {
     const key = (localStorage.getItem(KOKORO_KEY) || '').trim();
     if (!key) throw new Error('No Kokoro API key. Add it in Setup → Radio station.');
     const input = text.length > TTS_CHAR_LIMIT ? text.slice(0, TTS_CHAR_LIMIT) : text;
@@ -277,8 +278,20 @@
       catch (e) { detail = (await res.text().catch(() => '')).slice(0, 200); }
       throw new Error('Kokoro ' + res.status + (detail ? ': ' + detail : ''));
     }
-    const blob = await res.blob();
-    if (!blob || !blob.size) throw new Error('Kokoro returned no audio.');
+    // Stream the response so the connection stays alive during generation and
+    // the user sees byte progress instead of a frozen UI.
+    const reader = res.body.getReader();
+    const chunks = [];
+    let received = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.length;
+      if (onProgress) onProgress(received);
+    }
+    const blob = new Blob(chunks, { type: 'audio/mpeg' });
+    if (!blob.size) throw new Error('Kokoro returned no audio.');
     return blob;
   }
 
@@ -426,7 +439,12 @@
         if (ep.segments[i].hasAudio) continue;
         const text = await idbGet(epId + ':' + i + ':txt');
         if (!text) continue;
-        const blob = await synthesizeTTS(text, ep.voice);
+        const segLabel = `${i + 1}/${ep.segments.length}`;
+        const blob = await synthesizeTTS(text, ep.voice, (bytes) => {
+          const kb = Math.round(bytes / 1024);
+          const prog = document.getElementById('rv-progress');
+          if (prog) prog.textContent = `Creating audio… segment ${segLabel} · ${kb} KB received`;
+        });
         await idbPut(epId + ':' + i, blob);
         ep.segments[i].hasAudio = true;
         saveEpisode(ep);
@@ -959,7 +977,11 @@ Rules for the spoken text under each heading:
       // Kokoro has no preview samples, so synthesize a short line on demand.
       pv.disabled = true; if (st) st.textContent = 'Synthesizing sample…';
       try {
-        const blob = await synthesizeTTS('Hi, this is how this voice sounds on your radio.', voice);
+        const blob = await synthesizeTTS('Hi, this is how this voice sounds on your radio.', voice, (bytes) => {
+          const kb = Math.round(bytes / 1024);
+          const s = document.getElementById('rv-preview-status');
+          if (s) s.textContent = `Receiving… ${kb} KB`;
+        });
         const url = URL.createObjectURL(blob);
         const audio = new Audio(url);
         _preview = { audio, url };
