@@ -33,7 +33,7 @@ api_key_secret = modal.Secret.from_name("tts-api-key")
 #   modal deploy tts/tts.py  # production (persistent URL)
 # Add gpu="A10G" to the decorator if you want GPU-accelerated inference.
 # ---------------------------------------------------------------------------
-@app.function(secrets=[api_key_secret], timeout=600, cpu=2.0)
+@app.function(secrets=[api_key_secret], timeout=600, cpu=1.0)
 @modal.concurrent(max_inputs=2)
 @modal.asgi_app()
 def fastapi_app():
@@ -50,7 +50,7 @@ def fastapi_app():
     from pydantic import BaseModel
     from typing import Literal
 
-    # 1 thread per concurrent request × 2 requests = 2 threads on 2 cores.
+    # Lock per pipeline serializes Kokoro inference, so 1 core suffices.
     torch.set_num_threads(1)
 
     # Pre-create both language pipelines once per container. The lock prevents
