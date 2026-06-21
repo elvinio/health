@@ -30,9 +30,11 @@ api_key_secret = modal.Secret.from_name("tts-api-key")
 def fastapi_app():
     import os
     import subprocess
+    import threading
 
-    from fastapi import Depends, FastAPI, HTTPException, Response, status
+    from fastapi import Depends, FastAPI, HTTPException, status
     from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.responses import StreamingResponse
     from fastapi.security import APIKeyHeader
     from pydantic import BaseModel
 
@@ -93,18 +95,35 @@ def fastapi_app():
             stderr=subprocess.DEVNULL,
         )
 
-        # Generate audio from Kokoro and stream into ffmpeg.
-        # kokoro yields a torch Tensor; convert to f32 numpy bytes for ffmpeg.
-        for _, _, audio in pipeline(req.text, voice=req.voice):
-            if hasattr(audio, "cpu"):  # torch.Tensor
-                audio = audio.cpu().numpy()
-            ffmpeg.stdin.write(audio.astype("float32").tobytes())
+        # Feed Kokoro chunks into ffmpeg stdin on a background thread so that
+        # the main thread can read ffmpeg stdout concurrently. Without this,
+        # ffmpeg's output pipe fills up and blocks before stdin is closed,
+        # causing a deadlock on long texts.
+        def write_audio():
+            try:
+                for _, _, audio in pipeline(req.text, voice=req.voice):
+                    if hasattr(audio, "cpu"):  # torch.Tensor
+                        audio = audio.cpu().numpy()
+                    ffmpeg.stdin.write(audio.astype("float32").tobytes())
+            finally:
+                ffmpeg.stdin.close()
 
-        ffmpeg.stdin.close()
+        writer = threading.Thread(target=write_audio, daemon=True)
+        writer.start()
 
-        mp3_data = ffmpeg.stdout.read()
-        ffmpeg.wait()
+        # Yield MP3 chunks as ffmpeg produces them so the client receives data
+        # immediately rather than waiting for the full encode to finish.
+        def generate():
+            try:
+                while True:
+                    chunk = ffmpeg.stdout.read(16384)
+                    if not chunk:
+                        break
+                    yield chunk
+            finally:
+                writer.join(timeout=30)
+                ffmpeg.wait()
 
-        return Response(content=mp3_data, media_type="audio/mpeg")
+        return StreamingResponse(generate(), media_type="audio/mpeg")
 
     return web_app
