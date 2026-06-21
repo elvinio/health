@@ -120,6 +120,7 @@
     objUrl: null,
     curIdx: 0,
     saveTimer: 0,
+    speed: 1,            // playback rate for speech audio
     music: null,         // second <audio> element for interstitial music
     musicActive: false,  // true while a between-segment music break is playing
     musicUrl: null,      // object URL for the current music blob
@@ -831,6 +832,7 @@ Rules for the spoken text under each heading:
     RadioState.objUrl = URL.createObjectURL(blob);
     const audio = RadioState.audio;
     audio.src = RadioState.objUrl;
+    audio.playbackRate = RadioState.speed;
     audio.load();
     const seg = ep.segments[idx];
     const segTitle = document.getElementById('rp-segtitle'); if (segTitle) segTitle.textContent = seg.title || '';
@@ -874,6 +876,11 @@ Rules for the spoken text under each heading:
           <button id="rp-fwd15" title="Forward 15s">+15</button>
           <button id="rp-next" title="Next segment">⏭</button>
         </div>
+        <div class="rp-speeds">
+          <button class="rp-speed${RadioState.speed === 0.8 ? ' active' : ''}" data-rate="0.8">0.8×</button>
+          <button class="rp-speed${RadioState.speed === 0.9 ? ' active' : ''}" data-rate="0.9">0.9×</button>
+          <button class="rp-speed${RadioState.speed === 1 ? ' active' : ''}" data-rate="1">1×</button>
+        </div>
         <div class="rp-status" id="rp-status"></div>
         <details class="rp-script"><summary>📄 Script</summary><div class="rp-scripttext" id="rp-scripttext"></div></details>
       </div>`;
@@ -916,6 +923,14 @@ Rules for the spoken text under each heading:
       if (audio.currentTime > 3) { audio.currentTime = 0; } else { loadSegment(RadioState.curIdx - 1, true, 0); }
     };
     document.getElementById('rp-next').onclick = () => { loadSegment(RadioState.curIdx + 1, true, 0); };
+    document.querySelectorAll('.rp-speed').forEach(btn => {
+      btn.onclick = () => {
+        const rate = parseFloat(btn.dataset.rate);
+        RadioState.speed = rate;
+        if (RadioState.audio) RadioState.audio.playbackRate = rate;
+        document.querySelectorAll('.rp-speed').forEach(b => b.classList.toggle('active', parseFloat(b.dataset.rate) === rate));
+      };
+    });
 
     // periodic progress save while playing
     RadioState.saveTimer = setInterval(() => { if (RadioState.audio && !RadioState.audio.paused) saveProgress(ep.id, RadioState.curIdx, RadioState.audio.currentTime); }, 4000);
@@ -1180,6 +1195,9 @@ Rules for the spoken text under each heading:
       .rp-time { width:100%; max-width:420px; display:flex; justify-content:space-between; font-size:0.72rem; color:var(--muted); }
       .rp-controls { display:flex; align-items:center; gap:14px; margin-top:18px; }
       .rp-controls button { font-size:1.1rem; font-weight:700; color:var(--accent-d); min-width:48px; padding:8px; }
+      .rp-speeds { display:flex; gap:8px; margin-top:12px; }
+      .rp-speed { font-size:0.8rem; font-weight:600; padding:4px 12px; border-radius:999px; border:1.5px solid var(--accent); color:var(--accent-d); background:transparent; }
+      .rp-speed.active { background:var(--accent); color:#fff; }
       .rp-controls .rp-main { width:64px; height:64px; border-radius:50%; background:var(--accent); color:#fff; font-size:1.5rem; }
       .rp-status { font-size:0.8rem; color:var(--muted); margin-top:16px; min-height:1.2em; }
       .rp-script { width:100%; max-width:440px; margin-top:22px; text-align:left; border:1px solid var(--border); border-radius:10px; background:var(--card); }
