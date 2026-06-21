@@ -5,10 +5,19 @@ import modal
 # Only `modal` is imported at module level — fastapi/kokoro live inside the
 # image, so importing them up here would break local `modal serve/deploy`.
 # ---------------------------------------------------------------------------
+
+# Download both Kokoro pipeline models into the image layer at build time so
+# cold-start containers have the weights on disk and skip the network fetch.
+def _download_models():
+    from kokoro import KPipeline
+    KPipeline(lang_code="a")
+    KPipeline(lang_code="b")
+
 image = (
     modal.Image.debian_slim(python_version="3.12")
     .apt_install("ffmpeg")
     .pip_install("fastapi[standard]", "kokoro", "soundfile", "torch")
+    .run_function(_download_models)
 )
 
 app = modal.App("kokoro-tts", image=image)
@@ -25,18 +34,47 @@ api_key_secret = modal.Secret.from_name("tts-api-key")
 # Add gpu="A10G" to the decorator if you want GPU-accelerated inference.
 # ---------------------------------------------------------------------------
 @app.function(secrets=[api_key_secret], timeout=600, cpu=2.0)
-@modal.concurrent(max_inputs=4)
+@modal.concurrent(max_inputs=2)
 @modal.asgi_app()
 def fastapi_app():
     import os
     import subprocess
     import threading
 
+    import torch
+    from kokoro import KPipeline
     from fastapi import Depends, FastAPI, HTTPException, status
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import StreamingResponse
     from fastapi.security import APIKeyHeader
     from pydantic import BaseModel
+    from typing import Literal
+
+    # 1 thread per concurrent request × 2 requests = 2 threads on 2 cores.
+    torch.set_num_threads(1)
+
+    # Pre-create both language pipelines once per container. The lock prevents
+    # concurrent requests from calling the same pipeline simultaneously.
+    _pipelines = {
+        "a": (KPipeline(lang_code="a"), threading.Lock()),
+        "b": (KPipeline(lang_code="b"), threading.Lock()),
+    }
+
+    # ffmpeg settings per output format.
+    _FORMAT = {
+        "opus": {
+            "codec": "libopus",
+            "bitrate": "48k",
+            "container": "ogg",
+            "media_type": "audio/ogg",
+        },
+        "mp3": {
+            "codec": "libmp3lame",
+            "bitrate": "128k",
+            "container": "mp3",
+            "media_type": "audio/mpeg",
+        },
+    }
 
     # API-key auth: clients send `X-API-Key: <key>`.
     api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
@@ -52,6 +90,7 @@ def fastapi_app():
     class TTSRequest(BaseModel):
         text: str
         voice: str = "af_bella"
+        format: Literal["opus", "mp3"] = "opus"
 
     web_app = FastAPI()
 
@@ -68,20 +107,14 @@ def fastapi_app():
 
     @web_app.post("/tts", dependencies=[Depends(require_api_key)])
     def tts(req: TTSRequest):
-        import torch
-        from kokoro import KPipeline
-
-        # With cpu=2.0 and max_inputs=4, cap intra-op threads so 4 concurrent
-        # calls don't over-subscribe the 2 cores (4 × default ~4 = 16 threads).
-        torch.set_num_threads(1)
-
         # British voice ids start with bf_/bm_ → lang_code "b"; all others use
         # American English ("a"). Picking the matching phonemizer keeps
         # pronunciation correct for both accents.
         lang_code = "b" if req.voice[:1] == "b" else "a"
-        pipeline = KPipeline(lang_code=lang_code)
+        pipeline, lock = _pipelines[lang_code]
+        fmt = _FORMAT[req.format]
 
-        # Start ffmpeg process (MP3 encoder)
+        # Start ffmpeg process with the requested output format.
         ffmpeg = subprocess.Popen(
             [
                 "ffmpeg",
@@ -90,9 +123,9 @@ def fastapi_app():
                 "-ar", "24000",
                 "-ac", "1",
                 "-i", "pipe:0",
-                "-codec:a", "libmp3lame",
-                "-b:a", "192k",
-                "-f", "mp3",
+                "-codec:a", fmt["codec"],
+                "-b:a", fmt["bitrate"],
+                "-f", fmt["container"],
                 "pipe:1",
             ],
             stdin=subprocess.PIPE,
@@ -106,18 +139,19 @@ def fastapi_app():
         # causing a deadlock on long texts.
         def write_audio():
             try:
-                for _, _, audio in pipeline(req.text, voice=req.voice):
-                    if hasattr(audio, "cpu"):  # torch.Tensor
-                        audio = audio.cpu().numpy()
-                    ffmpeg.stdin.write(audio.astype("float32").tobytes())
+                with lock:
+                    for _, _, audio in pipeline(req.text, voice=req.voice):
+                        if hasattr(audio, "cpu"):  # torch.Tensor
+                            audio = audio.cpu().numpy()
+                        ffmpeg.stdin.write(audio.astype("float32").tobytes())
             finally:
                 ffmpeg.stdin.close()
 
         writer = threading.Thread(target=write_audio, daemon=True)
         writer.start()
 
-        # Yield MP3 chunks as ffmpeg produces them so the client receives data
-        # immediately rather than waiting for the full encode to finish.
+        # Yield encoded audio chunks as ffmpeg produces them so the client
+        # receives data immediately rather than waiting for the full encode.
         def generate():
             try:
                 while True:
@@ -129,6 +163,6 @@ def fastapi_app():
                 writer.join(timeout=30)
                 ffmpeg.wait()
 
-        return StreamingResponse(generate(), media_type="audio/mpeg")
+        return StreamingResponse(generate(), media_type=fmt["media_type"])
 
     return web_app
