@@ -983,7 +983,7 @@
 <script>
 'use strict';
 
-const TRACKER_CACHE_VERSION = 'health-tracker-v15';
+const TRACKER_CACHE_VERSION = 'health-tracker-v19';
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
 const THEMES = [
@@ -2709,11 +2709,7 @@ function renderSetup(isFirstRun) {
   }
 
   // App maintenance handlers
-  document.getElementById('refresh-cache-btn').onclick = () => {
-    if (confirm('Clear the app cache and reload? The page will fetch the latest files from the server.')) {
-      refreshTrackerCache();
-    }
-  };
+  document.getElementById('refresh-cache-btn').onclick = () => refreshTrackerCache();
   document.getElementById('reset-btn').onclick = () => {
     if (confirm('Wipe ALL data (config, weights, session history)? This cannot be undone.')) {
       Storage.reset();
@@ -2822,11 +2818,7 @@ function renderSetupApp() {
     </div>
   `;
 
-  document.getElementById('refresh-cache-btn').onclick = () => {
-    if (confirm('Clear the app cache and reload? The page will fetch the latest files from the server.')) {
-      refreshTrackerCache();
-    }
-  };
+  document.getElementById('refresh-cache-btn').onclick = () => refreshTrackerCache();
   document.getElementById('reset-btn').onclick = () => {
     if (confirm('Wipe ALL data (config, weights, session history)? This cannot be undone.')) {
       Storage.reset();
