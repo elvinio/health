@@ -91,6 +91,7 @@ def fastapi_app():
         text: str
         voice: str = "af_bella"
         format: Literal["opus", "mp3"] = "opus"
+        speed: float = 1.0
 
     web_app = FastAPI()
 
@@ -140,7 +141,7 @@ def fastapi_app():
         def write_audio():
             try:
                 with lock:
-                    for _, _, audio in pipeline(req.text, voice=req.voice):
+                    for _, _, audio in pipeline(req.text, voice=req.voice, speed=req.speed):
                         if hasattr(audio, "cpu"):  # torch.Tensor
                             audio = audio.cpu().numpy()
                         ffmpeg.stdin.write(audio.astype("float32").tobytes())
