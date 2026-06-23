@@ -60,6 +60,19 @@ def fastapi_app():
         "b": (KPipeline(lang_code="b"), threading.Lock()),
     }
 
+    # Patch lexicon.golds to override misidentified pronunciations.
+    # "breathed" is stored as 'bɹˈɛθt' (the rare adjective form meaning
+    # "unvoiced") but in practice it's always the verb past tense of "breathe".
+    _PRON_OVERRIDES = {
+        "a": {"breathed": "bɹˈiðd"},    # US: /briːðd/
+        "b": {"breathed": "bɹˈiːðd"},   # GB: /briːðd/
+    }
+    for code, overrides in _PRON_OVERRIDES.items():
+        g = _pipelines[code][0].g2p.lexicon.golds
+        for word, phonemes in overrides.items():
+            g[word] = phonemes
+            g[word.capitalize()] = phonemes
+
     # ffmpeg settings per output format.
     _FORMAT = {
         "opus": {
