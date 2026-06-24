@@ -655,14 +655,14 @@ let rainFrameCache = new Map(); // slot key → data: URI (proxy) / direct URL (
 let rainPollingInterval = null;
 let rainAnimTimer = null;
 let rainUsingProxy = false;
-let rainWindowDays = 1;     // selected range pill — bounds how far back the slider can be dragged
+let rainWindowDays = 1/24;  // selected range pill — bounds how far back the slider can be dragged
 
 // Fixed georeference of the NEA radar PNG (same extent every frame) —
 // SW / NE corners from the checkweather-sg / rain-geojson-sg projects.
 const RAIN_BOUNDS = [[1.156, 103.565], [1.475, 104.13]];
 const RAIN_IMG_URL = key => `https://www.weather.gov.sg/files/rainarea/50km/v2/dpsri_70km_${key}0000dBR.dpsri.png`;
 const RAIN_BATCH_SIZE = 48; // 4h of 5-min frames fetched per batched proxy request
-const RAIN_WINDOWS = [[1, '1 day'], [3, '3 days'], [7, '1 week'], [14, '2 weeks'], [30, '30 days']];
+const RAIN_WINDOWS = [[1/24, '1 hour'], [4/24, '4 hours'], [1, '1 day'], [7, '1 week']];
 const RAIN_CACHE_NAME = 'rain-frames-v1'; // persistent Cache API store (preserved across SW updates, see sw.js)
 
 // SGT 5-min slot keys for the last `days` days, oldest first. Frames are
