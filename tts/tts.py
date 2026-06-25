@@ -17,7 +17,7 @@ def _download_models():
 image = (
     modal.Image.debian_slim(python_version="3.12")
     .apt_install("ffmpeg")
-    .pip_install("fastapi[standard]", "kokoro", "cn2an", "ordered_set", "pypinyin", "soundfile", "torch")
+    .pip_install("fastapi[standard]", "kokoro", "misaki[zh]", "soundfile", "torch")
     .run_function(_download_models)
 )
 
