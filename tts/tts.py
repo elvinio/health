@@ -17,7 +17,13 @@ def _download_models():
 image = (
     modal.Image.debian_slim(python_version="3.12")
     .apt_install("ffmpeg")
-    .pip_install("fastapi[standard]", "kokoro", "misaki[zh]", "soundfile", "torch")
+    .pip_install(
+        "fastapi[standard]", "kokoro", "soundfile", "torch",
+        # misaki[zh] extras — listed explicitly because kokoro pins misaki
+        # without the [zh] extra, so pip skips re-installing it with extras.
+        "addict", "cn2an", "jieba", "ordered_set", "proces",
+        "pypinyin", "pypinyin-dict", "regex",
+    )
     .run_function(_download_models)
 )
 
