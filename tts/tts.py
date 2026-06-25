@@ -12,6 +12,7 @@ def _download_models():
     from kokoro import KPipeline
     KPipeline(lang_code="a")
     KPipeline(lang_code="b")
+    KPipeline(lang_code="z")
 
 image = (
     modal.Image.debian_slim(python_version="3.12")
@@ -58,6 +59,7 @@ def fastapi_app():
     _pipelines = {
         "a": (KPipeline(lang_code="a"), threading.Lock()),
         "b": (KPipeline(lang_code="b"), threading.Lock()),
+        "z": (KPipeline(lang_code="z"), threading.Lock()),
     }
 
     # Patch lexicon.golds to override misidentified pronunciations.
@@ -121,10 +123,15 @@ def fastapi_app():
 
     @web_app.post("/tts", dependencies=[Depends(require_api_key)])
     def tts(req: TTSRequest):
-        # British voice ids start with bf_/bm_ → lang_code "b"; all others use
-        # American English ("a"). Picking the matching phonemizer keeps
-        # pronunciation correct for both accents.
-        lang_code = "b" if req.voice[:1] == "b" else "a"
+        # Route to the matching phonemizer pipeline by voice ID prefix:
+        #   zf_/zm_ → Chinese ("z"), bf_/bm_ → British ("b"), else American ("a").
+        prefix = req.voice[:2]
+        if prefix in ("zf", "zm"):
+            lang_code = "z"
+        elif prefix in ("bf", "bm"):
+            lang_code = "b"
+        else:
+            lang_code = "a"
         pipeline, lock = _pipelines[lang_code]
         fmt = _FORMAT[req.format]
 
