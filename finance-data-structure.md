@@ -81,6 +81,8 @@ Each entry is one transaction dated within the **current calendar year**.
   "desc": "Grocery shopping",
   "amount": 87.40,
   "cat": "Food",
+  "cur": "USD",
+  "rate": 1.28,
   "_ts": 1747440000000
 }
 ```
@@ -91,8 +93,10 @@ Each entry is one transaction dated within the **current calendar year**.
 | `ac` | string | yes | `"acc1"` or `"acc2"` |
 | `date` | string | yes | `YYYY-MM-DD`. Must start with the current year (e.g. `"2026-…"`). |
 | `desc` | string | yes | Free-text description |
-| `amount` | number | yes | Positive number. Expenses reduce balance; TopUp entries increase it. |
+| `amount` | number | yes | Positive number in the expense's own currency (`cur`). Expenses reduce balance; TopUp entries increase it. |
 | `cat` | string | yes | One of: `Food`, `Transport`, `Shopping`, `Health`, `Entertainment`, `Bills`, `Other`, `TopUp` |
+| `cur` | string | no | Currency. Omit (or `"SGD"`) for the default SGD. `"USD"` marks a USD expense — the only non-SGD currency supported. |
+| `rate` | number | no | SGD-per-`cur` exchange rate. Required when `cur` is `"USD"` (default `1.28`). When present, aggregation uses `amount × rate`; when absent, `amount` is taken as-is (SGD). |
 | `_ts` | number | no | Unix timestamp (ms) of creation/last edit. Used for conflict resolution. Set to `0` or omit. |
 
 ---

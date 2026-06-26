@@ -56,6 +56,12 @@ Extracts a transaction and adds it to your expenses list.
 | `desc` | yes | Regex field — extracts the merchant / description |
 | `date` | no | Regex field — extracts the date string. If omitted, falls back to the email's received date |
 | `date.format` | yes (if `date` set) | How to interpret the extracted date string — see formats below |
+| `currency` | no | Regex field — extracts the currency code. If it captures `USD`, the expense is stored as USD at the default rate (`1.28`); anything else (or omitting `currency`) stores a plain SGD amount with no rate. |
+
+**Currency:** expenses default to SGD with no exchange rate. Add a `currency`
+regex only for sources that can bill in USD — e.g. `"currency": { "regex": "\\b(SGD|USD)\\b", "group": 1 }`.
+A captured `USD` produces `{ "cur": "USD", "rate": 1.28 }` on the expense; `SGD`
+(or no match) leaves it rate-less. Aggregation multiplies USD amounts by the rate.
 
 ### Supported date formats
 

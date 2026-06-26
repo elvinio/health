@@ -109,7 +109,7 @@ Two localStorage keys:
                          // NEVER pass allExpenses() to recalcBalances() — that would subtract historical years' spending
                          // from a start-of-year figure, producing a wrong (too low) balance.
                          // recalcMonthlyAgg() is the exception — it intentionally uses allExpenses() for multi-year charts.
-  expenses: [],          // { id, ac, date, desc, amount, cat, _ts } — current year only; past years live in historyData.expenses
+  expenses: [],          // { id, ac, date, desc, amount, cat, cur?, rate?, _ts } — current year only; past years live in historyData.expenses. Default currency is SGD (no cur/rate); cur:'USD' carries a rate (default 1.28) and aggregation uses amount×rate (see expSgd() in finance-core.js)
   assets: [],            // { id, name, class, units, history: [{ date, value, _ts }] } — class ∈ ASSET_CLASSES; "Home (own use)" is non-investable
   events: [],            // { id, title, description, startDate, startTime, endDate, endTime, tags, reminderHours, _ts }
   insurances: [],        // { id, name, personInsured, startDate, contractId, details, paymentAmount, paymentFrequency, agentContacts, _updatedAt }
@@ -435,8 +435,8 @@ tax:       renderTaxRecords()
 Rules stored in `data.emailParsers.parsers`. Two parser types:
 
 ```js
-// Expense parser
-{ name, subjectContains, amount: { regex, group }, date: { regex, format }, desc: { regex, group } }
+// Expense parser  (currency optional: captures SGD/USD; USD → cur:'USD' + default rate)
+{ name, subjectContains, amount: { regex, group }, currency?: { regex, group }, date: { regex, format }, desc: { regex, group } }
 
 // Event parser
 { type: 'event', name, subjectContains, title: { regex, group },

@@ -161,6 +161,8 @@ function openParserEditor(idx) {
   document.getElementById('parserSubject').value              = p.subjectContains || '';
   document.getElementById('parserAmountRegex').value          = (p.amount && p.amount.regex) || '';
   document.getElementById('parserAmountGroup').value          = p.amount && p.amount.group != null ? p.amount.group : 1;
+  document.getElementById('parserCurRegex').value             = (p.currency && p.currency.regex) || '';
+  document.getElementById('parserCurGroup').value             = p.currency && p.currency.group != null ? p.currency.group : 1;
   document.getElementById('parserDateRegex').value            = (p.date && p.date.regex) || '';
   document.getElementById('parserDateFormat').value           = (p.date && p.date.format) || 'DD/MM/YY';
   document.getElementById('parserDescRegex').value            = (p.desc && p.desc.regex) || '';
@@ -184,8 +186,11 @@ function saveParserEditor() {
     date:   { regex: document.getElementById('parserDateRegex').value.trim(),   format: document.getElementById('parserDateFormat').value.trim() },
     desc:   { regex: document.getElementById('parserDescRegex').value.trim(),   group: parseInt(document.getElementById('parserDescGroup').value) || 1 }
   };
+  // Currency is optional — only attach it when a regex is supplied (SGD default).
+  const curRegex = document.getElementById('parserCurRegex').value.trim();
+  if (curRegex) p.currency = { regex: curRegex, group: parseInt(document.getElementById('parserCurGroup').value) || 1 };
   if (!p.name || !p.subjectContains) { showToast('Name and subject are required'); return; }
-  for (const [label, rx] of [['Amount', p.amount.regex], ['Date', p.date.regex], ['Desc', p.desc.regex]]) {
+  for (const [label, rx] of [['Amount', p.amount.regex], ['Currency', curRegex], ['Date', p.date.regex], ['Desc', p.desc.regex]]) {
     const err = _badRegex(rx);
     if (err) { showToast(`${label} regex invalid: ${err}`); return; }
   }

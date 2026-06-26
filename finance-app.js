@@ -187,7 +187,7 @@ function renderYearlyChart() {
   const cutoff = new Date().toISOString().slice(0, 10);
   const totals = years.map(y => {
     if (y === curYear)
-      return data.expenses.filter(e => e.cat !== 'TopUp' && e.date <= cutoff).reduce((s, e) => s + e.amount, 0);
+      return data.expenses.filter(e => e.cat !== 'TopUp' && e.date <= cutoff).reduce((s, e) => s + expSgd(e), 0);
     return Object.entries(data.monthlyAgg)
       .filter(([m]) => m.startsWith(y + '-'))
       .reduce((s, [, cats]) => s + Object.values(cats).reduce((a, b) => a + b, 0), 0);

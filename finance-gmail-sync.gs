@@ -23,6 +23,9 @@ const DRIVE_HISTORY_FILENAME = 'finance-elvis-history.json';
 const LABEL_DONE             = 'Expense-Done';
 const DEFAULT_ACCOUNT        = 'acc1';
 const MAX_EMAILS             = 50;
+// Default SGD-per-USD rate attached to USD expenses (mirrors USD_DEFAULT_RATE in
+// finance-core.js). Expenses parsed as SGD carry no currency/rate.
+const USD_RATE               = 1.28;
 
 // ── Entry Point ───────────────────────────────────────────────────────────────
 
@@ -57,7 +60,7 @@ function syncGmailExpenses() {
 
       if ((parser.type || 'expense') === 'event') {
         const parsed = applyEventParser(parser, body, timestamp);
-        if (!parsed) { Logger.log(`Could not parse event: "${subject}"`); continue; }
+        if (!parsed) { Logger.log(`Could not parse event [${fmtLogTs(timestamp)}]: no match — "${subject}"`); continue; }
 
         const evId = 'gev' + msgId.slice(-10);
         const event = {
@@ -79,13 +82,17 @@ function syncGmailExpenses() {
         }
       } else {
         const parsed = applyParser(parser, body, catMap, catDefault, timestamp);
-        if (!parsed) { Logger.log(`Could not parse expense: "${subject}"`); continue; }
+        if (!parsed || parsed.error) {
+          Logger.log(`Could not parse expense [${fmtLogTs(timestamp)}]: ${(parsed && parsed.error) || 'unknown reason'} — "${subject}"`);
+          continue;
+        }
 
         const expId  = 'gm' + msgId.slice(-10);
         const expense = {
           id: expId, ac: DEFAULT_ACCOUNT,
           date: parsed.date, desc: parsed.desc,
           amount: parsed.amount, cat: parsed.cat,
+          ...(parsed.cur ? { cur: parsed.cur, rate: parsed.rate } : {}),
           _ts: Date.now()
         };
 
@@ -280,6 +287,14 @@ function resolveCategory(desc, catMap, catDefault) {
   return catDefault || 'Other';
 }
 
+// Format an email timestamp (ms epoch) as "YYYY-MM-DD HH:MM" for failure logs.
+function fmtLogTs(ts) {
+  if (!ts) return 'unknown time';
+  const d = new Date(ts);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 function applyParser(parser, body, catMap, catDefault, emailTimestamp) {
   function extract(field) {
     if (!field) return null;
@@ -287,10 +302,11 @@ function applyParser(parser, body, catMap, catDefault, emailTimestamp) {
     return m ? m[field.group || 1].trim() : null;
   }
   const amountRaw = extract(parser.amount);
+  if (!amountRaw) return { error: 'amount not found' };
   const descRaw   = extract(parser.desc);
-  if (!amountRaw || !descRaw) return null;
+  if (!descRaw) return { error: 'description not found' };
   const amount = parseFloat(amountRaw.replace(/,/g, ''));
-  if (isNaN(amount) || amount <= 0) return null;
+  if (isNaN(amount) || amount <= 0) return { error: 'invalid amount' };
   const dateRaw = extract(parser.date);
   let date = dateRaw ? parseDateStr(dateRaw, parser.date.format) : null;
   if (!date && emailTimestamp) {
@@ -298,13 +314,20 @@ function applyParser(parser, body, catMap, catDefault, emailTimestamp) {
     const pad = n => String(n).padStart(2, '0');
     date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
-  if (!date) return null;
+  if (!date) return { error: 'date not found' };
   const cat     = resolveCategory(descRaw, catMap, catDefault);
   const letters = descRaw.replace(/[^a-zA-Z]/g, '');
   const desc    = letters.length > 0 && letters === letters.toUpperCase()
     ? descRaw.toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase())
     : descRaw;
-  return { amount, date, desc, cat };
+  // Currency is optional: SGD (or absent) stays rate-less; USD attaches a rate.
+  const currencyRaw = extract(parser.currency);
+  const expense = { amount, date, desc, cat };
+  if (currencyRaw && currencyRaw.toUpperCase() === 'USD') {
+    expense.cur  = 'USD';
+    expense.rate = USD_RATE;
+  }
+  return expense;
 }
 
 function findParser(subject, parsers) {
@@ -314,11 +337,16 @@ function findParser(subject, parsers) {
 
 // ── Recalc (mirrors finance-core.js) ─────────────────────────────────────────
 
+// Effective amount in SGD: USD expenses carry a rate, everything else is SGD.
+function expSgd(e) {
+  return (e.cur === 'USD' && e.rate) ? e.amount * e.rate : e.amount;
+}
+
 function recalcBalances(d, expenses) {
   (d.accounts || []).forEach(acc => {
     const net = expenses
       .filter(e => e.ac === acc.id)
-      .reduce((s, e) => s + (e.cat === 'TopUp' ? -e.amount : e.amount), 0);
+      .reduce((s, e) => s + (e.cat === 'TopUp' ? -expSgd(e) : expSgd(e)), 0);
     acc.balance = acc.startingBalance - net;
   });
 }
@@ -329,6 +357,6 @@ function recalcMonthlyAgg(d, expenses) {
     if (e.cat === 'TopUp') return;
     const m = e.date.slice(0, 7);
     if (!d.monthlyAgg[m]) d.monthlyAgg[m] = {};
-    d.monthlyAgg[m][e.cat] = (d.monthlyAgg[m][e.cat] || 0) + e.amount;
+    d.monthlyAgg[m][e.cat] = (d.monthlyAgg[m][e.cat] || 0) + expSgd(e);
   });
 }
