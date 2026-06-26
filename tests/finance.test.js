@@ -454,3 +454,39 @@ test('calcRetirementPlan: produces a yearly drawdown projection', () => {
   assert.equal(plan.annualSavings, 120000);
   assert.equal(typeof plan.currentAge, 'number');
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Expense currency conversion — SGD default, optional USD with a rate
+// ─────────────────────────────────────────────────────────────────────────────
+test('expSgd: SGD (no cur/rate) returns the raw amount', () => {
+  assert.equal(F.expSgd({ amount: 10 }), 10);
+  assert.equal(F.expSgd({ amount: 10, cur: 'SGD' }), 10);
+});
+
+test('expSgd: USD multiplies amount by rate', () => {
+  closeTo(F.expSgd({ amount: 10, cur: 'USD', rate: 1.28 }), 12.8);
+});
+
+test('expSgd: USD without a rate falls back to the raw amount', () => {
+  assert.equal(F.expSgd({ amount: 10, cur: 'USD' }), 10);
+});
+
+test('recalcMonthlyAgg: converts USD expenses to SGD, leaves SGD as-is', () => {
+  const d = F.defaultData();
+  d.expenses = [
+    { id: 's1', ac: 'acc1', date: '2026-03-04', cat: 'Food', amount: 20 },
+    { id: 'u1', ac: 'acc1', date: '2026-03-10', cat: 'Food', amount: 10, cur: 'USD', rate: 1.28 },
+  ];
+  F.recalcMonthlyAgg(d, d.expenses);
+  closeTo(d.monthlyAgg['2026-03'].Food, 20 + 12.8); // 32.8
+});
+
+test('recalcBalances: USD expense reduces balance by the converted amount', () => {
+  const d = F.defaultData();
+  d.accounts = [{ id: 'acc1', name: 'Cash', startingBalance: 1000 }];
+  d.expenses = [
+    { id: 'u1', ac: 'acc1', date: '2026-03-10', cat: 'Food', amount: 10, cur: 'USD', rate: 1.28 },
+  ];
+  F.recalcBalances(d, d.expenses);
+  closeTo(d.accounts[0].balance, 1000 - 12.8); // 987.2
+});

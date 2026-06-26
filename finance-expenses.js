@@ -30,7 +30,7 @@ function renderExpenseList() {
   el.innerHTML = Object.entries(byMonth).map(([month, dateGroups]) => {
     const monthLabel = new Date(month + '-01T00:00:00').toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
     const monthExps = Object.values(dateGroups).flat();
-    const totalSpend = monthExps.filter(e => e.cat !== 'TopUp').reduce((s, e) => s + e.amount, 0);
+    const totalSpend = monthExps.filter(e => e.cat !== 'TopUp').reduce((s, e) => s + expSgd(e), 0);
     const spendDiv = `<div><span style="${statStyle}">Spent</span><br><span style="${valStyle}">${hidden ? '••••' : fmtDollar(totalSpend)}</span></div>`;
 
     let headerRight;
@@ -39,7 +39,7 @@ function renderExpenseList() {
       const balanceDivs = balanceAccounts.map(acc => {
         const bal = data.expenses
           .filter(e => e.ac === acc.id && e.date && e.date.slice(0, 7) <= month)
-          .reduce((s, e) => s + (e.cat === 'TopUp' ? e.amount : -e.amount), acc.startingBalance);
+          .reduce((s, e) => s + (e.cat === 'TopUp' ? expSgd(e) : -expSgd(e)), acc.startingBalance);
         return `<div><span style="${statStyle}">${esc(acc.name)}</span><br><span style="${valStyle}">${hidden ? '••••' : fmtDollar(bal)}</span></div>`;
       }).join('');
       headerRight = balanceDivs + spendDiv;
@@ -58,7 +58,7 @@ function renderExpenseList() {
               <div class="expense-left">
                 <span class="expense-desc">${esc(e.desc)}</span>
               </div>
-              <div class="expense-amount" style="color:${e.cat === 'TopUp' ? 'var(--green)' : 'var(--red)'}">${e.cat === 'TopUp' ? '+' : '-'}${fmtCurrency(e.amount)}</div>
+              <div class="expense-amount" style="color:${e.cat === 'TopUp' ? 'var(--green)' : 'var(--red)'}">${e.cat === 'TopUp' ? '+' : '-'}${fmtCurrency(e.amount, e.cur)}</div>
               <div class="acc-dot ${e.ac === 'acc1' ? 'acc1' : 'acc2'}"></div>
             </div>`;
         }).join('')}
@@ -83,12 +83,29 @@ function formatDate(d) {
 }
 
 // ── Expense Sheet ─────────────────────────────────────────────────────────────
+// Sync the currency select + rate row. Shows the rate input only for USD and
+// defaults it to USD_DEFAULT_RATE (or a provided rate when editing).
+function setExpCurrency(cur, rate) {
+  const curSel = document.getElementById('expCur');
+  const rateRow = document.getElementById('expRateRow');
+  const rateInp = document.getElementById('expRate');
+  curSel.value = cur;
+  if (cur === 'USD') {
+    rateInp.value = (rate != null && rate !== '') ? rate : USD_DEFAULT_RATE;
+    rateRow.style.display = '';
+  } else {
+    rateInp.value = '';
+    rateRow.style.display = 'none';
+  }
+}
+
 function openExpenseSheet(id, preAcct) {
   const form = document.getElementById('expenseForm');
   form.reset();
   document.getElementById('expenseId').value = '';
   document.getElementById('expDate').value = today();
   document.getElementById('expDeleteBtn').style.display = 'none';
+  setExpCurrency('SGD');
 
   // Populate account select
   const sel = document.getElementById('expAcct');
@@ -107,6 +124,7 @@ function openExpenseSheet(id, preAcct) {
     sel.value = exp.ac;
     document.getElementById('expDate').value = exp.date;
     document.getElementById('expAmount').value = exp.amount;
+    setExpCurrency(exp.cur === 'USD' ? 'USD' : 'SGD', exp.rate);
     document.getElementById('expDesc').value = exp.desc;
     const catSel = document.getElementById('expCat');
     catSel.value = exp.cat;
@@ -142,6 +160,11 @@ document.getElementById('expenseForm').addEventListener('submit', e => {
     cat: document.getElementById('expCat').value,
     _ts: Date.now()
   };
+  // SGD is the implicit default (no cur/rate stored); USD carries an explicit rate.
+  if (document.getElementById('expCur').value === 'USD') {
+    entry.cur = 'USD';
+    entry.rate = parseFloat(document.getElementById('expRate').value) || USD_DEFAULT_RATE;
+  }
   if (!id) localStorage.setItem('finance:lastAcct', entry.ac);
   const curYear = String(new Date().getFullYear());
   const toHistory = !entry.date.startsWith(curYear + '-');
@@ -289,7 +312,7 @@ function renderAccountFilterPills() {
   const container = document.getElementById('accountFilterPills');
   if (!container) return;
   const cutoff = localDateStr();
-  const ytd = data.expenses.filter(e => e.cat !== 'TopUp' && e.date <= cutoff).reduce((s, e) => s + e.amount, 0);
+  const ytd = data.expenses.filter(e => e.cat !== 'TopUp' && e.date <= cutoff).reduce((s, e) => s + expSgd(e), 0);
   const ytdPill = `<span class="filter-pill" style="cursor:default">YTD: ${balanceHidden ? '••••' : fmtDollar(ytd)}</span>`;
   const pills = [{ id: null, name: 'All' }, ...data.accounts.map(a => ({ id: a.id, name: a.name }))];
   container.innerHTML = pills.map(p =>

@@ -358,6 +358,19 @@
         <input type="number" id="expAmount" min="0" step="0.01" placeholder="0.00" inputmode="decimal" required>
       </div>
     </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="expCur">Currency</label>
+        <select id="expCur" onchange="setExpCurrency(this.value)">
+          <option value="SGD">SGD</option>
+          <option value="USD">USD</option>
+        </select>
+      </div>
+      <div class="field" id="expRateRow" style="display:none">
+        <label for="expRate">Rate (SGD per USD)</label>
+        <input type="number" id="expRate" min="0" step="0.01" placeholder="1.28" inputmode="decimal">
+      </div>
+    </div>
     <div class="field">
       <label for="expDesc">Description</label>
       <input type="text" id="expDesc" placeholder="What was this for?" required>
@@ -958,6 +971,18 @@
     <div class="field" style="flex:1">
       <label for="parserAmountGroup">Group</label>
       <input type="number" id="parserAmountGroup" value="1" min="1">
+    </div>
+  </div>
+  <div class="section-heading" style="margin-top:8px">Currency <span style="font-weight:400;opacity:.7">(optional)</span></div>
+  <div class="field-row">
+    <div class="field" style="flex:3">
+      <label for="parserCurRegex">Regex</label>
+      <input type="text" id="parserCurRegex" placeholder="\b(SGD|USD)\b" style="font-family:monospace;font-size:.82rem">
+      <div class="field-hint">Leave blank for SGD. If it captures USD, the expense is stored in USD at the default rate.</div>
+    </div>
+    <div class="field" style="flex:1">
+      <label for="parserCurGroup">Group</label>
+      <input type="number" id="parserCurGroup" value="1" min="1">
     </div>
   </div>
   <div class="section-heading" style="margin-top:8px">Date</div>

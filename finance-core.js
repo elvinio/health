@@ -269,12 +269,23 @@ function saveWiki(w) {
   }
 }
 
+// Default SGD-per-USD exchange rate used when a USD expense is created without
+// an explicit rate (manual form default + Gmail parser).
+const USD_DEFAULT_RATE = 1.28;
+
+// Effective amount in the base currency (SGD). Expenses default to SGD with no
+// `cur`/`rate`; a USD expense carries `cur:'USD'` and a `rate`, so its amount is
+// multiplied by the rate when summing.
+function expSgd(e) {
+  return (e.cur === 'USD' && e.rate) ? e.amount * e.rate : e.amount;
+}
+
 function recalcBalances(d, expenses) {
   const exps = expenses !== undefined ? expenses : d.expenses;
   d.accounts.forEach(acc => {
     const net = exps
       .filter(e => e.ac === acc.id)
-      .reduce((s, e) => s + (e.cat === 'TopUp' ? -e.amount : e.amount), 0);
+      .reduce((s, e) => s + (e.cat === 'TopUp' ? -expSgd(e) : expSgd(e)), 0);
     acc.balance = acc.startingBalance - net;
   });
 }
@@ -286,7 +297,7 @@ function recalcMonthlyAgg(d, expenses) {
     if (!e.date || !e.cat || e.cat === 'TopUp') return;
     const m = e.date.slice(0, 7);
     if (!d.monthlyAgg[m]) d.monthlyAgg[m] = {};
-    d.monthlyAgg[m][e.cat] = (d.monthlyAgg[m][e.cat] || 0) + e.amount;
+    d.monthlyAgg[m][e.cat] = (d.monthlyAgg[m][e.cat] || 0) + expSgd(e);
   });
 }
 
@@ -341,8 +352,9 @@ function fmt(n) {
   return new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 }
 
-function fmtCurrency(n) {
-  return (n < 0 ? '-' : '') + '$' + fmt(Math.abs(n));
+function fmtCurrency(n, cur) {
+  const sym = cur === 'USD' ? 'US$' : '$';
+  return (n < 0 ? '-' : '') + sym + fmt(Math.abs(n));
 }
 
 function fmtDollar(n) {

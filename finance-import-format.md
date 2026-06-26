@@ -21,7 +21,7 @@ id,date,desc,amount,cat,ac,_ts
 | `id` | Yes | Unique alphanumeric identifier, 8–12 characters |
 | `date` | Yes | `YYYY-MM-DD` |
 | `desc` | Yes | Free-text description |
-| `amount` | Yes | Positive number, e.g. `87.40` |
+| `amount` | Yes | Positive number, e.g. `87.40`. Treated as SGD — CSV import does not support per-row currency/rate, so imported expenses are always SGD. Use the in-app form for USD expenses. |
 | `cat` | Yes | `Food` · `Transport` · `Shopping` · `Health` · `Entertainment` · `Bills` · `Other` · `TopUp` |
 | `ac` | Yes | `acc1` or `acc2` |
 | `_ts` | No | Unix timestamp in milliseconds — defaults to import time if omitted |

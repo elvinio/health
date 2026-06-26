@@ -73,7 +73,7 @@ const FILES = [
 const FOOTER = `
 globalThis.__finance = {
   calcSGTax, calcRetirementPlan, mergeData, getOngoingDueInfo,
-  localDateStr, recalcBalances, recalcMonthlyAgg, defaultData, allExpenses,
+  localDateStr, recalcBalances, recalcMonthlyAgg, defaultData, allExpenses, expSgd,
   mergeHistoryData: (typeof mergeHistoryData !== 'undefined') ? mergeHistoryData : undefined,
   mergeWikiData: (typeof mergeWikiData !== 'undefined') ? mergeWikiData : undefined,
   setData: (v) => { data = v; },
