@@ -98,6 +98,18 @@ async function driveSyncHeader() {
   await driveSync();
 }
 
+// Auto-sync on app open when connected and the last sync was >24h ago (or never).
+// Runs quietly in the background; failures fall through to the next manual/auto sync.
+const AUTO_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
+async function maybeAutoSync() {
+  const connected = !!(localStorage.getItem(DRIVE_FILE_KEY) && localStorage.getItem(DRIVE_CLIENT_KEY));
+  if (!connected || syncInFlight) return;
+  const last = localStorage.getItem('finance:lastSync');
+  const lastMs = last ? new Date(last).getTime() : 0;
+  if (Number.isFinite(lastMs) && Date.now() - lastMs < AUTO_SYNC_INTERVAL_MS) return;
+  try { await driveSync(); } catch (e) { /* next open retries */ }
+}
+
 // ── Google Drive ──────────────────────────────────────────────────────────────
 function openDriveMenu() {
   document.getElementById('mainMenu').classList.remove('open');
