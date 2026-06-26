@@ -761,6 +761,7 @@ renderAll();
 if (balanceHidden) document.getElementById('balanceToggleBtn').innerHTML = '<span class="material-symbols-outlined">visibility</span> Show Balances';
 updateDriveSyncBtn();
 scheduleEventReminders();
+maybeAutoSync();
 if (new URLSearchParams(location.search).get('add') === '1') {
   history.replaceState(null, '', location.pathname);
   setTimeout(() => openExpenseSheet(), 100);
