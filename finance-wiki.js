@@ -1,9 +1,9 @@
 // ── Wiki tab ──────────────────────────────────────────────────────────────────
-// Sub-tabs: Recipe · Shopping · Resume
+// Sub-tabs: Notes · Recipe · Shopping · Resume
 // Interaction: tap card → read-only detail view; swipe left → reveal Edit button.
 
-let currentWikiSubTab = 'recipe';
-let wikiView = null; // { type: 'recipe'|'shopping'|'resume', id: string } | null
+let currentWikiSubTab = 'notes';
+let wikiView = null; // { type: 'note'|'recipe'|'shopping'|'resume', id: string } | null
 
 // ── Sub-tab switching ─────────────────────────────────────────────────────────
 function switchWikiSubTab(tab) {
@@ -12,7 +12,7 @@ function switchWikiSubTab(tab) {
   document.querySelectorAll('.wiki-sub-tab').forEach(b => {
     b.classList.toggle('active', b.id === 'wikiSubTab-' + tab);
   });
-  ['recipe', 'shopping', 'resume'].forEach(t => {
+  ['notes', 'recipe', 'shopping', 'resume'].forEach(t => {
     const el = document.getElementById('wikiSubContent-' + t);
     if (el) el.style.display = t === tab ? '' : 'none';
   });
@@ -23,12 +23,14 @@ function switchWikiSubTab(tab) {
 // ── Main render dispatcher ────────────────────────────────────────────────────
 function renderWiki() {
   if (wikiView) {
-    if (wikiView.type === 'recipe') renderRecipeDetail(wikiView.id);
+    if (wikiView.type === 'note') renderNoteDetail(wikiView.id);
+    else if (wikiView.type === 'recipe') renderRecipeDetail(wikiView.id);
     else if (wikiView.type === 'shopping') renderShoppingDetail(wikiView.id);
     else if (wikiView.type === 'resume') renderResumeDetail(wikiView.id);
     return;
   }
-  if (currentWikiSubTab === 'recipe') renderRecipeList();
+  if (currentWikiSubTab === 'notes') renderNoteList();
+  else if (currentWikiSubTab === 'recipe') renderRecipeList();
   else if (currentWikiSubTab === 'shopping') renderShoppingList();
   else if (currentWikiSubTab === 'resume') renderResumeList();
 }
@@ -138,7 +140,8 @@ function attachWikiGestures(container) {
       if (card) resetCard(card);
       const type = btn.dataset.wikiEdit;
       const id   = btn.dataset.id;
-      if (type === 'recipe') openRecipeSheet(id);
+      if (type === 'note') openNoteSheet(id);
+      else if (type === 'recipe') openRecipeSheet(id);
       else if (type === 'shopping') openShoppingSheet(id);
       else if (type === 'resume') openResumeSheet(id);
       return;
@@ -161,6 +164,124 @@ function attachWikiGestures(container) {
 // ── Back button HTML ──────────────────────────────────────────────────────────
 function wikiBackBtn() {
   return `<button class="wiki-back-btn" onclick="closeWikiDetail()">← Back</button>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NOTES
+// ─────────────────────────────────────────────────────────────────────────────
+// Notes live in the main file (data.notes), not the wiki file, so they keep their
+// existing Drive merge. They render here using the shared wiki-card gesture engine.
+
+function renderNoteList() {
+  const el = document.getElementById('wikiSubContent-notes');
+  if (!el) return;
+  const notes = (data.notes || []).slice().sort((a, b) => (b._updatedAt || 0) - (a._updatedAt || 0));
+  if (!notes.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">📔</div>No notes yet.<br>Tap + to add one.</div>`;
+    return;
+  }
+  el.innerHTML = notes.map(n => {
+    const preview = (n.content || '').split('\n').find(l => l.trim()) || '';
+    return `<div class="wiki-card" data-type="note" data-id="${esc(n.id)}">
+      <div class="wiki-card-actions">
+        <button class="wiki-action-btn" data-wiki-edit="note" data-id="${esc(n.id)}" aria-label="Edit note">Edit</button>
+      </div>
+      <div class="wiki-card-fg">
+        <div class="wiki-card-title">${esc(n.title)}</div>
+        ${preview ? `<div class="wiki-card-meta">${esc(preview)}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  attachWikiGestures(el);
+}
+
+function renderNoteDetail(id) {
+  const el = document.getElementById('wikiSubContent-notes');
+  if (!el) return;
+  const note = (data.notes || []).find(n => n.id === id);
+  if (!note) { closeWikiDetail(); return; }
+
+  const lines = (note.content || '').split('\n').filter(l => l.trim());
+  const contentHtml = lines.length
+    ? `<p class="wiki-detail-notes">${lines.map(l => esc(l)).join('<br>')}</p>`
+    : '<p class="wiki-detail-empty">No content.</p>';
+  const ts = note._updatedAt
+    ? new Date(note._updatedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : '';
+
+  el.innerHTML = `
+    <div class="wiki-detail">
+      ${wikiBackBtn()}
+      <div class="wiki-detail-header">
+        <h2 class="wiki-detail-title">${esc(note.title)}</h2>
+        <button class="btn btn-secondary wiki-detail-edit-btn" onclick="openNoteSheet('${esc(id)}')">Edit</button>
+      </div>
+      <div class="wiki-detail-section">
+        ${contentHtml}
+        ${ts ? `<div class="wiki-detail-empty" style="text-align:right;margin-top:10px">Updated ${ts}</div>` : ''}
+      </div>
+    </div>`;
+}
+
+function openNoteSheet(id) {
+  document.getElementById('noteForm').reset();
+  document.getElementById('noteId').value = '';
+  document.getElementById('noteDeleteBtn').style.display = 'none';
+  document.getElementById('noteUpdatedAt').textContent = '';
+
+  if (id) {
+    const note = (data.notes || []).find(n => n.id === id);
+    if (!note) return;
+    document.getElementById('noteSheetTitle').textContent = 'Edit Note';
+    document.getElementById('noteId').value = id;
+    document.getElementById('noteTitle').value = note.title;
+    document.getElementById('noteContent').value = note.content || '';
+    if (note._updatedAt) {
+      document.getElementById('noteUpdatedAt').textContent =
+        'Updated ' + new Date(note._updatedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+    document.getElementById('noteDeleteBtn').style.display = '';
+  } else {
+    document.getElementById('noteSheetTitle').textContent = 'Add Note';
+  }
+  openSheet('noteSheet');
+  setTimeout(() => document.getElementById('noteTitle').focus(), 350);
+}
+
+document.getElementById('noteForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const id = document.getElementById('noteId').value;
+  const note = {
+    id: id || uid(),
+    title: document.getElementById('noteTitle').value.trim(),
+    content: document.getElementById('noteContent').value,
+    _updatedAt: Date.now()
+  };
+  if (!data.notes) data.notes = [];
+  if (id) {
+    const idx = data.notes.findIndex(n => n.id === id);
+    if (idx >= 0) data.notes[idx] = note; else data.notes.push(note);
+  } else {
+    data.notes.push(note);
+  }
+  saveData(data);
+  closeSheet();
+  if (wikiView && wikiView.type === 'note') wikiView.id = note.id;
+  renderWiki();
+  showToast(id ? 'Note updated' : 'Note saved');
+});
+
+function deleteNote() {
+  const id = document.getElementById('noteId').value;
+  if (!id || !confirm('Delete this note?')) return;
+  if (!data._deletedIds) data._deletedIds = [];
+  if (!data._deletedIds.includes(id)) data._deletedIds.push(id);
+  data.notes = (data.notes || []).filter(n => n.id !== id);
+  saveData(data);
+  closeSheet();
+  wikiView = null;
+  renderWiki();
+  showToast('Note deleted');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

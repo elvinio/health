@@ -571,8 +571,7 @@ function renderAll() {
 
   try {
     if (currentTab === 'events') {
-      if (eventViewMode === 'notes') renderNotesList();
-      else renderEventList();
+      renderEventList();
     } else if (currentTab === 'expenses') {
       renderAccountFilterPills();
       renderYearFilterPills();

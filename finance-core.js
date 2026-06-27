@@ -481,10 +481,7 @@ document.getElementById('backdrop').addEventListener('click', closeSheet);
 
 // ── FAB ──────────────────────────────────────────────────────────────────────
 document.getElementById('fabBtn').addEventListener('click', () => {
-  if (currentTab === 'events') {
-    if (eventViewMode === 'notes') openNoteSheet(null);
-    else openEventSheet(null);
-  }
+  if (currentTab === 'events') openEventSheet(null);
   else if (currentTab === 'expenses') openExpenseSheet(null);
   else if (currentTab === 'insurance') {
     if (currentInsSubTab === 'medical') openMedicalSheet(null);
@@ -494,7 +491,8 @@ document.getElementById('fabBtn').addEventListener('click', () => {
     if (currentAnalysisSubTab === 'power') openPowerSheet(null);
   }
   else if (currentTab === 'wiki') {
-    if (currentWikiSubTab === 'recipe') openRecipeSheet(null);
+    if (currentWikiSubTab === 'notes') openNoteSheet(null);
+    else if (currentWikiSubTab === 'recipe') openRecipeSheet(null);
     else if (currentWikiSubTab === 'shopping') openShoppingSheet(null);
     else if (currentWikiSubTab === 'resume') openResumeSheet(null);
   }
