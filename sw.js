@@ -1,4 +1,4 @@
-const CACHE = 'finance-v181';
+const CACHE = 'finance-v182';
 const EXT_CACHE = 'finance-ext-v1';
 const ASSETS = [
   '/health/finance.html',

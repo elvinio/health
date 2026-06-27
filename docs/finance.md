@@ -45,6 +45,7 @@ There are **6 top-level tabs** (there is no standalone Investments tab — asset
 | Tax | `tax` | `receipt_long` | `page-tax` |
 
 **Wiki sub-tabs** (switched by `switchWikiSubTab(tab)` in `finance-wiki.js`):
+- `notes` — Notes list + tap-to-view detail with free-text content (first/default sub-tab). Data lives in the **main** file (`data.notes`), not the wiki file, so it keeps its existing main-file Drive merge.
 - `recipe` — Recipe list + tap-to-view detail with ingredients/steps/notes
 - `shopping` — Shopping list list + tap-to-view detail with checkbox items (`toggleShopItem`)
 - `resume` — Resume list + tap-to-view detail with read-only render, PDF font/size controls, and Print button (`printResume`); builds content into `#resumePrintRoot` and calls `window.print()`
@@ -416,12 +417,13 @@ Theme preference stored in `localStorage` under `finance:theme`.
 `renderAll()` (`finance-app.js`) renders **only the active tab** (it `switch`es on `currentTab`); inactive tabs are rendered when next visited. It also recomputes FAB visibility first.
 
 ```
-events:    eventViewMode === 'notes' ? renderNotesList() : renderEventList()
+events:    renderEventList()
 expenses:  renderAccountFilterPills() + renderYearFilterPills() + renderExpenseList()
              → renderOngoingListInline()   [if currentExpSubTab === 'recurring']
              → renderMortgageListInline()  [if currentExpSubTab === 'mortgage']
 analysis:  renderAnalysis()  // dispatches on currentAnalysisSubTab → ai | expense | power
 insurance: currentInsSubTab === 'medical' ? renderMedical() : renderInsurances()
+wiki:      renderWiki()  // dispatches on currentWikiSubTab → notes | recipe | shopping | resume
 tax:       renderTaxRecords()
              → renderCpf()          [if currentTaxSubTab === 'cpf']
              → renderAssetsSubTab() [if currentTaxSubTab === 'assets']

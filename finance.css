@@ -918,21 +918,6 @@
 }
 .tax-pin-shake { animation: tax-pin-shake .4s ease; }
 
-/* ── Notes ── */
-.note-item {
-  background: var(--card); border-radius: var(--radius);
-  padding: 14px 16px; margin-bottom: 10px; cursor: pointer;
-  transition: background .15s;
-}
-.note-item:active { background: var(--bg); }
-.note-item-header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.note-item-title { font-weight: 600; font-size: .95rem; flex: 1; min-width: 0; }
-.note-item-date { font-size: .75rem; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
-.note-item-preview {
-  font-size: .82rem; color: var(--muted); margin-top: 4px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-
 /* ── Utility classes (extracted from repeated inline styles) ── */
 .code-tag { background: var(--bg); padding: 1px 5px; border-radius: 4px; }
 .scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }

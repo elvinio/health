@@ -58,7 +58,6 @@
     <button class="event-view-btn" id="evViewBus" aria-label="Bus arrivals" onclick="setEventView('bus')"><span class="material-symbols-outlined" aria-hidden="true" style="font-size:1.1rem">directions_bus</span></button>
     <button class="event-view-btn" id="evViewBusMap" aria-label="Bus map" onclick="setEventView('busmap')"><span class="material-symbols-outlined" aria-hidden="true" style="font-size:1.1rem">map</span></button>
     <button class="event-view-btn" id="evViewRain" aria-label="Rain radar" onclick="setEventView('rain')"><span class="material-symbols-outlined" aria-hidden="true" style="font-size:1.1rem">rainy</span></button>
-    <button class="event-view-btn" id="evViewNotes" aria-label="Notes" onclick="setEventView('notes')"><span class="material-symbols-outlined" aria-hidden="true" style="font-size:1.1rem">description</span></button>
   </div>
   <div class="exp-sub-tabs" id="eventListSubTabs">
     <button class="exp-sub-tab active" id="evListSubTab-upcoming" onclick="switchEventListSubTab('upcoming')">
@@ -76,17 +75,18 @@
   <div id="busPanel" style="display:none"></div>
   <div id="busMapPanel" style="display:none"></div>
   <div id="rainPanel" style="display:none"></div>
-  <div id="notesPanel" style="display:none"></div>
 </div>
 
 <!-- Wiki Page -->
 <div class="page" id="page-wiki">
   <div class="wiki-sub-tabs">
-    <button class="wiki-sub-tab active" id="wikiSubTab-recipe" onclick="switchWikiSubTab('recipe')">🍳 Recipe</button>
+    <button class="wiki-sub-tab active" id="wikiSubTab-notes" onclick="switchWikiSubTab('notes')">📔 Notes</button>
+    <button class="wiki-sub-tab" id="wikiSubTab-recipe" onclick="switchWikiSubTab('recipe')">🍳 Recipe</button>
     <button class="wiki-sub-tab" id="wikiSubTab-shopping" onclick="switchWikiSubTab('shopping')">📝 Shopping</button>
     <button class="wiki-sub-tab" id="wikiSubTab-resume" onclick="switchWikiSubTab('resume')">📄 Resume</button>
   </div>
-  <div id="wikiSubContent-recipe"></div>
+  <div id="wikiSubContent-notes"></div>
+  <div id="wikiSubContent-recipe" style="display:none"></div>
   <div id="wikiSubContent-shopping" style="display:none"></div>
   <div id="wikiSubContent-resume" style="display:none"></div>
 </div>
