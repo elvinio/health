@@ -238,6 +238,7 @@ function setEventView(mode) {
   document.getElementById('evViewBusMap').classList.toggle('active', mode === 'busmap');
   document.getElementById('evViewRain').classList.toggle('active', mode === 'rain');
   document.getElementById('evViewNotes').classList.toggle('active', mode === 'notes');
+  document.getElementById('page-events').classList.toggle('cal-mode', mode === 'calendar');
   document.getElementById('eventListSubTabs').style.display = mode === 'list' ? '' : 'none';
   document.getElementById('eventList').style.display = mode === 'list' ? '' : 'none';
   document.getElementById('eventCalendar').style.display = mode === 'calendar' ? '' : 'none';
@@ -981,8 +982,8 @@ function renderEventCalendar() {
     const dayEvs = evByDate[dateStr] || [];
     const isToday = dateStr === todayStr;
     let cls = 'cal-day' + (isToday ? ' today' : '') + (dayEvs.length ? ' has-events' : '');
-    let chips = dayEvs.slice(0, 2).map(ev => `<div class="cal-ev-chip">${esc(ev.title)}</div>`).join('');
-    if (dayEvs.length > 2) chips += `<div class="cal-ev-more">+${dayEvs.length - 2}</div>`;
+    // Render every event chip; fitCalendarCells() clips to the cell height after layout.
+    const chips = dayEvs.map(ev => `<div class="cal-ev-chip">${esc(ev.title)}</div>`).join('');
     const onclick = dayEvs.length ? `showCalDay('${dateStr}')` : '';
     cells += `<div class="${cls}" onclick="${onclick}"><div class="cal-day-num">${day}</div>${chips}</div>`;
   }
@@ -997,9 +998,46 @@ function renderEventCalendar() {
       <div class="cal-month-label">${MONTHS[calMonth]} ${calYear}</div>
       <button class="cal-nav-btn" onclick="calNext()">›</button>
     </div>
-    <div class="cal-grid">${headerRow}${cells}</div>
+    <div class="cal-grid-header">${headerRow}</div>
+    <div class="cal-grid">${cells}</div>
     <div id="calDayDetail"></div>`;
+
+  requestAnimationFrame(fitCalendarCells);
 }
+
+// Clip each day cell's event chips to its rendered height, collapsing the
+// overflow into a "+N" indicator. Runs after layout so it adapts to the month's
+// week-row count and the device's viewport height.
+function fitCalendarCells() {
+  document.querySelectorAll('#eventCalendar .cal-day').forEach(cell => {
+    const old = cell.querySelector('.cal-ev-more');
+    if (old) old.remove();
+    const chips = [...cell.querySelectorAll('.cal-ev-chip')];
+    chips.forEach(c => { c.style.display = ''; });
+    if (!chips.length) return;
+
+    let hidden = 0;
+    for (let i = 0; i < chips.length; i++) {
+      if (chips[i].offsetTop + chips[i].offsetHeight > cell.clientHeight) {
+        for (let j = i; j < chips.length; j++) { chips[j].style.display = 'none'; hidden++; }
+        break;
+      }
+    }
+    if (!hidden) return;
+
+    const more = document.createElement('div');
+    more.className = 'cal-ev-more';
+    more.textContent = '+' + hidden;
+    cell.appendChild(more);
+    // If the indicator itself overflows, hide one more chip to make room.
+    if (more.offsetTop + more.offsetHeight > cell.clientHeight) {
+      const visible = chips.filter(c => c.style.display !== 'none');
+      if (visible.length) { visible[visible.length - 1].style.display = 'none'; more.textContent = '+' + (++hidden); }
+    }
+  });
+}
+
+window.addEventListener('resize', () => { if (eventViewMode === 'calendar') fitCalendarCells(); });
 
 function showCalDay(dateStr) {
   const detail = document.getElementById('calDayDetail');
@@ -1031,6 +1069,8 @@ function showCalDay(dateStr) {
     </div>`;
   }).join('');
   detail.innerHTML = `<div class="cal-day-modal"><div class="cal-day-modal-title">${dateLabel}</div>${items}</div>`;
+  // The detail panel shrinks the grid in fill mode — re-fit the chips to the new height.
+  requestAnimationFrame(fitCalendarCells);
 }
 
 function timeObjTo24h(t) {
