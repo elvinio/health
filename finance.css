@@ -626,12 +626,14 @@
   }
   .cal-nav-btn:active { background: var(--border); }
   .cal-month-label { font-weight: 700; font-size: 1rem; }
+  .cal-grid-header { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
   .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
   .cal-day-header {
     text-align: center; font-size: .62rem; font-weight: 700;
     color: var(--muted); text-transform: uppercase; padding: 4px 0 6px;
   }
   .cal-day {
+    position: relative;
     min-height: 52px; border-radius: 6px; padding: 4px 3px;
     background: var(--card); border: 1px solid transparent; overflow: hidden;
   }
@@ -644,10 +646,22 @@
   .cal-day.today .cal-day-num { color: var(--primary); font-weight: 800; }
   .cal-ev-chip {
     font-size: .55rem; font-weight: 700; color: #fff; background: var(--primary);
-    border-radius: 3px; padding: 1px 3px; margin-top: 2px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    border-radius: 3px; padding: 1px 3px; margin-top: 2px; overflow: hidden;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
   }
   .cal-ev-more { font-size: .58rem; color: var(--muted); margin-top: 1px; text-align: center; }
+
+  /* Calendar view fills the viewport height so day cells can show more events */
+  #page-events.cal-mode {
+    display: flex; flex-direction: column;
+    height: calc(100dvh - var(--tab-h) - env(safe-area-inset-top));
+  }
+  #page-events.cal-mode #eventCalendar {
+    display: flex; flex-direction: column; flex: 1; min-height: 0;
+  }
+  #page-events.cal-mode .cal-grid { flex: 1; min-height: 0; grid-auto-rows: 1fr; }
+  #page-events.cal-mode .cal-day { min-height: 0; }
+  #page-events.cal-mode #calDayDetail { max-height: 40%; overflow-y: auto; }
   .cal-day-modal {
     background: var(--card); border-radius: 12px; padding: 14px;
     margin-top: 14px; box-shadow: var(--shadow);
