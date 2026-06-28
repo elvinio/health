@@ -17,7 +17,7 @@ MOE PG app ─AccessibilityEvent─► MoeAccessibilityService ─► Room (Capt
                                                             ▼
                                  DriveUploader → Drive: moe-inbox-incoming.json (plain JSON, app is SOLE writer)
                                                             ▼
-                  Finance PWA fetchMoeInbox() (finance-drive.js) → data.moeInbox → "MOE" tab (finance-moe.js)
+                  Finance PWA fetchMoeInbox() (finance-drive.js) → data.moeInbox → "MOE" view under Events (finance-moe.js)
 ```
 
 Key decision: a browser PWA can't read on-device SQLite, so Drive is the bridge.

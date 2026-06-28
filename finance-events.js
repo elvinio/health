@@ -243,6 +243,7 @@ function setEventView(mode) {
   document.getElementById('evViewBus').classList.toggle('active', mode === 'bus');
   document.getElementById('evViewBusMap').classList.toggle('active', mode === 'busmap');
   document.getElementById('evViewRain').classList.toggle('active', mode === 'rain');
+  document.getElementById('evViewMoe').classList.toggle('active', mode === 'moe');
   document.getElementById('page-events').classList.toggle('cal-mode', mode === 'calendar');
   document.getElementById('eventListSubTabs').style.display = mode === 'list' ? '' : 'none';
   document.getElementById('eventList').style.display = mode === 'list' ? '' : 'none';
@@ -250,12 +251,16 @@ function setEventView(mode) {
   document.getElementById('busPanel').style.display = mode === 'bus' ? '' : 'none';
   document.getElementById('busMapPanel').style.display = mode === 'busmap' ? '' : 'none';
   document.getElementById('rainPanel').style.display = mode === 'rain' ? '' : 'none';
+  document.getElementById('moePanel').style.display = mode === 'moe' ? '' : 'none';
+  // Hide the "+" in the MOE view — it would otherwise open the new-event sheet.
+  document.getElementById('fabBtn').style.display = mode === 'moe' ? 'none' : '';
   if (busPollingInterval) { clearInterval(busPollingInterval); busPollingInterval = null; }
   if (busMapPollingInterval) { clearInterval(busMapPollingInterval); busMapPollingInterval = null; }
   if (rainPollingInterval) { clearInterval(rainPollingInterval); rainPollingInterval = null; }
   if (rainAnimTimer) rainToggleAnim(); // stops the loop and resets the play icon
   if (mode !== 'busmap' && mode !== 'rain') stopLocationTracking();
   renderEventTagFilterPills();
+  if (mode === 'moe') renderMoeInbox();
   if (mode === 'calendar') renderEventCalendar();
   if (mode === 'bus') {
     renderBusPanel();

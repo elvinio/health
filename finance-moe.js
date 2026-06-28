@@ -1,8 +1,9 @@
 // ── MOE inbox ────────────────────────────────────────────────────────────────
-// Read-only-ish list of items captured by the Android MOE Bridge app and ingested
-// from Drive (see fetchMoeInbox in finance-drive.js). Items are immutable; the only
-// action is delete, which tombstones the id (kept in data.moeInboxSeenIds) so the
-// item never reappears on the next Drive fetch or device merge.
+// Renders the MOE sub-view under the Events tab (toggled by setEventView('moe') in
+// finance-events.js). A list of items captured by the Android MOE Bridge app and
+// ingested from Drive (see fetchMoeInbox in finance-drive.js). Items are immutable;
+// the only action is delete, which tombstones the id (kept in data.moeInboxSeenIds)
+// so the item never reappears on the next Drive fetch or device merge.
 
 function moeRelativeDate(ts) {
   if (!ts) return '';

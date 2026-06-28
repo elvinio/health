@@ -56,7 +56,7 @@ deep-dive doc rather than loading both.
 | `fonts/eb-garamond.woff2` | Self-hosted serif for resume PDF (finance) — see `docs/finance.md` | — |
 | `finance-data-structure.md` / `finance-import-format.md` | Finance data schema + import format specs | — |
 | `tests/harness.js` / `tests/finance.test.js` | Test harness + `node:test` suite (finance pure logic) | — |
-| `finance-moe.js` | Finance PWA **MOE** tab — lists items captured by the Android MOE Bridge app (ingested from Drive by `fetchMoeInbox` in `finance-drive.js`) | — |
+| `finance-moe.js` | Finance PWA **MOE** sub-view (under the Events tab, via `setEventView('moe')`) — lists items captured by the Android MOE Bridge app (ingested from Drive by `fetchMoeInbox` in `finance-drive.js`) | — |
 | `android-moe-bridge/` | Standalone Android (Kotlin) app: AccessibilityService → SQLite → Google Drive bridge feeding the finance MOE tab. **Self-documented → [`android-moe-bridge/CLAUDE.md`](android-moe-bridge/CLAUDE.md).** | — |
 
 ## Shared conventions (apply to both PWAs)

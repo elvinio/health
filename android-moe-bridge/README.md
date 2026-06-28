@@ -4,7 +4,7 @@ A small **debug** Android app that captures messages/notifications from the **MO
 Parents Gateway** app (via an Accessibility Service), stores them locally in
 **SQLite (Room)**, and uploads new items to your **Google Drive** as
 `moe-inbox-incoming.json`. The Finance PWA in this repo reads that file on its
-normal Drive sync and shows the items in its **MOE** tab.
+normal Drive sync and shows the items in its **MOE** view (under the Events tab).
 
 ```
 MOE PG app ──AccessibilityEvent──► MoeAccessibilityService ──► Room/SQLite (dedup queue)
@@ -12,7 +12,7 @@ MOE PG app ──AccessibilityEvent──► MoeAccessibilityService ──► R
                                                                 ▼
                                   Google Drive: moe-inbox-incoming.json (plain JSON)
                                                                 ▼
-                                  Finance PWA ──► data.moeInbox ──► "MOE" tab
+                                  Finance PWA ──► data.moeInbox ──► "MOE" view (Events tab)
 ```
 
 > Why not have the PWA read the SQLite file directly? A browser PWA can't reach a
@@ -73,7 +73,8 @@ create an OAuth **Android** client whose signing certificate matches this app.
    **capture all OFF**, and **Save**.
 5. Use MOE PG normally. Captures appear under *Recent captures* and upload (a
    `•` = pending, `✓` = synced). **Sync now** forces an upload.
-6. In the Finance PWA, run a Drive sync → items show in the **MOE** tab.
+6. In the Finance PWA, run a Drive sync → open the **Events** tab → tap the
+   **MOE** (school) view button → items show there.
 
 ## Notes
 - Accessibility scraping is inherently fragile to MOE UI changes; the full capture
