@@ -122,6 +122,8 @@ function defaultData() {
     allocationRatios: {},  // { Equities: 40, Bonds: 20, ... } target allocation %
     medicalVisits: [],     // [{ id, title, person, description, date, amount, paymentType, _ts }]
     notes: [],             // [{ id, title, content, _updatedAt }]
+    moeInbox: [],          // [{ id, capturedAt, pkg, screen, title, text, _ingestedAt }] — items captured by the Android MOE Bridge app, ingested from Drive (see finance-drive.js fetchMoeInbox)
+    moeInboxSeenIds: [],   // ids ever ingested (incl. user-deleted) — tombstones so deleted items never reappear on the next Drive fetch
     wikiFileId: null,      // Drive file ID for the separate wiki file (recipes/shoppingLists/resumes); null = not linked
     wikiUpdatedAt: 0,      // mirror of wikiData._updatedAt — drives wiki Drive sync decisions
     historyFileId: null,   // Drive file ID for finance-elvis-history.json. Lives in the main file (not localStorage) so it propagates to a partner and is kept out of the share code.
@@ -168,6 +170,8 @@ function loadData() {
     if (!d.allocationRatios) d.allocationRatios = {};
     if (!d.medicalVisits) d.medicalVisits = [];
     if (!d.notes) d.notes = [];
+    if (!d.moeInbox) d.moeInbox = [];
+    if (!d.moeInboxSeenIds) d.moeInboxSeenIds = [];
     if (!('wikiFileId' in d)) d.wikiFileId = null;
     if (typeof d.wikiUpdatedAt !== 'number') d.wikiUpdatedAt = 0;
     // Local content version for the main store (drives the sync watermark). Seed it

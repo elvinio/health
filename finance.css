@@ -940,8 +940,15 @@
 
 /* ── Wiki sub-tabs ── */
 .wiki-sub-tabs {
-  display: flex; border-bottom: 2px solid var(--border); margin-bottom: 12px; margin-top: 10px;
+  display: flex; border-bottom: 2px solid var(--border); margin-bottom: 0; margin-top: 10px;
 }
+.wiki-search-bar { padding: 10px 0 2px; }
+.wiki-search-input {
+  width: 100%; padding: 8px 12px; border-radius: 10px;
+  border: 1.5px solid var(--border); background: var(--card);
+  font-size: .9rem; color: var(--text); outline: none; -webkit-appearance: none; box-sizing: border-box;
+}
+.wiki-search-input:focus { border-color: var(--primary-light); }
 .wiki-sub-tab {
   display: flex; align-items: center; gap: 4px; padding: 8px 16px;
   font-size: .82rem; font-weight: 600; color: var(--muted);
@@ -1143,3 +1150,37 @@
 .th-r { text-align: right; padding: 4px 6px; color: var(--muted); font-weight: 600; }
 .th-l { text-align: left; padding: 4px 6px; color: var(--muted); font-weight: 600; }
 .td-total { text-align: right; padding: 6px; border-top: 2px solid var(--border); }
+
+/* ── MOE inbox ──────────────────────────────────────────────────────────────── */
+.moe-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin: 10px 0 12px;
+}
+.moe-header-title {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: .95rem; font-weight: 700; color: var(--text);
+}
+.moe-header-title .material-symbols-outlined { font-size: 1.2rem; color: var(--primary); }
+.moe-clear {
+  border: 1.5px solid var(--border); background: var(--card); color: var(--muted);
+  border-radius: 999px; padding: 5px 12px; font-size: .78rem; font-weight: 600; cursor: pointer;
+}
+.moe-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px 14px; margin-bottom: 10px;
+}
+.moe-card-head { display: flex; align-items: center; justify-content: space-between; }
+.moe-date { font-size: .72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .02em; }
+.moe-del {
+  border: none; background: transparent; color: var(--muted); cursor: pointer;
+  padding: 2px; line-height: 0; border-radius: 6px;
+}
+.moe-del .material-symbols-outlined { font-size: 1.1rem; }
+.moe-del:hover { color: var(--red); }
+.moe-title { font-size: .95rem; font-weight: 700; color: var(--text); margin: 4px 0 2px; }
+.moe-text { font-size: .88rem; color: var(--text); white-space: pre-wrap; word-break: break-word; line-height: 1.4; }
+.moe-meta { font-size: .7rem; color: var(--muted); margin-top: 8px; }
+.moe-empty { text-align: center; color: var(--muted); padding: 48px 16px; }
+.moe-empty-icon .material-symbols-outlined { font-size: 3rem; color: var(--border); }
+.moe-empty p { margin: 8px 0 0; font-size: .9rem; }
+.moe-empty-hint { font-size: .78rem !important; opacity: .8; }
