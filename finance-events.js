@@ -26,23 +26,26 @@ function fmtEventCountdown(ev) {
   return `${Math.abs(days)} days ago`;
 }
 
-function getCurrentTermWeek() {
+function getTermWeekForMs(dateMs) {
   const td = data.termDates || {};
   const terms = [1,2,3,4]
     .map(n => ({ label: `Term ${n}`, date: td['t'+n] }))
     .filter(t => t.date);
   if (!terms.length) return null;
-  const now = new Date();
-  const todayMs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const dayMs = new Date(new Date(dateMs).toDateString()).getTime();
   let current = null;
   for (const t of terms) {
     const [y,m,d] = t.date.split('-').map(Number);
     const startMs = new Date(y, m-1, d).getTime();
-    if (todayMs >= startMs) current = { label: t.label, startMs };
+    if (dayMs >= startMs) current = { label: t.label, startMs };
   }
   if (!current) return null;
-  const week = Math.floor((todayMs - current.startMs) / (7 * 86400000)) + 1;
+  const week = Math.floor((dayMs - current.startMs) / (7 * 86400000)) + 1;
   return `${current.label}, Week ${week}`;
+}
+
+function getCurrentTermWeek() {
+  return getTermWeekForMs(Date.now());
 }
 
 
@@ -196,7 +199,10 @@ function renderEventList() {
         const monDate = new Date(monMs);
         const monLabel = monDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
         const weeksAway = Math.round((monMs - currentMonMs) / (7 * 86400000));
-        const bracket = weeksAway === 1 ? ' (Next Week)' : weeksAway > 1 ? ` (${weeksAway} weeks)` : '';
+        const termWeek = getTermWeekForMs(monMs);
+        const relLabel = weeksAway === 1 ? 'Next Week' : weeksAway > 1 ? `${weeksAway} weeks` : '';
+        const bracketParts = [relLabel, termWeek].filter(Boolean);
+        const bracket = bracketParts.length ? ` (${bracketParts.join(' - ')})` : '';
         html += `<div class="week-marker">${monLabel}${bracket}</div>`;
       }
       html += renderEventItem(ev);
