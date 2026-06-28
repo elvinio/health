@@ -781,7 +781,11 @@ async function refreshPwaCache() {
       if (reg) await reg.unregister();
     }
     showToast('Cache cleared — reloading…');
-    setTimeout(() => location.reload(true), 800);
+    setTimeout(() => {
+      const url = new URL(location.href);
+      url.searchParams.set('_cb', Date.now());
+      location.replace(url.toString());
+    }, 800);
   } catch (e) {
     showToast('Error clearing cache: ' + e.message);
   }
