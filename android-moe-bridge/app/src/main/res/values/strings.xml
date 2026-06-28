@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">MOE Bridge</string>
+    <string name="accessibility_label">MOE Bridge capture</string>
+    <string name="accessibility_description">Captures MOE Parents Gateway messages and notifications so they can be synced to your Finance app. Runs locally; content is stored on-device and uploaded only to your own Google Drive.</string>
+</resources>

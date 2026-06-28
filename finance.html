@@ -58,6 +58,7 @@
     <button class="event-view-btn" id="evViewBus" aria-label="Bus arrivals" onclick="setEventView('bus')"><span class="material-symbols-outlined" aria-hidden="true" style="font-size:1.1rem">directions_bus</span></button>
     <button class="event-view-btn" id="evViewBusMap" aria-label="Bus map" onclick="setEventView('busmap')"><span class="material-symbols-outlined" aria-hidden="true" style="font-size:1.1rem">map</span></button>
     <button class="event-view-btn" id="evViewRain" aria-label="Rain radar" onclick="setEventView('rain')"><span class="material-symbols-outlined" aria-hidden="true" style="font-size:1.1rem">rainy</span></button>
+    <button class="event-view-btn" id="evViewMoe" aria-label="MOE" onclick="setEventView('moe')"><span class="material-symbols-outlined" aria-hidden="true" style="font-size:1.1rem">school</span></button>
   </div>
   <div class="exp-sub-tabs" id="eventListSubTabs">
     <button class="exp-sub-tab active" id="evListSubTab-upcoming" onclick="switchEventListSubTab('upcoming')">
@@ -75,6 +76,14 @@
   <div id="busPanel" style="display:none"></div>
   <div id="busMapPanel" style="display:none"></div>
   <div id="rainPanel" style="display:none"></div>
+  <!-- MOE sub-view: messages captured by the Android MOE Bridge app, ingested from Drive -->
+  <div id="moePanel" style="display:none">
+    <div class="moe-header">
+      <span class="moe-header-title"><span class="material-symbols-outlined" aria-hidden="true">school</span> MOE Parents Gateway</span>
+      <button class="moe-clear" onclick="clearMoeInbox()">Clear all</button>
+    </div>
+    <div id="moeList"></div>
+  </div>
 </div>
 
 <!-- Wiki Page -->
@@ -1231,5 +1240,6 @@
 <script src="finance-wiki.js"></script>
 <script src="finance-app.js"></script>
 <script src="finance-gmail.js"></script>
+<script src="finance-moe.js"></script>
 </body>
 </html>

@@ -1,0 +1,38 @@
+name: Android MOE Bridge APK
+
+# Builds the sideloadable debug APK and uploads it as a downloadable artifact.
+# Download from the run's "Artifacts" section → moe-bridge-debug-apk.
+on:
+  push:
+    paths:
+      - "android-moe-bridge/**"
+      - ".github/workflows/android-moe-bridge.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android-moe-bridge
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build debug APK
+        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: moe-bridge-debug-apk
+          path: android-moe-bridge/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

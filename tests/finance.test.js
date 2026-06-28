@@ -135,6 +135,23 @@ test('mergeData: tombstoned ids are excluded from the merge', () => {
   assert.ok(m._deletedIds.includes('a'));
 });
 
+test('mergeData: moeInbox union by id, sorted newest-first', () => {
+  const local = baseSide({ moeInbox: [{ id: 'a', capturedAt: 10 }], moeInboxSeenIds: ['a'] });
+  const remote = baseSide({ moeInbox: [{ id: 'b', capturedAt: 20 }], moeInboxSeenIds: ['b'] });
+  const m = F.mergeData(local, remote);
+  assert.deepEqual(plain(m.moeInbox.map(i => i.id)), ['b', 'a'], 'union, newest capturedAt first');
+  assert.deepEqual(plain([...m.moeInboxSeenIds].sort()), ['a', 'b']);
+});
+
+test('mergeData: moeInbox delete wins (seen-but-absent on one side removes it)', () => {
+  // 'a' was deleted locally (in seenIds, absent from inbox); remote still has it.
+  const local = baseSide({ moeInbox: [], moeInboxSeenIds: ['a'] });
+  const remote = baseSide({ moeInbox: [{ id: 'a', capturedAt: 5 }], moeInboxSeenIds: ['a'] });
+  const m = F.mergeData(local, remote);
+  assert.equal(m.moeInbox.find(i => i.id === 'a'), undefined, 'deleted item stays gone');
+  assert.ok(m.moeInboxSeenIds.includes('a'), 'tombstone retained');
+});
+
 test('mergeData: accounts prefer higher _updatedAt', () => {
   const local = baseSide({ accounts: [{ id: 'acc1', name: 'Old', startingBalance: 100, _updatedAt: 1 }] });
   const remote = baseSide({ accounts: [{ id: 'acc1', name: 'New', startingBalance: 200, _updatedAt: 2 }] });
