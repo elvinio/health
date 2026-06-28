@@ -25,7 +25,7 @@ All files share a global scope. Each file may reference globals defined in files
 
 ## Service worker cache
 
-`sw.js` line 1 holds the cache version (`const CACHE = 'finance-v157';`).
+`sw.js` line 1 holds the cache version (`const CACHE = 'finance-v183';`).
 **Bump it whenever any file in the ASSETS list changes** — see the root
 `CLAUDE.md` "Service worker versioning" section for the ASSETS list and rules.
 Leaflet's CSS/JS are cached separately in `EXT_CACHE` (`finance-ext-v1`) and do
@@ -135,8 +135,11 @@ Two localStorage keys:
   wikiFileId: null,      // Drive file ID for the separate wiki file (recipes/shoppingLists/resumes); null = not linked. Lives in main file so it propagates to partners; entered/created via the Drive menu.
   wikiUpdatedAt: 0,      // mirror of wikiData._updatedAt — sole signal driveSync uses to sync the wiki file (parallels historyUpdatedAt)
   // recipes/shoppingLists/resumes USED to live here; they now live in wikiData (finance:v1:wiki) — see "wikiData" section below.
+  _localTs: 0,           // local content version for the main store — bumped by saveData(d, bump=true) on every real edit; compared against the finance:wm:main watermark to decide if the main bulk file is dirty (see Drive sync v2).
 }
 ```
+
+> `historyUpdatedAt`/`wikiUpdatedAt` still mirror the history/wiki local versions for legacy/UI use, but the **authoritative** sync signals are now the metadata file's `*UpdatedAt` versions plus the `finance:wm:*` watermarks — see "Google Drive sync (v2)".
 
 Per-field sync timestamps (set on write, consumed by `mergeData` for last-writer-wins): `_termDatesTs`, `_eventTagsTs`, `_expenseCatsTs`, `_emailParsersTs`, `_emailCatMapTs`, `_cpfSettingsTs`, `_aiReportTs`, `_dependentsTs`, `_allocationRatiosTs`, `_customAiPromptTs`, `_retirementSettingsTs`.
 
@@ -264,8 +267,10 @@ Follow all five steps or the collection will be silently dropped during syncs an
 | Key | Purpose |
 |---|---|
 | `finance:theme` | Active theme ('navy' / 'earth' / 'pastel') |
-| `finance:driveFileId` | Drive file ID for main data |
-| `finance:driveHistoryFileId` | **Legacy** — history file ID now lives in the main file as `data.historyFileId`; this key is migrated into it once on load and no longer written |
+| `finance:driveFileId` | Drive file ID of the **metadata file** `elvis-finance-metadata.json` (the share-code target). Pre-v2 this pointed at the main bulk file; `driveSync` migrates it in place on first upgraded sync |
+| `finance:driveMainDataFileId` | Local cache of the gzipped main bulk file's ID (`finance-elvis.json`); authoritative copy lives in the metadata file (`mainFileId`) |
+| `finance:wm:{main,history,wiki}:{l,r}` | Per-store sync **watermarks** — local version (`l`) and remote/metadata version (`r`) at last reconcile; drive the dirty/new skip logic |
+| `finance:driveHistoryFileId` | **Legacy** — history file ID now lives in the metadata file (and mirrored to `data.historyFileId`); this key is migrated once on load and no longer written |
 | *(wiki / history file IDs)* | **Not** localStorage keys — stored in the main file as `data.wikiFileId` / `data.historyFileId` (see wikiData / historyData above) |
 | `finance:googleClientId` | OAuth2 client ID |
 | `finance:googleLoginHint` | Last signed-in Google email |
@@ -280,9 +285,49 @@ Follow all five steps or the collection will be silently dropped during syncs an
 | `finance:driveReportFileId` | Drive file ID for `finance-elvis-report.json` (AI report) |
 | `busMapCenter` | Saved map centre `[lat, lng]` |
 
-### Google Drive sync
+### Google Drive sync (v2: metadata file + watermarks + gzip)
 
-Three Drive files per user: `finance-elvis.json` (main), `finance-elvis-history.json` (history), and `finance-elvis-wiki.json` (wiki — recipes/shoppingLists/resumes; ID stored in the main file as `data.wikiFileId`, see wikiData section).
+**Four Drive files per user.** The file the share code points at (`DRIVE_FILE_KEY` = `finance:driveFileId`) is a small **metadata file** `elvis-finance-metadata.json` (plain JSON). It holds the IDs and last-updated versions of the three **bulk** files, which are stored **app-level gzipped**:
+
+| File | Content | Encoding |
+|---|---|---|
+| `elvis-finance-metadata.json` | `{ _meta:1, mainFileId, historyFileId, wikiFileId, mainUpdatedAt, historyUpdatedAt, wikiUpdatedAt, _metaTs }` | plain JSON |
+| `finance-elvis.json` (main) | all of `data` | gzip |
+| `finance-elvis-history.json` | `historyData` | gzip |
+| `finance-elvis-wiki.json` | `wikiData` | gzip |
+
+**Why:** a sync first downloads the tiny metadata file, then only downloads/uploads the bulk files that actually changed. A no-op sync (nothing changed on either side) is a single small GET; an unchanged store is skipped entirely.
+
+#### gzip (app-level, magic-byte fallback)
+
+`gzipString()` / `gunzipBlobToText()` (finance-drive.js) use `CompressionStream`/`DecompressionStream`. Uploads of bulk files go through `uploadDataFile`; downloads through `downloadDataFile`, which sniffs the gzip magic bytes (`0x1f 0x8b`) and transparently falls back to plain JSON — so legacy uncompressed files (and the pre-rollout state) still read. The metadata file and the AI summary/report files stay **plain JSON** via `uploadFileToDrive`/`downloadFromDrive` (do **not** gzip those — `finance-ai.js` depends on the plain variants). ⚠️ HTTP/transport gzip is **not** usable from browser `fetch` (`Accept-Encoding`/`User-Agent` are forbidden headers), which is why compression is done at the application level.
+
+#### Watermarks (per-store dirty/new detection)
+
+Each store (main / history / wiki) has a **local content version** and two **watermarks** in localStorage (`finance:wm:<store>:l` and `:r`):
+
+- Local versions: `data._localTs` (main; bumped by `saveData(d, bump=true)` on every real edit), `historyData._updatedAt`, `wikiData._updatedAt`.
+- `:l` = local version at last reconcile; `:r` = the metadata file's version at last reconcile.
+- `localDirty = (localVer !== :l)`, `remoteNew = (metaVer !== :r)`. **Equality (`!==`), never `>`** — versions are opaque tokens, so cross-device clock skew never matters.
+
+Per store, `syncWithMetadata()` does:
+- **localDirty** → download → `mergeData`/`mergeHistoryData`/`mergeWikiData` → upload (gzip) → bump that store's metadata version. (Preserves the "never upload without merging first" invariant.)
+- **!localDirty && remoteNew** → download → adopt (no upload). Idle devices never ping-pong versions.
+- **neither** → skip the store entirely.
+
+The sync itself persists with `saveData(data, false)` so its bookkeeping writes don't look like user edits (which would re-upload main forever). Edits made *during* the upload window are folded back in and keep the store dirty for the next sync.
+
+#### Metadata write ordering (crash-safe)
+
+The metadata file is written **last**, after the bulk uploads succeed, and only the stores actually published this sync are overwritten (the file is re-downloaded and field-merged first, so a partner's concurrent change to a *different* store isn't clobbered). If a bulk upload succeeds but the metadata write fails, the stale metadata just makes the next sync redo that store — no data loss. The reverse order would risk it.
+
+> **Residual race / limitation:** this is best-effort, lock-free (Drive has no CAS). Two devices syncing the *same* store within the same ~1–2 s window can still race — acceptable for a 2-person personal app, same tolerance the app already had. `localDirty` always merges-before-upload, so the common cases are safe.
+
+#### One-time migration & rollout
+
+On the first sync after upgrading, `driveSync` downloads `DRIVE_FILE_KEY` and detects the **old single-bulk file** (`isOldBulkFile`). `migrateToMetadataFile()` then: merges remote+local, copies the bulk data into a **new** gzipped `finance-elvis.json`, reuses the existing history/wiki file IDs, and **rewrites the old file in place as the metadata file** — so the **share code is unchanged** and partners don't re-pair. ⚠️ **Both devices must run the upgraded code**: old code expects `accounts`/`expenses` at `DRIVE_FILE_KEY` and will fail to read the metadata file. `finance:driveMainDataFileId` caches the main bulk file's ID locally.
+
+Three bulk Drive files plus the metadata file: `finance-elvis.json` (main, gzip), `finance-elvis-history.json` (history, gzip), and `finance-elvis-wiki.json` (wiki — recipes/shoppingLists/resumes; ID tracked in the metadata file and mirrored to `data.wikiFileId`, see wikiData section).
 
 **Merge strategy** (bidirectional, conflict-resolved):
 

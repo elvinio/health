@@ -125,6 +125,7 @@ function defaultData() {
     wikiFileId: null,      // Drive file ID for the separate wiki file (recipes/shoppingLists/resumes); null = not linked
     wikiUpdatedAt: 0,      // mirror of wikiData._updatedAt — drives wiki Drive sync decisions
     historyFileId: null,   // Drive file ID for finance-elvis-history.json. Lives in the main file (not localStorage) so it propagates to a partner and is kept out of the share code.
+    _localTs: 0,           // local content version for the main store — bumped by saveData on every real edit; compared against the sync watermark (finance:wm:main) to decide if the main file is dirty. See finance-drive.js.
   };
 }
 
@@ -169,6 +170,9 @@ function loadData() {
     if (!d.notes) d.notes = [];
     if (!('wikiFileId' in d)) d.wikiFileId = null;
     if (typeof d.wikiUpdatedAt !== 'number') d.wikiUpdatedAt = 0;
+    // Local content version for the main store (drives the sync watermark). Seed it
+    // for pre-existing data so the first post-upgrade sync treats main as dirty.
+    if (typeof d._localTs !== 'number') d._localTs = Date.now();
     // History file ID moved from localStorage into the main file; migrate it once.
     if (!('historyFileId' in d) || !d.historyFileId) {
       d.historyFileId = localStorage.getItem(DRIVE_HISTORY_FILE_KEY) || d.historyFileId || null;
@@ -187,7 +191,12 @@ function loadData() {
   } catch { return defaultData(); }
 }
 
-function saveData(d) {
+// bump=true (the default, used by every UI/CRUD caller) stamps a fresh local
+// content version onto data._localTs so the next Drive sync sees the main store as
+// dirty. The sync itself persists with bump=false — its bookkeeping writes must not
+// look like new user edits, or it would re-upload the main file on every run.
+function saveData(d, bump = true) {
+  if (bump) d._localTs = Date.now();
   if (Array.isArray(d._deletedIds) && d._deletedIds.length > 500) {
     d._deletedIds = d._deletedIds.slice(-500);
   }
