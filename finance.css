@@ -1001,6 +1001,20 @@
 .wiki-note-h2 { font-size: 1.05rem; font-weight: 600; color: var(--text); margin: .5em 0 .2em; }
 .wiki-note-h3 { font-size: .95rem; font-weight: 600; color: var(--text); margin: .4em 0 .1em; }
 .wiki-note-list { margin: .3em 0 .3em 1.2em; padding: 0; font-size: .9rem; line-height: 1.6; color: var(--muted); }
+.wiki-note-body {
+  background: #fff; border-radius: var(--radius); padding: 14px 16px;
+  color: #333;
+}
+.wiki-note-body .wiki-detail-notes { color: #444; }
+.wiki-note-body .wiki-note-list { color: #444; }
+.wiki-note-body .wiki-note-h1,
+.wiki-note-body .wiki-note-h2,
+.wiki-note-body .wiki-note-h3 { color: #111; }
+.wiki-note-ts { font-size: .82rem; color: #999; text-align: right; margin-top: 12px; }
+.wiki-inline-code {
+  font-family: monospace; font-size: .87em;
+  background: #f0f0f0; border-radius: 3px; padding: 1px 5px; color: #c44;
+}
 
 /* ── Shopping list detail ── */
 .wiki-shop-items { display: flex; flex-direction: column; gap: 6px; }

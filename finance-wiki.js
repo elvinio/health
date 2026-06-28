@@ -195,25 +195,44 @@ function renderNoteList() {
   attachWikiGestures(el);
 }
 
+function inlineMd(raw) {
+  // Extract backtick code spans before esc() converts ` to &#96;
+  const parts = raw.split(/(`[^`\n]+`)/);
+  return parts.map((part, i) => {
+    if (i % 2 === 1) {
+      return '<code class="wiki-inline-code">' + esc(part.slice(1, -1)) + '</code>';
+    }
+    return esc(part)
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+  }).join('');
+}
+
 function renderNoteMarkdown(text) {
   if (!text.trim()) return '<p class="wiki-detail-empty">No content.</p>';
-  // Split on double newlines to get paragraphs/blocks, preserving blank lines
+  // Split on double newlines to get paragraphs/blocks
   const blocks = text.split(/\n{2,}/);
   const html = blocks.map(block => {
     const lines = block.split('\n');
-    // Check if all non-empty lines are list items
     const listLines = lines.filter(l => l.trim());
+    // All bullet list items
     if (listLines.length && listLines.every(l => /^\s*[-*]\s/.test(l))) {
-      const items = listLines.map(l => `<li>${esc(l.replace(/^\s*[-*]\s+/, ''))}</li>`).join('');
+      const items = listLines.map(l => `<li>${inlineMd(l.replace(/^\s*[-*]\s+/, ''))}</li>`).join('');
       return `<ul class="wiki-note-list">${items}</ul>`;
+    }
+    // All numbered list items
+    if (listLines.length && listLines.every(l => /^\s*\d+\.\s/.test(l))) {
+      const items = listLines.map(l => `<li>${inlineMd(l.replace(/^\s*\d+\.\s+/, ''))}</li>`).join('');
+      return `<ol class="wiki-note-list">${items}</ol>`;
     }
     // Mixed block: render line by line
     const rendered = lines.map(l => {
-      if (/^###\s/.test(l)) return `<h3 class="wiki-note-h3">${esc(l.replace(/^###\s+/, ''))}</h3>`;
-      if (/^##\s/.test(l)) return `<h2 class="wiki-note-h2">${esc(l.replace(/^##\s+/, ''))}</h2>`;
-      if (/^#\s/.test(l)) return `<h1 class="wiki-note-h1">${esc(l.replace(/^#\s+/, ''))}</h1>`;
-      if (/^\s*[-*]\s/.test(l)) return `<li>${esc(l.replace(/^\s*[-*]\s+/, ''))}</li>`;
-      return l.trim() ? `<span>${esc(l)}</span>` : '';
+      if (/^###\s/.test(l)) return `<h3 class="wiki-note-h3">${inlineMd(l.replace(/^###\s+/, ''))}</h3>`;
+      if (/^##\s/.test(l))  return `<h2 class="wiki-note-h2">${inlineMd(l.replace(/^##\s+/, ''))}</h2>`;
+      if (/^#\s/.test(l))   return `<h1 class="wiki-note-h1">${inlineMd(l.replace(/^#\s+/, ''))}</h1>`;
+      if (/^\s*[-*]\s/.test(l)) return `<li>${inlineMd(l.replace(/^\s*[-*]\s+/, ''))}</li>`;
+      if (/^\s*\d+\.\s/.test(l)) return `<li>${inlineMd(l.replace(/^\s*\d+\.\s+/, ''))}</li>`;
+      return l.trim() ? `<span>${inlineMd(l)}</span>` : '';
     });
     // Wrap consecutive <li> in <ul>
     const joined = rendered.join('\n').replace(/(<li>.*<\/li>\n?)+/g, m => `<ul class="wiki-note-list">${m}</ul>`);
@@ -240,9 +259,9 @@ function renderNoteDetail(id) {
         <h2 class="wiki-detail-title">${esc(note.title)}</h2>
         <button class="btn btn-secondary wiki-detail-edit-btn" onclick="openNoteSheet('${esc(id)}')">Edit</button>
       </div>
-      <div class="wiki-detail-section">
+      <div class="wiki-detail-section wiki-note-body">
         ${contentHtml}
-        ${ts ? `<div class="wiki-detail-empty" style="text-align:right;margin-top:10px">Updated ${ts}</div>` : ''}
+        ${ts ? `<div class="wiki-note-ts">Updated ${ts}</div>` : ''}
       </div>
     </div>`;
 }
