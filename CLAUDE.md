@@ -29,7 +29,7 @@ deep-dive doc rather than loading both.
 | `finance.html` | Finance PWA shell — HTML only (no inline CSS or JS) | 1083 |
 | `finance.css` | Finance PWA styles | 916 |
 | `finance-core.js` | Constants, data layer, utilities, sheet/tab/FAB helpers, SG tax + CPF constants | 415 |
-| `finance-drive.js` | Import/export + Google Drive bidirectional sync + merge logic | 776 |
+| `finance-drive.js` | Import/export + Google Drive bidirectional sync (metadata file + per-file watermarks + gzipped data files) + merge logic | 960 |
 | `finance-expenses.js` | Expenses tab — render, CRUD, filters, year/account pills, sub-tab switching | 375 |
 | `finance-investments.js` | Account settings, budgets, assets, asset allocation, investment history modal | 627 |
 | `finance-events.js` | Events tab, calendar, bus panel, Leaflet map, notes, reminders | 934 |
@@ -77,7 +77,7 @@ deep-dive doc rather than loading both.
 **Bump the cache version whenever any file in that worker's ASSETS list is
 modified** — otherwise users keep being served stale cached files after deploy.
 
-- **Finance** — `sw.js` line 1: `const CACHE = 'finance-v157';` (increment the
+- **Finance** — `sw.js` line 1: `const CACHE = 'finance-v183';` (increment the
   number). ASSETS list (20 files) and the `EXT_CACHE` note are in `docs/finance.md`.
 - **Tracker** — `sw-tracker.js` line 1: `const CACHE = 'health-tracker-v13';`.
   ASSETS = `tracker.html`, `tracker-chat.js`, `tracker-radio.js`.
