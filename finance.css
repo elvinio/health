@@ -380,10 +380,13 @@
     position: fixed; bottom: calc(90px + env(safe-area-inset-bottom));
     left: 50%; transform: translateX(-50%);
     background: var(--text); color: #fff;
-    padding: 10px 20px; border-radius: 99px;
+    padding: 10px 20px; border-radius: 14px;
     font-size: .88rem; font-weight: 600; z-index: 999;
     opacity: 0; transition: opacity .2s; pointer-events: none;
-    white-space: nowrap;
+    /* Wrap long messages (e.g. sync errors with file paths/URLs) instead of
+       overflowing off-screen, and break unbreakable tokens like URLs. */
+    max-width: min(92vw, 520px); text-align: center;
+    white-space: normal; overflow-wrap: anywhere; word-break: break-word;
   }
   .toast.show { opacity: 1; }
   .spinner {

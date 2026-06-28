@@ -77,7 +77,7 @@ deep-dive doc rather than loading both.
 **Bump the cache version whenever any file in that worker's ASSETS list is
 modified** — otherwise users keep being served stale cached files after deploy.
 
-- **Finance** — `sw.js` line 1: `const CACHE = 'finance-v183';` (increment the
+- **Finance** — `sw.js` line 1: `const CACHE = 'finance-v184';` (increment the
   number). ASSETS list (20 files) and the `EXT_CACHE` note are in `docs/finance.md`.
 - **Tracker** — `sw-tracker.js` line 1: `const CACHE = 'health-tracker-v13';`.
   ASSETS = `tracker.html`, `tracker-chat.js`, `tracker-radio.js`.

@@ -25,7 +25,7 @@ All files share a global scope. Each file may reference globals defined in files
 
 ## Service worker cache
 
-`sw.js` line 1 holds the cache version (`const CACHE = 'finance-v183';`).
+`sw.js` line 1 holds the cache version (`const CACHE = 'finance-v184';`).
 **Bump it whenever any file in the ASSETS list changes** — see the root
 `CLAUDE.md` "Service worker versioning" section for the ASSETS list and rules.
 Leaflet's CSS/JS are cached separately in `EXT_CACHE` (`finance-ext-v1`) and do
