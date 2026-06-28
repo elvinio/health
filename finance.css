@@ -996,7 +996,11 @@
 .wiki-detail-list { padding-left: 20px; }
 .wiki-detail-list li { font-size: .92rem; line-height: 1.6; margin-bottom: 2px; }
 .wiki-detail-empty { font-size: .88rem; color: var(--muted); font-style: italic; }
-.wiki-detail-notes { font-size: .9rem; line-height: 1.6; color: var(--muted); }
+.wiki-detail-notes { font-size: .9rem; line-height: 1.6; color: var(--muted); margin: 0; }
+.wiki-note-h1 { font-size: 1.2rem; font-weight: 700; color: var(--text); margin: .6em 0 .2em; }
+.wiki-note-h2 { font-size: 1.05rem; font-weight: 600; color: var(--text); margin: .5em 0 .2em; }
+.wiki-note-h3 { font-size: .95rem; font-weight: 600; color: var(--text); margin: .4em 0 .1em; }
+.wiki-note-list { margin: .3em 0 .3em 1.2em; padding: 0; font-size: .9rem; line-height: 1.6; color: var(--muted); }
 
 /* ── Shopping list detail ── */
 .wiki-shop-items { display: flex; flex-direction: column; gap: 6px; }

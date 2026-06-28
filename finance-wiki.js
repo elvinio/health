@@ -195,16 +195,40 @@ function renderNoteList() {
   attachWikiGestures(el);
 }
 
+function renderNoteMarkdown(text) {
+  if (!text.trim()) return '<p class="wiki-detail-empty">No content.</p>';
+  // Split on double newlines to get paragraphs/blocks, preserving blank lines
+  const blocks = text.split(/\n{2,}/);
+  const html = blocks.map(block => {
+    const lines = block.split('\n');
+    // Check if all non-empty lines are list items
+    const listLines = lines.filter(l => l.trim());
+    if (listLines.length && listLines.every(l => /^\s*[-*]\s/.test(l))) {
+      const items = listLines.map(l => `<li>${esc(l.replace(/^\s*[-*]\s+/, ''))}</li>`).join('');
+      return `<ul class="wiki-note-list">${items}</ul>`;
+    }
+    // Mixed block: render line by line
+    const rendered = lines.map(l => {
+      if (/^###\s/.test(l)) return `<h3 class="wiki-note-h3">${esc(l.replace(/^###\s+/, ''))}</h3>`;
+      if (/^##\s/.test(l)) return `<h2 class="wiki-note-h2">${esc(l.replace(/^##\s+/, ''))}</h2>`;
+      if (/^#\s/.test(l)) return `<h1 class="wiki-note-h1">${esc(l.replace(/^#\s+/, ''))}</h1>`;
+      if (/^\s*[-*]\s/.test(l)) return `<li>${esc(l.replace(/^\s*[-*]\s+/, ''))}</li>`;
+      return l.trim() ? `<span>${esc(l)}</span>` : '';
+    });
+    // Wrap consecutive <li> in <ul>
+    const joined = rendered.join('\n').replace(/(<li>.*<\/li>\n?)+/g, m => `<ul class="wiki-note-list">${m}</ul>`);
+    return `<p class="wiki-detail-notes">${joined.replace(/\n/g, '<br>')}</p>`;
+  }).join('<br><br>');
+  return html;
+}
+
 function renderNoteDetail(id) {
   const el = document.getElementById('wikiSubContent-notes');
   if (!el) return;
   const note = (data.notes || []).find(n => n.id === id);
   if (!note) { closeWikiDetail(); return; }
 
-  const lines = (note.content || '').split('\n').filter(l => l.trim());
-  const contentHtml = lines.length
-    ? `<p class="wiki-detail-notes">${lines.map(l => esc(l)).join('<br>')}</p>`
-    : '<p class="wiki-detail-empty">No content.</p>';
+  const contentHtml = renderNoteMarkdown(note.content || '');
   const ts = note._updatedAt
     ? new Date(note._updatedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
     : '';
