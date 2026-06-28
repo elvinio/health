@@ -4,11 +4,15 @@
 
 let currentWikiSubTab = 'notes';
 let wikiView = null; // { type: 'note'|'recipe'|'shopping'|'resume', id: string } | null
+let wikiSearchQuery = '';
 
 // ── Sub-tab switching ─────────────────────────────────────────────────────────
 function switchWikiSubTab(tab) {
   currentWikiSubTab = tab;
   wikiView = null;
+  wikiSearchQuery = '';
+  const inp = document.getElementById('wikiSearchInput');
+  if (inp) inp.value = '';
   document.querySelectorAll('.wiki-sub-tab').forEach(b => {
     b.classList.toggle('active', b.id === 'wikiSubTab-' + tab);
   });
@@ -20,8 +24,17 @@ function switchWikiSubTab(tab) {
   renderWiki();
 }
 
+function onWikiSearch(val) {
+  wikiSearchQuery = val.trim().toLowerCase();
+  renderWiki();
+}
+
 // ── Main render dispatcher ────────────────────────────────────────────────────
 function renderWiki() {
+  const searchBar = document.getElementById('wikiSearchBar');
+  const showSearch = !wikiView && currentWikiSubTab !== 'resume';
+  if (searchBar) searchBar.style.display = showSearch ? '' : 'none';
+
   if (wikiView) {
     if (wikiView.type === 'note') renderNoteDetail(wikiView.id);
     else if (wikiView.type === 'recipe') renderRecipeDetail(wikiView.id);
@@ -175,9 +188,17 @@ function wikiBackBtn() {
 function renderNoteList() {
   const el = document.getElementById('wikiSubContent-notes');
   if (!el) return;
-  const notes = (data.notes || []).slice().sort((a, b) => (b._updatedAt || 0) - (a._updatedAt || 0));
+  let notes = (data.notes || []).slice().sort((a, b) => (b._updatedAt || 0) - (a._updatedAt || 0));
+  if (wikiSearchQuery) {
+    notes = notes.filter(n =>
+      (n.title || '').toLowerCase().includes(wikiSearchQuery) ||
+      (n.content || '').toLowerCase().includes(wikiSearchQuery)
+    );
+  }
   if (!notes.length) {
-    el.innerHTML = `<div class="empty-state"><div class="icon">📔</div>No notes yet.<br>Tap + to add one.</div>`;
+    el.innerHTML = wikiSearchQuery
+      ? `<div class="empty-state"><div class="icon">🔍</div>No notes match "${esc(wikiSearchQuery)}".</div>`
+      : `<div class="empty-state"><div class="icon">📔</div>No notes yet.<br>Tap + to add one.</div>`;
     return;
   }
   el.innerHTML = notes.map(n => {
@@ -334,9 +355,19 @@ function deleteNote() {
 function renderRecipeList() {
   const el = document.getElementById('wikiSubContent-recipe');
   if (!el) return;
-  const recipes = (wikiData.recipes || []).slice().sort((a, b) => (b._updatedAt || 0) - (a._updatedAt || 0));
+  let recipes = (wikiData.recipes || []).slice().sort((a, b) => (b._updatedAt || 0) - (a._updatedAt || 0));
+  if (wikiSearchQuery) {
+    recipes = recipes.filter(r =>
+      (r.title || '').toLowerCase().includes(wikiSearchQuery) ||
+      (r.ingredients || '').toLowerCase().includes(wikiSearchQuery) ||
+      (r.steps || '').toLowerCase().includes(wikiSearchQuery) ||
+      (r.notes || '').toLowerCase().includes(wikiSearchQuery)
+    );
+  }
   if (!recipes.length) {
-    el.innerHTML = `<div class="empty-state"><div class="icon">🍳</div>No recipes yet.<br>Tap + to add one.</div>`;
+    el.innerHTML = wikiSearchQuery
+      ? `<div class="empty-state"><div class="icon">🔍</div>No recipes match "${esc(wikiSearchQuery)}".</div>`
+      : `<div class="empty-state"><div class="icon">🍳</div>No recipes yet.<br>Tap + to add one.</div>`;
     return;
   }
   el.innerHTML = recipes.map(r => {
@@ -462,9 +493,17 @@ function deleteRecipe() {
 function renderShoppingList() {
   const el = document.getElementById('wikiSubContent-shopping');
   if (!el) return;
-  const lists = (wikiData.shoppingLists || []).slice().sort((a, b) => (b._updatedAt || 0) - (a._updatedAt || 0));
+  let lists = (wikiData.shoppingLists || []).slice().sort((a, b) => (b._updatedAt || 0) - (a._updatedAt || 0));
+  if (wikiSearchQuery) {
+    lists = lists.filter(sl =>
+      (sl.title || '').toLowerCase().includes(wikiSearchQuery) ||
+      (sl.items || []).some(i => (i.text || '').toLowerCase().includes(wikiSearchQuery))
+    );
+  }
   if (!lists.length) {
-    el.innerHTML = `<div class="empty-state"><div class="icon">📝</div>No shopping lists yet.<br>Tap + to add one.</div>`;
+    el.innerHTML = wikiSearchQuery
+      ? `<div class="empty-state"><div class="icon">🔍</div>No lists match "${esc(wikiSearchQuery)}".</div>`
+      : `<div class="empty-state"><div class="icon">📝</div>No shopping lists yet.<br>Tap + to add one.</div>`;
     return;
   }
   el.innerHTML = lists.map(sl => {

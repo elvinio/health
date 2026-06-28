@@ -940,8 +940,15 @@
 
 /* ── Wiki sub-tabs ── */
 .wiki-sub-tabs {
-  display: flex; border-bottom: 2px solid var(--border); margin-bottom: 12px; margin-top: 10px;
+  display: flex; border-bottom: 2px solid var(--border); margin-bottom: 0; margin-top: 10px;
 }
+.wiki-search-bar { padding: 10px 0 2px; }
+.wiki-search-input {
+  width: 100%; padding: 8px 12px; border-radius: 10px;
+  border: 1.5px solid var(--border); background: var(--card);
+  font-size: .9rem; color: var(--text); outline: none; -webkit-appearance: none; box-sizing: border-box;
+}
+.wiki-search-input:focus { border-color: var(--primary-light); }
 .wiki-sub-tab {
   display: flex; align-items: center; gap: 4px; padding: 8px 16px;
   font-size: .82rem; font-weight: 600; color: var(--muted);

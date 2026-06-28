@@ -85,6 +85,9 @@
     <button class="wiki-sub-tab" id="wikiSubTab-shopping" onclick="switchWikiSubTab('shopping')">📝 Shopping</button>
     <button class="wiki-sub-tab" id="wikiSubTab-resume" onclick="switchWikiSubTab('resume')">📄 Resume</button>
   </div>
+  <div class="wiki-search-bar" id="wikiSearchBar">
+    <input type="search" id="wikiSearchInput" class="wiki-search-input" placeholder="Search…" oninput="onWikiSearch(this.value)" autocomplete="off">
+  </div>
   <div id="wikiSubContent-notes"></div>
   <div id="wikiSubContent-recipe" style="display:none"></div>
   <div id="wikiSubContent-shopping" style="display:none"></div>
