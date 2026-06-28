@@ -16,6 +16,8 @@ const META_FILENAME = 'elvis-finance-metadata.json';
 const MAIN_FILENAME = 'finance-elvis.json';
 const HISTORY_FILENAME = 'finance-elvis-history.json';
 const WIKI_FILENAME = 'finance-elvis-wiki.json';
+// Incoming file written by the Android MOE Bridge app (plain JSON, app is sole writer).
+const MOE_INBOX_FILENAME = 'moe-inbox-incoming.json';
 
 // Watermarks: per store we remember the local version (`l`) and remote version
 // (`r`) at the moment of the last successful reconcile. A store is "locally dirty"
@@ -332,6 +334,22 @@ function mergeWikiData(localW, remoteW) {
   };
 }
 
+// MOE inbox merge between two PWA devices. Items are immutable once captured, so the
+// only conflict is deletion: an id that a device has in moeInboxSeenIds but NOT in its
+// moeInbox was deleted there — and delete wins. Seen-ids are unioned (permanent
+// tombstones) so a deleted item never reappears via fetchMoeInbox.
+function mergeMoeInbox(local, remote) {
+  const lInbox = local.moeInbox || [], rInbox = remote.moeInbox || [];
+  const lSeen = new Set(local.moeInboxSeenIds || []), rSeen = new Set(remote.moeInboxSeenIds || []);
+  const lPresent = new Set(lInbox.map(i => i.id)), rPresent = new Set(rInbox.map(i => i.id));
+  const deleted = new Set();
+  lSeen.forEach(id => { if (!lPresent.has(id)) deleted.add(id); });
+  rSeen.forEach(id => { if (!rPresent.has(id)) deleted.add(id); });
+  const byId = new Map();
+  [...rInbox, ...lInbox].forEach(i => { if (i && i.id && !deleted.has(i.id)) byId.set(i.id, i); });
+  return [...byId.values()].sort((a, b) => (b.capturedAt || 0) - (a.capturedAt || 0));
+}
+
 function mergeData(local, remote) {
   const deletedIds = new Set([...(local._deletedIds || []), ...(remote._deletedIds || [])]);
 
@@ -407,6 +425,8 @@ function mergeData(local, remote) {
     dependents:      unionById(local.dependents,      remote.dependents,      '_ts',        deletedIds),
     medicalVisits:   unionById(local.medicalVisits,   remote.medicalVisits,   '_ts',        deletedIds),
     notes:           unionById(local.notes,           remote.notes,           '_updatedAt', deletedIds),
+    moeInbox:        mergeMoeInbox(local, remote),
+    moeInboxSeenIds: [...new Set([...(local.moeInboxSeenIds || []), ...(remote.moeInboxSeenIds || [])])],
     mortgages:       [...mortgageMap.values()],
     _deletedIds:     [...deletedIds],
     budgets:         { ...(remote.budgets || {}), ...(local.budgets || {}) },
@@ -502,6 +522,12 @@ async function driveSync() {
   setDriveStatus('Authenticating…');
   try {
     const token = await getAccessToken(clientId);
+
+    // Ingest any new MOE Bridge captures first so they ride this sync's upload.
+    try {
+      const n = await fetchMoeInbox(token);
+      if (n) showToast(`MOE inbox: ${n} new`);
+    } catch (e) { console.warn('[fetchMoeInbox]', e); }
 
     setDriveStatus('Checking…');
     // The file behind DRIVE_FILE_KEY is the metadata file in the v2 format. On the
@@ -1030,6 +1056,58 @@ async function downloadFromDrive(token, fileId) {
   }
   if (!resp.ok) throw new Error('HTTP ' + resp.status);
   return resp.json();
+}
+
+// Find a Drive file by exact name (first match). Returns its id, or null.
+async function findDriveFileByName(token, name) {
+  const q = encodeURIComponent(`name='${name}' and trashed=false`);
+  const url = `https://www.googleapis.com/drive/v3/files?spaces=drive&fields=files(id,name)&q=${q}`;
+  let resp = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+  if (resp.status === 401) {
+    driveToken = null;
+    const freshToken = await getAccessToken(localStorage.getItem(DRIVE_CLIENT_KEY));
+    resp = await fetch(url, { headers: { Authorization: 'Bearer ' + freshToken } });
+  }
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  const json = await resp.json();
+  return (json.files && json.files[0]) ? json.files[0].id : null;
+}
+
+// MOE Bridge ingest: read the Android app's incoming file and merge any NEW captured
+// items into data.moeInbox (id ∉ moeInboxSeenIds). Deleted items never return because
+// their id stays in moeInboxSeenIds (tombstone). Bumps the main store so freshly
+// ingested items get uploaded/propagated to other PWA devices in the same sync.
+// Returns the number of items added.
+async function fetchMoeInbox(token) {
+  const fileId = await findDriveFileByName(token, MOE_INBOX_FILENAME);
+  if (!fileId) return 0;
+  const payload = await downloadFromDrive(token, fileId);
+  const items = (payload && Array.isArray(payload.items)) ? payload.items : [];
+  if (!items.length) return 0;
+  if (!data.moeInbox) data.moeInbox = [];
+  if (!data.moeInboxSeenIds) data.moeInboxSeenIds = [];
+  const seen = new Set(data.moeInboxSeenIds);
+  let added = 0;
+  items.forEach(it => {
+    if (!it || !it.id || seen.has(it.id)) return;
+    data.moeInbox.push({
+      id: it.id,
+      capturedAt: it.capturedAt || Date.now(),
+      pkg: it.pkg || '',
+      screen: it.screen || '',
+      title: it.title || '',
+      text: it.text || '',
+      _ingestedAt: Date.now(),
+    });
+    data.moeInboxSeenIds.push(it.id);
+    seen.add(it.id);
+    added++;
+  });
+  if (added) {
+    data.moeInbox.sort((a, b) => (b.capturedAt || 0) - (a.capturedAt || 0));
+    saveData(data); // bump=true → main store marked dirty so new items propagate
+  }
+  return added;
 }
 
 // gzip-or-plain download for bulk data files (transparent magic-byte fallback).

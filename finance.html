@@ -25,6 +25,7 @@
   <button class="tab" data-tab="analysis" aria-label="Analysis"><span class="material-symbols-outlined" aria-hidden="true">bar_chart</span></button>
   <button class="tab" data-tab="insurance" aria-label="Insurance"><span class="material-symbols-outlined" aria-hidden="true">shield</span></button>
   <button class="tab" data-tab="tax" aria-label="Tax"><span class="material-symbols-outlined" aria-hidden="true">receipt_long</span></button>
+  <button class="tab" data-tab="moe" aria-label="MOE"><span class="material-symbols-outlined" aria-hidden="true">school</span></button>
   <div class="menu-wrap" style="display:flex;align-items:center;padding-right:4px">
     <button class="iconbtn" id="menuBtn" title="More options" aria-label="More options">⋯</button>
     <div class="dropdown" id="mainMenu">
@@ -210,6 +211,15 @@
   <div id="taxSubContent-retirement" style="display:none">
     <div id="retirementContent"></div>
   </div>
+</div>
+
+<!-- MOE Page — messages captured by the Android MOE Bridge app, ingested from Drive -->
+<div class="page" id="page-moe">
+  <div class="moe-header">
+    <span class="moe-header-title"><span class="material-symbols-outlined" aria-hidden="true">school</span> MOE Parents Gateway</span>
+    <button class="moe-clear" onclick="clearMoeInbox()">Clear all</button>
+  </div>
+  <div id="moeList"></div>
 </div>
 
 <!-- FAB -->
@@ -1231,5 +1241,6 @@
 <script src="finance-wiki.js"></script>
 <script src="finance-app.js"></script>
 <script src="finance-gmail.js"></script>
+<script src="finance-moe.js"></script>
 </body>
 </html>

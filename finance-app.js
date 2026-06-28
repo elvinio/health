@@ -567,7 +567,7 @@ function renderAnalysis() {
 // Only renders the active tab — invisible tabs are rendered on first visit.
 function renderAll() {
   document.getElementById('fabBtn').style.display =
-    ((currentTab === 'analysis' && currentAnalysisSubTab !== 'power') || (currentTab === 'tax' && currentTaxSubTab === 'retirement')) ? 'none' : '';
+    (currentTab === 'moe' || (currentTab === 'analysis' && currentAnalysisSubTab !== 'power') || (currentTab === 'tax' && currentTaxSubTab === 'retirement')) ? 'none' : '';
 
   try {
     if (currentTab === 'events') {
@@ -590,6 +590,8 @@ function renderAll() {
       else if (currentTaxSubTab === 'retirement') renderRetirement();
     } else if (currentTab === 'wiki') {
       renderWiki();
+    } else if (currentTab === 'moe') {
+      renderMoeInbox();
     }
   } catch (err) {
     console.error('[renderAll] tab=' + currentTab, err);

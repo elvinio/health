@@ -1,0 +1,13 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Simple "bridge" glyph centered in the adaptive icon safe zone. -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,46 C36,40 44,40 50,46 L58,46 C64,40 72,40 78,46 L78,52 C72,47 65,47 60,52 L48,52 C43,47 36,47 30,52 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M34,52 h6 v16 h-6 Z M68,52 h6 v16 h-6 Z M30,68 h48 v6 h-48 Z" />
+</vector>
