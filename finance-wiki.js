@@ -680,7 +680,7 @@ function renderResumeDetail(id) {
     { value: "'EB Garamond',serif",              label: 'EB Garamond' },
   ];
   const sizeOptions = ['10', '11', '12', '13'];
-  const marginOptions = ['0.5cm', '1cm', '1.5cm', '2cm', '2.5cm', '3cm'];
+  const marginOptions = ['0.5cm', '0.75cm', '1cm', '1.5cm', '2cm', '2.5cm', '3cm'];
   const curFont = resume.pdfFont || fontOptions[0].value;
   const curSize = resume.pdfSize || '11';
   const curMargin = resume.pdfMargin || '1.5cm';
