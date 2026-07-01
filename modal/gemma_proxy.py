@@ -134,7 +134,13 @@ def build_app():
     return web
 
 
-@app.function(image=image, secrets=[modal.Secret.from_name("gemma-proxy-secrets")])
+@app.function(
+    image=image,
+    secrets=[modal.Secret.from_name("gemma-proxy-secrets")],
+    # Upstream auto endpoints can take 3-5 min to cold-start; give requests
+    # plenty of headroom beyond Modal's 300s default function timeout.
+    timeout=600,
+)
 @modal.asgi_app()
 def fastapi_app():
     return build_app()
