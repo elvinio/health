@@ -54,6 +54,7 @@ import modal
 # matching endpoint. Falls back to DEFAULT_UPSTREAM for unrecognised models.
 UPSTREAMS = {
     'google/gemma-4-31B-it':  'https://elvinio--ep-gemma-4-31b-it-server.us-west.modal.direct',
+    'google/gemma-4-E4B-it':  'https://elvinio--ep-gemma-4-e4b-it-server.us-west.modal.direct',
     'Qwen/Qwen3.6-35B-A3B':   'https://elvinio--ep-qwen3-6-35b-a3b-server.ap-south.modal.direct',
 }
 DEFAULT_UPSTREAM = UPSTREAMS['google/gemma-4-31B-it']
