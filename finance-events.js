@@ -670,7 +670,7 @@ let rainWindowDays = 1/24;  // selected range pill — bounds how far back the s
 // SW / NE corners from the checkweather-sg / rain-geojson-sg projects.
 const RAIN_BOUNDS = [[1.156, 103.565], [1.475, 104.13]];
 const RAIN_IMG_URL = key => `https://www.weather.gov.sg/files/rainarea/50km/v2/dpsri_70km_${key}0000dBR.dpsri.png`;
-const RAIN_BATCH_SIZE = 48; // 4h of 5-min frames fetched per batched proxy request
+const RAIN_PREFETCH_SIZE = 48; // 4h of 5-min frames fetched in parallel per prefetch window
 const RAIN_WINDOWS = [[1/24, '1 hour'], [4/24, '4 hours'], [1, '1 day'], [7, '1 week']];
 const RAIN_CACHE_NAME = 'rain-frames-v1'; // persistent Cache API store (preserved across SW updates, see sw.js)
 
@@ -831,8 +831,8 @@ async function rainApplyWindow(days, jumpToLatest) {
   if (slider) slider.max = Math.max(0, rainFrames.length - 1);
 
   if (rainUsingProxy) {
-    const end = rainFrames.length, start = Math.max(0, end - RAIN_BATCH_SIZE);
-    try { await rainFetchBatch(rainFrames.slice(start, end)); } catch {}
+    const end = rainFrames.length, start = Math.max(0, end - RAIN_PREFETCH_SIZE);
+    try { await rainFetchFrames(rainFrames.slice(start, end)); } catch {}
 
     // Whole newest batch empty → the proxy has no rain cache deployed; fall back to live.
     if (!rainFrames.slice(start, end).some(k => rainFrameCache.has(k))) {
@@ -857,15 +857,17 @@ async function rainApplyWindow(days, jumpToLatest) {
   rainShowFrame(idx);
 }
 
-// Aligned [start, end) bounds of the RAIN_BATCH_SIZE window containing idx.
-function rainBatchBounds(idx) {
-  const start = Math.floor(idx / RAIN_BATCH_SIZE) * RAIN_BATCH_SIZE;
-  return [start, Math.min(rainFrames.length, start + RAIN_BATCH_SIZE)];
+// Aligned [start, end) bounds of the RAIN_PREFETCH_SIZE window containing idx.
+function rainPrefetchBounds(idx) {
+  const start = Math.floor(idx / RAIN_PREFETCH_SIZE) * RAIN_PREFETCH_SIZE;
+  return [start, Math.min(rainFrames.length, start + RAIN_PREFETCH_SIZE)];
 }
 
-// Load every not-yet-cached key in one round-trip: first from the persistent
-// Cache API, then a single batched proxy request for whatever's still missing.
-async function rainFetchBatch(keys) {
+// Load every not-yet-cached key: first from the persistent Cache API, then
+// fetch whatever's still missing as individual raw-PNG requests in parallel
+// (Modal serves single frames directly and is fast enough that a combined
+// batch request isn't worth the extra server-side complexity).
+async function rainFetchFrames(keys) {
   if (rainFrameCache.size > 800) rainFrameCache.clear(); // persistent cache still backs everything
   let need = keys.filter(k => !rainFrameCache.has(k));
   if (!need.length) return;
@@ -881,27 +883,35 @@ async function rainFetchBatch(keys) {
   const proxyUrl = localStorage.getItem(BUS_PROXY_URL_STORAGE) || '';
   if (!proxyUrl) return;
   const token = localStorage.getItem(BUS_PROXY_TOKEN_STORAGE) || '';
-  let url = `${proxyUrl.replace(/\/$/, '')}?action=RainImgBatch&t=${need.join(',')}`;
-  if (token) url += `&token=${encodeURIComponent(token)}`;
-  const resp = await fetch(url);
-  if (!resp.ok) throw new Error(resp.status);
-  const json = await resp.json();
-  const imgs = json.images || {};
-  Object.keys(imgs).forEach(k => {
-    if (!imgs[k]) return;
-    const uri = 'data:image/png;base64,' + imgs[k];
-    rainFrameCache.set(k, uri);
-    rainCachePut(store, k, uri);
-  });
+  const base = proxyUrl.replace(/\/$/, '');
+
+  await Promise.all(need.map(async k => {
+    let url = `${base}?action=RainImg&t=${k}`;
+    if (token) url += `&token=${encodeURIComponent(token)}`;
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) return; // no frame for this slot (publish-lag gap) — leave uncached
+      const blob = await resp.blob();
+      if (!blob.type.startsWith('image')) return;
+      const uri = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+      });
+      rainFrameCache.set(k, uri);
+      rainCachePut(store, k, uri);
+    } catch {}
+  }));
 }
 
-// Resolve a frame's overlay src, loading its 4h batch on demand in proxy mode.
+// Resolve a frame's overlay src, loading its 4h prefetch window on demand in proxy mode.
 async function rainEnsureFrame(idx) {
   const key = rainFrames[idx];
   if (rainFrameCache.has(key)) return rainFrameCache.get(key);
   if (!rainUsingProxy) { const u = RAIN_IMG_URL(key); rainFrameCache.set(key, u); return u; }
-  const [s, e] = rainBatchBounds(idx);
-  await rainFetchBatch(rainFrames.slice(s, e));
+  const [s, e] = rainPrefetchBounds(idx);
+  await rainFetchFrames(rainFrames.slice(s, e));
   return rainFrameCache.get(key);
 }
 
@@ -921,11 +931,11 @@ async function rainShowFrame(idx) {
   if (!rainOverlay) rainOverlay = L.imageOverlay(src, RAIN_BOUNDS, { opacity: 0.65 }).addTo(rainMapInstance);
   else rainOverlay.setUrl(src);
 
-  // Prefetch the adjacent 4h batches so scrubbing/animation stays smooth.
+  // Prefetch the adjacent 4h windows so scrubbing/animation stays smooth.
   if (rainUsingProxy) {
-    const [s, e] = rainBatchBounds(idx);
-    if (s > 0) rainFetchBatch(rainFrames.slice(Math.max(0, s - RAIN_BATCH_SIZE), s)).catch(() => {});
-    if (e < rainFrames.length) rainFetchBatch(rainFrames.slice(e, Math.min(rainFrames.length, e + RAIN_BATCH_SIZE))).catch(() => {});
+    const [s, e] = rainPrefetchBounds(idx);
+    if (s > 0) rainFetchFrames(rainFrames.slice(Math.max(0, s - RAIN_PREFETCH_SIZE), s)).catch(() => {});
+    if (e < rainFrames.length) rainFetchFrames(rainFrames.slice(e, Math.min(rainFrames.length, e + RAIN_PREFETCH_SIZE))).catch(() => {});
   }
 }
 

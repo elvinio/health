@@ -9,10 +9,15 @@ params, same actions, same JSON shapes:
   GET {url}?action=BusStopCoords&stops=83139,12345&token=<secret>
   GET {url}?action=RainList&token=<secret>
   GET {url}?action=RainImg&t=202606090800&token=<secret>
-  GET {url}?action=RainImgBatch&t=202606090800,202606090805&token=<secret>
 
 If PROXY_TOKEN is not set in the secret, the token check is skipped (same
 behaviour as the GAS version).
+
+Unlike the GAS version (which can only return JSON, hence its base64
+RainImg/RainImgBatch encoding), this app can serve binary directly: RainImg
+returns the raw PNG bytes with an immutable Cache-Control header, and there
+is no batch variant — the client fetches whatever frames it needs in
+parallel instead of one combined request.
 
 ── Rain radar cache ──
 A scheduled Modal function (`cache_rain_frame`, every 5 min) fetches the
@@ -124,9 +129,9 @@ def cache_rain_frame():
 # ── FastAPI app (replaces GAS's doGet) ──────────────────────────────────────
 
 def build_app():
-    from fastapi import FastAPI, Request
+    from fastapi import FastAPI, Request, Response
     from fastapi.middleware.cors import CORSMiddleware
-    from fastapi.responses import JSONResponse
+    from fastapi.responses import JSONResponse, PlainTextResponse
     import httpx
 
     web = FastAPI()
@@ -215,32 +220,18 @@ def build_app():
         with open(path, "rb") as f:
             return f.read()
 
+    # Frames are immutable once written, so the response can be cached
+    # indefinitely by both the browser and the client's own persistent store.
+    RAIN_IMG_CACHE_HEADERS = {"Cache-Control": "public, max-age=31536000, immutable"}
+
     async def handle_rain_img(t: str):
         await volume.reload.aio()
         if not t or not re.match(r"^\d{12}$", t):
-            return json_out({"error": "Bad t parameter"})
+            return PlainTextResponse("Bad t parameter", status_code=400)
         data = _read_frame(t)
         if data is None:
-            return json_out({"error": "Not found"})
-        import base64
-
-        return json_out({"t": t, "png": base64.b64encode(data).decode("ascii")})
-
-    async def handle_rain_img_batch(t: str):
-        await volume.reload.aio()
-        if not t:
-            return json_out({"error": "Missing t parameter"})
-        import base64
-
-        images = {}
-        for raw in t.split(","):
-            key = raw.strip()
-            if not key or key in images:
-                continue
-            data = _read_frame(key)
-            if data is not None:
-                images[key] = base64.b64encode(data).decode("ascii")
-        return json_out({"images": images})
+            return PlainTextResponse("Not found", status_code=404)
+        return Response(content=data, media_type="image/png", headers=RAIN_IMG_CACHE_HEADERS)
 
     @web.get("/")
     async def root(request: Request):
@@ -257,8 +248,6 @@ def build_app():
             return await handle_rain_list()
         if action == "RainImg":
             return await handle_rain_img(params.get("t", ""))
-        if action == "RainImgBatch":
-            return await handle_rain_img_batch(params.get("t", ""))
 
         api_key = os.environ.get("LTA_API_KEY")
         if not api_key:
