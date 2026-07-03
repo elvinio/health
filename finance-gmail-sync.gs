@@ -20,6 +20,7 @@
 
 const DRIVE_FILENAME         = 'finance-elvis.json';
 const DRIVE_HISTORY_FILENAME = 'finance-elvis-history.json';
+const DRIVE_META_FILENAME    = 'elvis-finance-metadata.json';
 const LABEL_DONE             = 'Expense-Done';
 const DEFAULT_ACCOUNT        = 'acc1';
 const MAX_EMAILS             = 50;
@@ -119,6 +120,10 @@ function syncGmailExpenses() {
     histData._updatedAt     = Date.now();
     data.historyUpdatedAt   = histData._updatedAt;
     saveDriveJson(histFile, histData);
+    // Bump the metadata file's versions too — the PWA's v2 sync skips a store
+    // entirely unless its watermark differs from the metadata file's *UpdatedAt,
+    // so without this, expenses added here would never get pulled down.
+    bumpMetadataVersions();
     Logger.log(`Done — added ${added} item(s). Sync the PWA to see them.`);
   } else {
     Logger.log('No new items found.');
@@ -143,18 +148,59 @@ function setupTrigger() {
 }
 
 // ── Drive Helpers ─────────────────────────────────────────────────────────────
+// Bulk data files (finance-elvis.json / finance-elvis-history.json) are stored
+// app-level gzipped by the PWA (see gzipString/gunzipBlobToText in
+// finance-drive.js), with a magic-byte (0x1f 0x8b) fallback so legacy plain-JSON
+// files still read. These helpers mirror that behaviour so this script stays a
+// transparent read/write partner regardless of which encoding is on Drive.
 
 function loadDriveJson(filename) {
   const files = DriveApp.getFilesByName(filename);
   if (!files.hasNext()) return { file: null, data: { expenses: [] } };
-  const file    = files.next();
-  const content = file.getBlob().getDataAsString();
-  return { file, data: JSON.parse(content) };
+  const file = files.next();
+  return { file, data: JSON.parse(readMaybeGzipped(file.getBlob())) };
 }
 
+function readMaybeGzipped(blob) {
+  const bytes  = blob.getBytes();
+  const isGzip = bytes.length >= 2 && bytes[0] === 0x1f && (bytes[1] & 0xff) === 0x8b;
+  return (isGzip ? Utilities.ungzip(blob) : blob).getDataAsString();
+}
+
+// DriveApp's File.setContent() only accepts a text string, not binary data
+// (https://developers.google.com/apps-script/reference/drive/file#setcontentcontent),
+// so gzip output has to go through the Drive REST API's media-upload endpoint
+// instead, authenticated with the script's own OAuth token.
 function saveDriveJson(file, data) {
   if (!file) return;
-  file.setContent(JSON.stringify(data));
+  const gz  = Utilities.gzip(Utilities.newBlob(JSON.stringify(data), 'application/json'));
+  const url = `https://www.googleapis.com/upload/drive/v3/files/${file.getId()}?uploadType=media`;
+  const res = UrlFetchApp.fetch(url, {
+    method: 'patch',
+    contentType: 'application/gzip',
+    payload: gz.getBytes(),
+    headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+    muteHttpExceptions: true,
+  });
+  if (res.getResponseCode() >= 300) {
+    Logger.log(`Drive upload failed for ${file.getName()}: ${res.getResponseCode()} ${res.getContentText()}`);
+  }
+}
+
+// Bumps the metadata file's mainUpdatedAt/historyUpdatedAt (plain JSON, never
+// gzipped — see finance-drive.js normalizeMeta) so the PWA's watermark-based
+// sync (syncWithMetadata) notices these stores changed and pulls them down,
+// rather than skipping them because nothing looked "remote-new".
+function bumpMetadataVersions() {
+  const files = DriveApp.getFilesByName(DRIVE_META_FILENAME);
+  if (!files.hasNext()) return; // pre-v2 (no metadata file yet) — next PWA sync will migrate.
+  const metaFile = files.next();
+  const meta = JSON.parse(metaFile.getBlob().getDataAsString());
+  const now  = Date.now();
+  meta.mainUpdatedAt    = now;
+  meta.historyUpdatedAt = now;
+  meta._metaTs          = now;
+  metaFile.setContent(JSON.stringify(meta));
 }
 
 // ── Gmail Helpers ─────────────────────────────────────────────────────────────
