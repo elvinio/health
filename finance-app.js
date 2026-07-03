@@ -6,7 +6,7 @@ function switchAnalysisSubTab(tab) {
   document.querySelectorAll('.analysis-sub-tab').forEach(b => {
     b.classList.toggle('active', b.id === 'analysisSubTab-' + tab);
   });
-  ['ai', 'expense', 'power'].forEach(t => {
+  ['ai', 'mortgage', 'power'].forEach(t => {
     const el = document.getElementById('analysisSubContent-' + t);
     if (el) el.style.display = t === tab ? '' : 'none';
   });
@@ -490,13 +490,20 @@ function renderAnalysis() {
     return;
   }
 
+  if (currentAnalysisSubTab === 'mortgage') {
+    renderMortgageListInline();
+    return;
+  }
+
   if (currentAnalysisSubTab === 'power') {
     renderPower();
     return;
   }
+}
 
-  // Expense analysis sub-tab
-  const el = document.getElementById('analysisList');
+// Expense aggregation sub-tab (Expenses › Charts)
+function renderExpenseAggregation() {
+  const el = document.getElementById('expenseAggList');
   const allYears = getExpenseYears();
 
   const yearPillsHtml = `<div class="filter-pills" style="margin-bottom:16px">${
@@ -550,11 +557,26 @@ function renderAnalysis() {
             <div style="font-weight:800;font-size:1.05rem;color:var(--primary)">${fmtDollar(total)}</div>
           </div>
         </div>
-        ${rows.map(([cat, amt]) => `
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--border)">
+        ${rows.map(([cat, amt]) => {
+          const catBudget = budgets[cat];
+          let rowStyle = 'display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--border)';
+          let catBadge = '';
+          if (catBudget > 0) {
+            const pct = Math.max(0, Math.min(100, (amt / catBudget) * 100));
+            rowStyle += `;background:linear-gradient(to right, color-mix(in srgb, var(--primary) 16%, transparent) ${pct}%, transparent ${pct}%)`;
+            const catDiff = Math.round(amt - catBudget);
+            const catOver = catDiff > 0;
+            catBadge = `<span class="${catOver ? 'over-budget' : 'under-budget'}">${catDiff >= 0 ? '+' : ''}${fmtDollar(catDiff)}</span>`;
+          }
+          return `
+          <div style="${rowStyle}">
             <span style="font-size:.9rem">${esc(cat)}</span>
-            <span style="font-weight:600;font-size:.9rem">${fmtDollar(amt)}</span>
-          </div>`).join('')}
+            <div style="display:flex;align-items:center;gap:8px">
+              ${catBadge}
+              <span style="font-weight:600;font-size:.9rem">${fmtDollar(amt)}</span>
+            </div>
+          </div>`;
+        }).join('')}
       </div>`;
   }).join('');
 
@@ -577,7 +599,7 @@ function renderAll() {
       renderYearFilterPills();
       renderExpenseList();
       if (currentExpSubTab === 'recurring') renderOngoingListInline();
-      else if (currentExpSubTab === 'mortgage') renderMortgageListInline();
+      else if (currentExpSubTab === 'agg') renderExpenseAggregation();
     } else if (currentTab === 'analysis') {
       renderAnalysis();
     } else if (currentTab === 'insurance') {

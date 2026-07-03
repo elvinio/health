@@ -387,14 +387,14 @@ Default: `DEFAULT_CATS` = `Grocery` · `Travel` · `Income Tax` · `Allowance` (
 The Expenses page has four sub-tabs switched by `switchExpSubTab(tab)`:
 - `expenses` — main expense list (default)
 - `recurring` — renders `renderOngoingListInline()`
-- `mortgage` — renders `renderMortgageListInline()`
+- `agg` — category/yearly/asset-mortgage charts + monthly cards + budget summary (`renderExpenseAggregation()`, target `#expenseAggList`)
 - `emailrules` — renders `renderEmailRulesSubTab()`
 
 ### Analysis sub-tabs
 
 Switched by `switchAnalysisSubTab(tab)` (`finance-app.js`):
 - `ai` — AI Financial Advisor card (`renderAiReport()`, default)
-- `expense` — category/yearly/asset-mortgage charts + monthly cards + budget summary
+- `mortgage` — renders `renderMortgageListInline()` (list lives in `finance-insurance.js`)
 - `power` — utility (electricity/water) records & chart (`renderPower()`); FAB adds a power record
 
 ### Insurance sub-tabs
@@ -464,9 +464,9 @@ Theme preference stored in `localStorage` under `finance:theme`.
 ```
 events:    renderEventList()
 expenses:  renderAccountFilterPills() + renderYearFilterPills() + renderExpenseList()
-             → renderOngoingListInline()   [if currentExpSubTab === 'recurring']
-             → renderMortgageListInline()  [if currentExpSubTab === 'mortgage']
-analysis:  renderAnalysis()  // dispatches on currentAnalysisSubTab → ai | expense | power
+             → renderOngoingListInline()     [if currentExpSubTab === 'recurring']
+             → renderExpenseAggregation()    [if currentExpSubTab === 'agg']
+analysis:  renderAnalysis()  // dispatches on currentAnalysisSubTab → ai | mortgage | power
 insurance: currentInsSubTab === 'medical' ? renderMedical() : renderInsurances()
 wiki:      renderWiki()  // dispatches on currentWikiSubTab → notes | recipe | shopping | resume
 tax:       renderTaxRecords()
