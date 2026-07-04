@@ -884,7 +884,7 @@ function exportResumeAsMarkdown(id) {
           if (proj.name) {
             markdown += `**${proj.name}**\n`;
           }
-          const pts = proj.points.split('\n').filter(l => l.trim());
+          const pts = (proj.points || '').split('\n').filter(l => l.trim());
           pts.forEach(pt => {
             markdown += `- ${pt}\n`;
           });
