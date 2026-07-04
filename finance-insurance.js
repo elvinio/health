@@ -634,7 +634,7 @@ document.getElementById('mortgageForm').addEventListener('submit', e => {
   renderAll();
   closeSheet();
   showToast(id ? 'Mortgage updated' : 'Mortgage added');
-  if (currentExpSubTab === 'mortgage') { renderMortgageListInline(); } else { setTimeout(() => openMortgageListSheet(), 350); }
+  if (currentAnalysisSubTab === 'mortgage') { renderMortgageListInline(); } else { setTimeout(() => openMortgageListSheet(), 350); }
 });
 
 function deleteMortgage() {
@@ -648,7 +648,7 @@ function deleteMortgage() {
   renderAll();
   closeSheet();
   showToast('Mortgage deleted');
-  if (currentExpSubTab === 'mortgage') { renderMortgageListInline(); } else { setTimeout(() => openMortgageListSheet(), 350); }
+  if (currentAnalysisSubTab === 'mortgage') { renderMortgageListInline(); } else { setTimeout(() => openMortgageListSheet(), 350); }
 }
 
 function openMortgageOverlay(id) {

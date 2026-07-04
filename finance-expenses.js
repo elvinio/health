@@ -337,12 +337,12 @@ function onSearchInput() {
 
 function switchExpSubTab(tab) {
   currentExpSubTab = tab;
-  ['expenses', 'recurring', 'mortgage', 'emailrules'].forEach(t => {
+  ['expenses', 'recurring', 'agg', 'emailrules'].forEach(t => {
     document.getElementById(`expSubTab-${t}`).classList.toggle('active', t === tab);
     document.getElementById(`expSubContent-${t}`).style.display = t === tab ? '' : 'none';
   });
   if (tab === 'recurring') renderOngoingListInline();
-  if (tab === 'mortgage') renderMortgageListInline();
+  if (tab === 'agg') renderExpenseAggregation();
   if (tab === 'emailrules') renderEmailRulesSubTab();
 }
 

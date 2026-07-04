@@ -112,8 +112,8 @@
     <button class="exp-sub-tab" id="expSubTab-recurring" onclick="switchExpSubTab('recurring')">
       <span class="material-symbols-outlined" aria-hidden="true">repeat</span>Recur
     </button>
-    <button class="exp-sub-tab" id="expSubTab-mortgage" onclick="switchExpSubTab('mortgage')">
-      <span class="material-symbols-outlined" aria-hidden="true">home_work</span>Mortgage
+    <button class="exp-sub-tab" id="expSubTab-agg" onclick="switchExpSubTab('agg')">
+      <span class="material-symbols-outlined" aria-hidden="true">bar_chart</span>Charts
     </button>
     <button class="exp-sub-tab" id="expSubTab-emailrules" onclick="switchExpSubTab('emailrules')">
       <span class="material-symbols-outlined" aria-hidden="true">mail</span>Rules
@@ -136,11 +136,8 @@
     </div>
     <div id="ongoingListInline"></div>
   </div>
-  <div id="expSubContent-mortgage" style="display:none">
-    <div style="display:flex;justify-content:flex-end;margin:8px 0 12px">
-      <button class="btn btn-primary" style="font-size:.82rem;padding:7px 14px" onclick="openMortgageFormSheet()">+ Add</button>
-    </div>
-    <div id="mortgageListInline"></div>
+  <div id="expSubContent-agg" style="display:none">
+    <div id="expenseAggList"></div>
   </div>
   <div id="expSubContent-emailrules" style="display:none">
     <div id="emailRulesContent"></div>
@@ -151,14 +148,17 @@
 <div class="page" id="page-analysis">
   <div class="analysis-sub-tabs">
     <button class="analysis-sub-tab active" id="analysisSubTab-ai" onclick="switchAnalysisSubTab('ai')">🤖 AI Analysis</button>
-    <button class="analysis-sub-tab" id="analysisSubTab-expense" onclick="switchAnalysisSubTab('expense')"><span class="material-symbols-outlined" aria-hidden="true">bar_chart</span>Expenses</button>
+    <button class="analysis-sub-tab" id="analysisSubTab-mortgage" onclick="switchAnalysisSubTab('mortgage')"><span class="material-symbols-outlined" aria-hidden="true">home_work</span>Mortgage</button>
     <button class="analysis-sub-tab" id="analysisSubTab-power" onclick="switchAnalysisSubTab('power')"><span class="material-symbols-outlined" aria-hidden="true">bolt</span>Power</button>
   </div>
   <div id="analysisSubContent-ai">
     <div id="aiAnalysisList"></div>
   </div>
-  <div id="analysisSubContent-expense" style="display:none">
-    <div id="analysisList"></div>
+  <div id="analysisSubContent-mortgage" style="display:none">
+    <div style="display:flex;justify-content:flex-end;margin:8px 0 12px">
+      <button class="btn btn-primary" style="font-size:.82rem;padding:7px 14px" onclick="openMortgageFormSheet()">+ Add</button>
+    </div>
+    <div id="mortgageListInline"></div>
   </div>
   <div id="analysisSubContent-power" style="display:none">
     <div id="powerContent"></div>
