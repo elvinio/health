@@ -760,6 +760,7 @@ function renderResumeDetail(id) {
           <label class="wiki-pdf-label">Margin</label>${marginSelect}
         </div>
         <button class="btn btn-primary wiki-pdf-btn" onclick="printResume('${esc(id)}')">🖨 Print / Save PDF</button>
+        <button class="btn btn-secondary wiki-pdf-btn" onclick="exportResumeAsMarkdown('${esc(id)}')">📋 Export as Markdown</button>
       </div>
     </div>`;
 }
@@ -837,6 +838,81 @@ function printResume(id) {
 
   const cleanup = () => { styleEl.remove(); window.removeEventListener('afterprint', cleanup); };
   window.addEventListener('afterprint', cleanup);
+}
+
+function exportResumeAsMarkdown(id) {
+  const resume = (wikiData.resumes || []).find(r => r.id === id);
+  if (!resume) return;
+
+  let markdown = '';
+
+  // Name and contact
+  markdown += `# ${resume.name || resume.title}\n\n`;
+  if (resume.contact) {
+    markdown += `${resume.contact}\n\n`;
+  }
+
+  // Summary
+  if (resume.summary) {
+    markdown += `## Summary\n\n${resume.summary}\n\n`;
+  }
+
+  // Core Skills
+  if (resume.coreSkills) {
+    const skillLines = resume.coreSkills.split('\n').filter(l => l.trim());
+    if (skillLines.length) {
+      markdown += `## Core Skills\n\n`;
+      skillLines.forEach(skill => {
+        markdown += `- ${skill}\n`;
+      });
+      markdown += '\n';
+    }
+  }
+
+  // Experience
+  if (resume.experience && resume.experience.length) {
+    markdown += `## Experience\n\n`;
+    resume.experience.forEach(exp => {
+      markdown += `### ${exp.company}`;
+      if (exp.period) {
+        markdown += ` (${exp.period})`;
+      }
+      markdown += '\n\n';
+
+      if (exp.projects && exp.projects.length) {
+        exp.projects.forEach(proj => {
+          if (proj.name) {
+            markdown += `**${proj.name}**\n`;
+          }
+          const pts = proj.points.split('\n').filter(l => l.trim());
+          pts.forEach(pt => {
+            markdown += `- ${pt}\n`;
+          });
+          markdown += '\n';
+        });
+      }
+    });
+  }
+
+  // Education
+  if (resume.education) {
+    const eduLines = resume.education.split('\n').filter(l => l.trim());
+    if (eduLines.length) {
+      markdown += `## Education\n\n`;
+      eduLines.forEach(edu => {
+        markdown += `- ${edu}\n`;
+      });
+      markdown += '\n';
+    }
+  }
+
+  // Copy to clipboard
+  navigator.clipboard.writeText(markdown.trim()).then(() => {
+    showToast('Resume markdown copied to clipboard');
+  }).catch(err => {
+    console.error('Failed to copy to clipboard:', err);
+    showToast('Failed to copy to clipboard');
+  });
 }
 
 function openResumeSheet(id) {
