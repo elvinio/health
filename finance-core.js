@@ -92,7 +92,14 @@ const BUS_STOPS = [
   { code: '92041', name: 'Opp Parkway',     services: ['15'] },
   { code: '82061', name: 'Eunos Station',   services: ['150', '155'] },
 ];
+// Mini bus-timing bar above the events "Upcoming" list — a compact subset of BUS_STOPS.
+const BUS_MINI_STOPS = [
+  { code: '83121', label: 'NM', services: ['15', '150'] },
+  { code: '83129', label: 'JX', services: ['15', '150'] },
+  { code: '82061', label: 'ES', services: ['150'] },
+];
 let busPollingInterval = null;
+let eventBusMiniPollingInterval = null;
 
 function defaultData() {
   return {
