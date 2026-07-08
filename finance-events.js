@@ -424,6 +424,8 @@ let locationMap = null; // map the blue location dot is attached to (bus map or 
 let busMapStopMarkers = [];
 const BUS_MAP_DEFAULT = [1.3201, 103.9024];
 const BUS_MAP_CENTER_KEY = 'busMapCenter';
+const BUS_MAP_POSITIONS_KEY = 'finance:busMapPositions';
+const BUS_MAP_CACHE_MAX_AGE = 60000; // show cached positions immediately only if this fresh
 
 function getBusMapCenter() {
   const saved = localStorage.getItem(BUS_MAP_CENTER_KEY);
@@ -599,15 +601,12 @@ function busMapSetCenter() {
   }
 }
 
-async function refreshBusMapMarkers() {
-  if (!busMapInstance) return;
-
-  // Remove old markers
+// (Re)draws bus markers from a BusArrival response map. Shared by the cached-snapshot
+// fast path and the live fetch, so old markers only ever disappear once replacements
+// are ready — never during the network round trip.
+function renderBusMapMarkers(allData) {
   busMapMarkers.forEach(m => m.remove());
   busMapMarkers = [];
-
-  let allData = {};
-  try { allData = await fetchAllBusStops(); } catch { allData = {}; }
 
   const seen = new Set();
   BUS_STOPS.forEach(stop => {
@@ -648,6 +647,28 @@ async function refreshBusMapMarkers() {
       });
     });
   });
+}
+
+async function refreshBusMapMarkers() {
+  if (!busMapInstance) return;
+
+  // Nothing on the map yet (fresh open / tab switch back) — show the last known
+  // positions immediately if they're recent, instead of a blank map while we fetch.
+  if (!busMapMarkers.length) {
+    let cached = null;
+    try { cached = JSON.parse(localStorage.getItem(BUS_MAP_POSITIONS_KEY) || 'null'); } catch {}
+    if (cached && Date.now() - cached.ts < BUS_MAP_CACHE_MAX_AGE) {
+      renderBusMapMarkers(cached.data);
+      const upd = document.getElementById('busMapLastUpdated');
+      if (upd) upd.textContent = 'Showing cached positions…';
+    }
+  }
+
+  let allData;
+  try { allData = await fetchAllBusStops(); } catch { return; } // keep showing stale/cached markers; retry next poll
+
+  renderBusMapMarkers(allData);
+  try { localStorage.setItem(BUS_MAP_POSITIONS_KEY, JSON.stringify({ ts: Date.now(), data: allData })); } catch {}
 
   const upd = document.getElementById('busMapLastUpdated');
   if (upd) upd.textContent =
@@ -664,6 +685,7 @@ let rainFrameCache = new Map(); // slot key → data: URI (proxy) / direct URL (
 let rainPollingInterval = null;
 let rainAnimTimer = null;
 let rainUsingProxy = false;
+let rainProxyConfirmed = false; // true once a proxy fetch has actually returned a frame this session
 let rainWindowDays = 1/24;  // selected range pill — bounds how far back the slider can be dragged
 
 // Fixed georeference of the NEA radar PNG (same extent every frame) —
@@ -734,6 +756,7 @@ function showRainSettings() {
   if (rainAnimTimer) { clearInterval(rainAnimTimer); rainAnimTimer = null; }
   if (rainMapInstance) { rainMapInstance.remove(); rainMapInstance = null; rainOverlay = null; }
   locationMap = null;
+  rainProxyConfirmed = false;
   const panel = document.getElementById('rainPanel');
   if (panel) panel.innerHTML = busApiSetupHtml('rain', 'renderRainPanel');
 }
@@ -834,11 +857,17 @@ async function rainApplyWindow(days, jumpToLatest) {
     const end = rainFrames.length, start = Math.max(0, end - RAIN_PREFETCH_SIZE);
     try { await rainFetchFrames(rainFrames.slice(start, end)); } catch {}
 
-    // Whole newest batch empty → the proxy has no rain cache deployed; fall back to live.
-    if (!rainFrames.slice(start, end).some(k => rainFrameCache.has(k))) {
+    const gotFrames = rainFrames.slice(start, end).some(k => rainFrameCache.has(k));
+    if (gotFrames) {
+      rainProxyConfirmed = true;
+    } else if (!rainProxyConfirmed) {
+      // Never once loaded a proxy frame → the proxy has no rain cache deployed; fall back to live.
       rainUsingProxy = false;
       return rainApplyWindow(days, jumpToLatest);
     }
+    // else: proxy has worked before — treat an empty batch as a transient gap (network hiccup /
+    // publish lag), not a reason to disable it and hide the pills; just show what's cached and
+    // let the next poll/refresh retry.
     // Trim trailing publish-lag gaps so the slider ends on a real frame.
     let last = rainFrames.length - 1;
     while (last >= start && !rainFrameCache.has(rainFrames[last])) last--;
