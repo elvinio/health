@@ -119,7 +119,7 @@ function defaultData() {
     aiReport: null,        // { markdown, generatedAt, period }
     customAiPrompt: null,  // string | null — user-edited prompt template (null = use default)
     dependents: [],        // [{ id, name, relationship, birthYear, sex, _ts }]
-    allocationRatios: {},  // { Equities: 40, Bonds: 20, ... } target allocation %
+    allocationRatios: {},  // { Cash: 5000 (target $), Equities: 40, Bonds: 20, ... (target % of rest, sum to 100) }
     medicalVisits: [],     // [{ id, title, person, description, date, amount, paymentType, _ts }]
     notes: [],             // [{ id, title, content, _updatedAt }]
     moeInbox: [],          // [{ id, capturedAt, pkg, screen, title, text, _ingestedAt }] — items captured by the Android MOE Bridge app, ingested from Drive (see finance-drive.js fetchMoeInbox)
