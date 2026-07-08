@@ -319,7 +319,10 @@ function renderAssetAllocation() {
   if (total <= 0) return '';
 
   const ratios = data.allocationRatios || {};
-  const hasTarget = ALLOCATION_CATS.some(c => (ratios[c] || 0) > 0);
+  const cashTargetAmt = ratios['Cash'] || 0;
+  const pctCats = ALLOCATION_CATS.filter(c => c !== 'Cash');
+  const hasTarget = cashTargetAmt > 0 || pctCats.some(c => (ratios[c] || 0) > 0);
+  const remainingTotal = Math.max(0, total - cashTargetAmt);
 
   const sortedForBar = Object.entries(byClass).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
   const bar = sortedForBar.map(([c, v]) =>
@@ -332,12 +335,14 @@ function renderAssetAllocation() {
   const td = 'padding:5px 6px;border-top:1px solid var(--border)';
   const tableRows = displayCats.map(c => {
     const amt = byClass[c] || 0;
-    const workingPct = ALLOCATION_CATS.includes(c) ? (ratios[c] || 0) : 0;
-    if (amt <= 0 && workingPct <= 0) return '';
+    const isCash = c === 'Cash';
+    const hasCatTarget = isCash ? cashTargetAmt > 0 : (ALLOCATION_CATS.includes(c) && (ratios[c] || 0) > 0);
+    if (amt <= 0 && !hasCatTarget) return '';
     const curPct = total > 0 ? (amt / total * 100) : 0;
-    const targetAmt = workingPct > 0 ? (workingPct / 100) * total : 0;
+    const targetAmt = isCash ? cashTargetAmt : (hasCatTarget ? ((ratios[c] || 0) / 100) * remainingTotal : 0);
+    const targetPct = isCash ? (total > 0 ? (cashTargetAmt / total * 100) : 0) : (ratios[c] || 0);
     const diff = targetAmt - amt;
-    const diffEl = workingPct > 0
+    const diffEl = hasCatTarget
       ? `<div style="font-size:.7rem;color:${diff >= 0 ? 'var(--green)' : 'var(--red)'}">${diff >= 0 ? '+' : ''}${fmtDollar(diff)}</div>`
       : '';
     return `<tr>
@@ -346,12 +351,12 @@ function renderAssetAllocation() {
       </td>
       <td style="${td};text-align:right">${fmtDollar(amt)}</td>
       <td style="${td};text-align:right">${curPct.toFixed(1)}%</td>
-      <td style="${td};text-align:right">${workingPct > 0 ? workingPct.toFixed(1) + '%' : '<span style="color:var(--muted)">—</span>'}</td>
-      <td style="${td};text-align:right">${workingPct > 0 ? fmtDollar(targetAmt) + diffEl : '<span style="color:var(--muted)">—</span>'}</td>
+      <td style="${td};text-align:right">${hasCatTarget ? targetPct.toFixed(1) + '%' : '<span style="color:var(--muted)">—</span>'}</td>
+      <td style="${td};text-align:right">${hasCatTarget ? fmtDollar(targetAmt) + diffEl : '<span style="color:var(--muted)">—</span>'}</td>
     </tr>`;
   }).filter(Boolean).join('');
 
-  const totalTargetPct = ALLOCATION_CATS.reduce((s, c) => s + (ratios[c] || 0), 0);
+  const totalTargetPct = pctCats.reduce((s, c) => s + (ratios[c] || 0), 0);
   const thStyle = 'text-align:right;padding:0 6px 6px;font-size:.72rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap';
 
   return `<div class="chart-wrap">
@@ -384,7 +389,16 @@ function renderAssetAllocation() {
 function openAllocationRatioSheet() {
   document.getElementById('mainMenu').classList.remove('open');
   const ratios = data.allocationRatios || {};
-  document.getElementById('allocationRatioFields').innerHTML = ALLOCATION_CATS.map(cat => `
+  const pctCats = ALLOCATION_CATS.filter(c => c !== 'Cash');
+  const cashField = `
+    <div class="field">
+      <label>Cash</label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="color:var(--muted);font-weight:600">$</span>
+        <input type="number" id="allocRatio_Cash" value="${ratios['Cash'] || ''}" min="0" step="1" placeholder="0" inputmode="decimal" style="flex:1">
+      </div>
+    </div>`;
+  const pctFields = pctCats.map(cat => `
     <div class="field">
       <label>${esc(cat)}</label>
       <div style="display:flex;align-items:center;gap:8px">
@@ -392,12 +406,14 @@ function openAllocationRatioSheet() {
         <span style="color:var(--muted);font-weight:600;min-width:1.2rem">%</span>
       </div>
     </div>`).join('');
+  document.getElementById('allocationRatioFields').innerHTML = cashField + pctFields;
   updateAllocTotal();
   openSheet('allocationRatioSheet');
 }
 
 function updateAllocTotal() {
-  const total = ALLOCATION_CATS.reduce((s, cat) => {
+  const pctCats = ALLOCATION_CATS.filter(c => c !== 'Cash');
+  const total = pctCats.reduce((s, cat) => {
     return s + (parseFloat(document.getElementById('allocRatio_' + cat)?.value) || 0);
   }, 0);
   const el = document.getElementById('allocationRatioTotal');
@@ -407,15 +423,17 @@ function updateAllocTotal() {
 }
 
 function saveAllocationRatios() {
+  const pctCats = ALLOCATION_CATS.filter(c => c !== 'Cash');
   let total = 0;
   const ratios = {};
-  ALLOCATION_CATS.forEach(cat => {
+  ratios['Cash'] = Math.max(0, parseFloat(document.getElementById('allocRatio_Cash')?.value) || 0);
+  pctCats.forEach(cat => {
     const v = parseFloat(document.getElementById('allocRatio_' + cat)?.value) || 0;
     ratios[cat] = v;
     total += v;
   });
   if (Math.abs(total - 100) > 0.1) {
-    showToast(`Total must be 100% (currently ${total.toFixed(1)}%)`);
+    showToast(`Percentages must total 100% (currently ${total.toFixed(1)}%)`);
     return;
   }
   data.allocationRatios = ratios;
