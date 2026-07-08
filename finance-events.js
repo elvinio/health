@@ -173,6 +173,7 @@ function onEventSearch(val) {
 function renderEventList() {
   const el = document.getElementById('eventList');
   if (!el) return;
+  updateEventBusMiniBar();
   renderEventTagFilterPills();
   const todayStr = today();
   let events = (data.events || []).slice().sort((a, b) => eventToMs(a) - eventToMs(b));
@@ -259,6 +260,7 @@ function setEventView(mode) {
   if (rainPollingInterval) { clearInterval(rainPollingInterval); rainPollingInterval = null; }
   if (rainAnimTimer) rainToggleAnim(); // stops the loop and resets the play icon
   if (mode !== 'busmap' && mode !== 'rain') stopLocationTracking();
+  updateEventBusMiniBar();
   renderEventTagFilterPills();
   if (mode === 'moe') renderMoeInbox();
   if (mode === 'calendar') renderEventCalendar();
@@ -411,6 +413,46 @@ async function renderBusPanel() {
 
   const upd = document.getElementById('busLastUpdated');
   if (upd) upd.textContent = 'Updated ' + new Date().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit' });
+}
+
+// ── Bus mini-bar (above the events "Upcoming" list) ─────────────────────────
+async function renderEventBusMiniBar() {
+  const bar = document.getElementById('eventBusMiniBar');
+  if (!bar) return;
+  let allData = {};
+  try { allData = await fetchAllBusStops(); } catch { allData = {}; }
+  bar.innerHTML = BUS_MINI_STOPS.map(stop => {
+    const stopData = allData[stop.code];
+    const serviceMap = {};
+    if (stopData && !stopData.error) (stopData.Services || []).forEach(s => { serviceMap[s.ServiceNo] = s; });
+    const pills = stop.services.map(svc => {
+      const s = serviceMap[svc];
+      const mins = s ? busMinutes(s.NextBus && s.NextBus.EstimatedArrival) : null;
+      const label = busTimeLabel(mins);
+      const routeClass = svc === '150' ? 'bus-mini-pill-150' : 'bus-mini-pill-15';
+      return `<span class="bus-mini-pill ${routeClass}${label === null ? ' no-data' : ''}">${label === null ? '—' : label}</span>`;
+    }).join('');
+    return `<div class="bus-mini-stop"><span class="bus-mini-stop-label">${stop.label}</span>${pills}</div>`;
+  }).join('');
+}
+
+// Shows/hides the mini-bar and starts/stops its polling based on the current
+// events view + list sub-tab. Cheap to call repeatedly (e.g. from renderEventList())
+// since it only kicks off a fetch when transitioning into the visible state.
+function updateEventBusMiniBar() {
+  const bar = document.getElementById('eventBusMiniBar');
+  if (!bar) return;
+  const shouldShow = eventViewMode === 'list' && currentEventListSubTab === 'upcoming'
+    && !!localStorage.getItem(BUS_PROXY_URL_STORAGE);
+  if (!shouldShow) {
+    bar.style.display = 'none';
+    if (eventBusMiniPollingInterval) { clearInterval(eventBusMiniPollingInterval); eventBusMiniPollingInterval = null; }
+    return;
+  }
+  bar.style.display = '';
+  if (eventBusMiniPollingInterval) return;
+  renderEventBusMiniBar();
+  eventBusMiniPollingInterval = setInterval(renderEventBusMiniBar, 60000);
 }
 
 // ── Bus Map ──────────────────────────────────────────────────────────────────
