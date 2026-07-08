@@ -289,10 +289,10 @@ function busMinutes(isoStr) {
   return Math.round((new Date(isoStr) - Date.now()) / 60000);
 }
 
-function busTimeLabel(mins) {
+function busTimeLabel(mins, short) {
   if (mins === null) return null;
   if (mins <= 1) return 'Arr';
-  return mins + ' min';
+  return mins + (short ? 'm' : ' min');
 }
 
 
@@ -428,12 +428,15 @@ async function renderEventBusMiniBar() {
     const pills = stop.services.map(svc => {
       const s = serviceMap[svc];
       const mins = s ? busMinutes(s.NextBus && s.NextBus.EstimatedArrival) : null;
-      const label = busTimeLabel(mins);
+      const label = busTimeLabel(mins, true);
       const routeClass = svc === '150' ? 'bus-mini-pill-150' : 'bus-mini-pill-15';
       return `<span class="bus-mini-pill ${routeClass}${label === null ? ' no-data' : ''}">${label === null ? '—' : label}</span>`;
     }).join('');
     return `<div class="bus-mini-stop"><span class="bus-mini-stop-label">${stop.label}</span>${pills}</div>`;
-  }).join('');
+  }).join('') + `<div class="bus-mini-legend">
+    <span class="bus-mini-legend-item"><span class="bus-mini-legend-dot bus-mini-pill-150"></span>Bus 150</span>
+    <span class="bus-mini-legend-item"><span class="bus-mini-legend-dot bus-mini-pill-15"></span>Bus 15</span>
+  </div>`;
 }
 
 // Shows/hides the mini-bar and starts/stops its polling based on the current
