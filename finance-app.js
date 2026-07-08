@@ -543,38 +543,30 @@ function renderExpenseAggregation() {
 
     let budgetBadge = '';
     if (totalBudget > 0) {
-      const diff = Math.round(total - totalBudget);
-      const over = diff > 0;
-      budgetBadge = `<span class="${over ? 'over-budget' : 'under-budget'}">${diff >= 0 ? '+' : ''}${fmtDollar(diff)}</span>`;
+      const over = total > totalBudget;
+      budgetBadge = `<span class="${over ? 'over-budget' : 'under-budget'}">${fmtDollar(total)} of ${fmtDollar(totalBudget)}</span>`;
     }
 
     return `
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
           <div style="font-weight:700;font-size:1rem">${label}</div>
-          <div style="display:flex;align-items:center;gap:8px">
-            ${budgetBadge}
-            <div style="font-weight:800;font-size:1.05rem;color:var(--primary)">${fmtDollar(total)}</div>
-          </div>
+          ${budgetBadge || `<div style="font-weight:800;font-size:1.05rem;color:var(--primary)">${fmtDollar(total)}</div>`}
         </div>
         ${rows.map(([cat, amt]) => {
           const catBudget = budgets[cat];
           let rowStyle = 'display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--border)';
-          let catBadge = '';
+          let catBadge = `<span style="font-weight:600;font-size:.9rem">${fmtDollar(amt)}</span>`;
           if (catBudget > 0) {
             const pct = Math.max(0, Math.min(100, (amt / catBudget) * 100));
             rowStyle += `;background:linear-gradient(to right, color-mix(in srgb, var(--primary) 16%, transparent) ${pct}%, transparent ${pct}%)`;
-            const catDiff = Math.round(amt - catBudget);
-            const catOver = catDiff > 0;
-            catBadge = `<span class="${catOver ? 'over-budget' : 'under-budget'}">${catDiff >= 0 ? '+' : ''}${fmtDollar(catDiff)}</span>`;
+            const catOver = amt > catBudget;
+            catBadge = `<span class="${catOver ? 'over-budget' : 'under-budget'}">${fmtDollar(amt)} of ${fmtDollar(catBudget)}</span>`;
           }
           return `
           <div style="${rowStyle}">
             <span style="font-size:.9rem">${esc(cat)}</span>
-            <div style="display:flex;align-items:center;gap:8px">
-              ${catBadge}
-              <span style="font-weight:600;font-size:.9rem">${fmtDollar(amt)}</span>
-            </div>
+            ${catBadge}
           </div>`;
         }).join('')}
       </div>`;
