@@ -828,6 +828,11 @@ function rainUpdateStatus() {
   upd.textContent = `Last ${w ? w[1] : rainWindowDays + ' days'} · ${rainFrames.length} frames`;
 }
 
+function rainSetFetchProgress(done, total) {
+  const upd = document.getElementById('rainLastUpdated');
+  if (upd) upd.textContent = `Fetching ${done}/${total} frames…`;
+}
+
 // Pill click: change the draggable range (lower bound) and jump to the latest frame.
 function rainSetWindow(days) {
   if (rainAnimTimer) rainToggleAnim(); // stop the loop when the range changes
@@ -914,6 +919,11 @@ async function rainFetchFrames(keys) {
   const token = localStorage.getItem(BUS_PROXY_TOKEN_STORAGE) || '';
   const base = proxyUrl.replace(/\/$/, '');
 
+  const total = need.length;
+  let done = 0;
+  const showProgress = total > 1; // skip the flicker for single on-demand top-ups
+  if (showProgress) rainSetFetchProgress(done, total);
+
   await Promise.all(need.map(async k => {
     let url = `${base}?action=RainImg&t=${k}`;
     if (token) url += `&token=${encodeURIComponent(token)}`;
@@ -931,7 +941,12 @@ async function rainFetchFrames(keys) {
       rainFrameCache.set(k, uri);
       rainCachePut(store, k, uri);
     } catch {}
+    finally {
+      done++;
+      if (showProgress) rainSetFetchProgress(done, total);
+    }
   }));
+  if (showProgress) rainUpdateStatus(); // restore the normal status line once the batch settles
 }
 
 // Resolve a frame's overlay src, loading its 4h prefetch window on demand in proxy mode.
