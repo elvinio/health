@@ -569,6 +569,17 @@
   .bus-mini-pill-15 { background: #22a84a; }
   .bus-mini-pill-150 { background: #1a6fc4; }
   .bus-mini-pill.no-data { background: var(--bg); color: var(--muted); font-weight: 400; font-style: italic; border: 1px solid var(--border); }
+  .bus-mini-legend {
+    flex-basis: 100%; display: flex; gap: 14px; margin-top: 4px;
+    padding-top: 6px; border-top: 1px solid var(--border);
+  }
+  .bus-mini-legend-item {
+    display: flex; align-items: center; gap: 5px;
+    font-size: .72rem; color: var(--muted);
+  }
+  .bus-mini-legend-dot {
+    width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+  }
   /* ── Bus Map ── */
   .bus-map-controls {
     display: flex; gap: 8px; align-items: center; margin-bottom: 10px;
