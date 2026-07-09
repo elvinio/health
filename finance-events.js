@@ -416,27 +416,87 @@ async function renderBusPanel() {
 }
 
 // ── Bus mini-bar (above the events "Upcoming" list) ─────────────────────────
+
+function haversineMeters(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const toRad = x => x * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+// One-shot, throttled position lookup for picking the nearest ES-candidate
+// stop — deliberately not the mini-bar's job to keep GPS on continuously
+// (that's `startLocationTracking()`, used only by the Bus Map tab).
+function getCurrentPositionThrottled() {
+  const cached = JSON.parse(localStorage.getItem(LAST_LOCATION_KEY) || 'null');
+  if (cached && cached.ts && Date.now() - cached.ts < 150000) {
+    return Promise.resolve(cached);
+  }
+  if (!navigator.geolocation) return Promise.resolve(cached || null);
+  return new Promise(resolve => {
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude, ts: Date.now() };
+        localStorage.setItem(LAST_LOCATION_KEY, JSON.stringify(loc));
+        resolve(loc);
+      },
+      () => resolve(cached || null),
+      { enableHighAccuracy: false, timeout: 5000, maximumAge: 120000 }
+    );
+  });
+}
+
+async function pickNearestEsStop(pos) {
+  if (!pos) return BUS_ES_CANDIDATES[0];
+  let coords = {};
+  try { coords = await fetchBusStopCoords(); } catch { coords = {}; }
+  let best = null, bestDist = Infinity;
+  BUS_ES_CANDIDATES.forEach(cand => {
+    const c = coords[cand.code];
+    if (!c) return;
+    const dist = haversineMeters(pos.lat, pos.lng, c.lat, c.lng);
+    if (dist < bestDist) { bestDist = dist; best = cand; }
+  });
+  return best || BUS_ES_CANDIDATES[0];
+}
+
 async function renderEventBusMiniBar() {
   const bar = document.getElementById('eventBusMiniBar');
   if (!bar) return;
   let allData = {};
   try { allData = await fetchAllBusStops(); } catch { allData = {}; }
-  bar.innerHTML = BUS_MINI_STOPS.map(stop => {
+
+  const pos = await getCurrentPositionThrottled();
+  const esStop = await pickNearestEsStop(pos);
+  const esServices = (BUS_STOPS.find(s => s.code === esStop.code) || {}).services || [];
+
+  const columns = BUS_MINI_STOPS
+    .map(s => ({ code: s.code, label: s.label, services: s.services }))
+    .concat([{ code: esStop.code, label: esStop.label, services: esServices }]);
+
+  const cell = (stop, svc) => {
+    if (!stop.services.includes(svc)) return '<td></td>';
     const stopData = allData[stop.code];
     const serviceMap = {};
     if (stopData && !stopData.error) (stopData.Services || []).forEach(s => { serviceMap[s.ServiceNo] = s; });
-    const pills = stop.services.map(svc => {
-      const s = serviceMap[svc];
-      const mins = s ? busMinutes(s.NextBus && s.NextBus.EstimatedArrival) : null;
-      const label = busTimeLabel(mins, true);
-      const routeClass = svc === '150' ? 'bus-mini-pill-150' : 'bus-mini-pill-15';
-      return `<span class="bus-mini-pill ${routeClass}${label === null ? ' no-data' : ''}">${label === null ? '—' : label}</span>`;
-    }).join('');
-    return `<div class="bus-mini-stop"><span class="bus-mini-stop-label">${stop.label}</span>${pills}</div>`;
-  }).join('') + `<div class="bus-mini-legend">
-    <span class="bus-mini-legend-item"><span class="bus-mini-legend-dot bus-mini-pill-150"></span>Bus 150</span>
-    <span class="bus-mini-legend-item"><span class="bus-mini-legend-dot bus-mini-pill-15"></span>Bus 15</span>
-  </div>`;
+    const s = serviceMap[svc];
+    const mins = s ? busMinutes(s.NextBus && s.NextBus.EstimatedArrival) : null;
+    const label = busTimeLabel(mins, true);
+    const arriving = mins !== null && mins <= 1;
+    return `<td${arriving ? ' class="arriving"' : ''}>${label === null ? '—' : label}</td>`;
+  };
+
+  const rows = ['15', '150'].map(svc =>
+    `<tr><td class="bus-mini-row-label">Bus ${svc}</td>${columns.map(c => cell(c, svc)).join('')}</tr>`
+  ).join('');
+
+  bar.innerHTML = `<table class="bus-mini-table">
+    <thead><tr><th></th>${columns.map(c => `<th>${esc(c.label)}</th>`).join('')}</tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
 }
 
 // Shows/hides the mini-bar and starts/stops its polling based on the current
