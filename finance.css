@@ -554,32 +554,22 @@
   }
   .bus-last-updated { font-size: .72rem; color: var(--muted); }
   .bus-mini-bar {
-    display: flex; flex-wrap: wrap; gap: 12px;
     background: var(--card); border: 1px solid var(--border); border-radius: 10px;
     padding: 8px 12px; margin-bottom: 10px;
   }
-  .bus-mini-stop { display: flex; align-items: center; gap: 6px; }
-  .bus-mini-stop-label {
+  .bus-mini-table { width: 100%; border-collapse: collapse; }
+  .bus-mini-table th, .bus-mini-table td {
+    border: none; padding: 3px 8px; text-align: center; font-size: .82rem; color: var(--text);
+  }
+  .bus-mini-table th {
     font-size: .72rem; font-weight: 700; color: var(--muted);
     text-transform: uppercase; letter-spacing: .04em;
   }
-  .bus-mini-pill {
-    font-size: .78rem; font-weight: 700; padding: 2px 9px; border-radius: 999px; color: #fff;
+  .bus-mini-table th:first-child, .bus-mini-table td.bus-mini-row-label {
+    text-align: left; padding-left: 0;
   }
-  .bus-mini-pill-15 { background: #22a84a; }
-  .bus-mini-pill-150 { background: #1a6fc4; }
-  .bus-mini-pill.no-data { background: var(--bg); color: var(--muted); font-weight: 400; font-style: italic; border: 1px solid var(--border); }
-  .bus-mini-legend {
-    flex-basis: 100%; display: flex; gap: 14px; margin-top: 4px;
-    padding-top: 6px; border-top: 1px solid var(--border);
-  }
-  .bus-mini-legend-item {
-    display: flex; align-items: center; gap: 5px;
-    font-size: .72rem; color: var(--muted);
-  }
-  .bus-mini-legend-dot {
-    width: 8px; height: 8px; border-radius: 50%; display: inline-block;
-  }
+  .bus-mini-table td.bus-mini-row-label { color: var(--muted); font-size: .78rem; }
+  .bus-mini-table td.arriving { color: #22a84a; font-weight: 700; }
   /* ── Bus Map ── */
   .bus-map-controls {
     display: flex; gap: 8px; align-items: center; margin-bottom: 10px;

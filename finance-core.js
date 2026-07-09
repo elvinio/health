@@ -96,7 +96,15 @@ const BUS_STOPS = [
 const BUS_MINI_STOPS = [
   { code: '83121', label: 'NM', services: ['15', '150'] },
   { code: '83129', label: 'JX', services: ['15', '150'] },
-  { code: '82061', label: 'ES', services: ['150'] },
+];
+// Candidate stops for the mini-bar's dynamic 3rd column — whichever is
+// physically nearest the current position is shown, since they're alternate
+// stops for the same walk (Eunos Station side).
+const BUS_ES_CANDIDATES = [
+  { code: '82061', label: 'ES' },     // Eunos Station
+  { code: '92229', label: 'BLK53' },  // Blk 53
+  { code: '92041', label: 'OPP PK' }, // Opp Parkway
+  { code: '92049', label: 'PK CTR' }, // Parkway Center
 ];
 let busPollingInterval = null;
 let eventBusMiniPollingInterval = null;
