@@ -289,10 +289,10 @@ function busMinutes(isoStr) {
   return Math.round((new Date(isoStr) - Date.now()) / 60000);
 }
 
-function busTimeLabel(mins, short) {
+function busTimeLabel(mins) {
   if (mins === null) return null;
   if (mins <= 1) return 'Arr';
-  return mins + (short ? 'm' : ' min');
+  return mins + ' min';
 }
 
 
@@ -484,7 +484,7 @@ async function renderEventBusMiniBar() {
     if (stopData && !stopData.error) (stopData.Services || []).forEach(s => { serviceMap[s.ServiceNo] = s; });
     const s = serviceMap[svc];
     const mins = s ? busMinutes(s.NextBus && s.NextBus.EstimatedArrival) : null;
-    const label = busTimeLabel(mins, true);
+    const label = busTimeLabel(mins);
     const arriving = mins !== null && mins <= 1;
     return `<td${arriving ? ' class="arriving"' : ''}>${label === null ? '—' : label}</td>`;
   };
