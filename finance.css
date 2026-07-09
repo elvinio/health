@@ -568,7 +568,7 @@
   .bus-mini-table th:first-child, .bus-mini-table td.bus-mini-row-label {
     text-align: left; padding-left: 0;
   }
-  .bus-mini-table td.bus-mini-row-label { color: var(--muted); font-size: .78rem; }
+  .bus-mini-table td.bus-mini-row-label { color: var(--muted); font-size: .78rem; font-weight: 700; }
   .bus-mini-table td.arriving { color: #22a84a; font-weight: 700; }
   /* ── Bus Map ── */
   .bus-map-controls {
