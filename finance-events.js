@@ -463,14 +463,11 @@ async function pickNearestEsStop(pos) {
   return best || BUS_ES_CANDIDATES[0];
 }
 
-async function renderEventBusMiniBar() {
-  const bar = document.getElementById('eventBusMiniBar');
-  if (!bar) return;
-  let allData = {};
-  try { allData = await fetchAllBusStops(); } catch { allData = {}; }
+// Cached across renders/polls so the mini-bar never regresses to the default
+// ES candidate once geolocation has picked a better one this session.
+let lastEsStopCode = null;
 
-  const pos = await getCurrentPositionThrottled();
-  const esStop = await pickNearestEsStop(pos);
+function paintEventBusMiniBar(bar, allData, esStop) {
   const esServices = (BUS_STOPS.find(s => s.code === esStop.code) || {}).services || [];
 
   const columns = BUS_MINI_STOPS
@@ -497,6 +494,30 @@ async function renderEventBusMiniBar() {
     <thead><tr><th></th>${columns.map(c => `<th>${esc(c.label)}</th>`).join('')}</tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
+}
+
+async function renderEventBusMiniBar() {
+  const bar = document.getElementById('eventBusMiniBar');
+  if (!bar) return;
+
+  let allData = {};
+  try { allData = await fetchAllBusStops(); } catch { allData = {}; }
+
+  // Paint immediately with the last-known (or default) ES candidate — the
+  // arrival data for every candidate is already in `allData`, so there's no
+  // need to block on geolocation just to pick which one to label. Refine the
+  // 3rd column in the background once GPS/coords resolve.
+  const initialEsStop = BUS_ES_CANDIDATES.find(c => c.code === lastEsStopCode) || BUS_ES_CANDIDATES[0];
+  paintEventBusMiniBar(bar, allData, initialEsStop);
+
+  getCurrentPositionThrottled()
+    .then(pos => pickNearestEsStop(pos))
+    .then(esStop => {
+      if (esStop.code === lastEsStopCode) return;
+      lastEsStopCode = esStop.code;
+      paintEventBusMiniBar(bar, allData, esStop);
+    })
+    .catch(() => {});
 }
 
 // Shows/hides the mini-bar and starts/stops its polling based on the current
