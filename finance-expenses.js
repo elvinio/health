@@ -52,8 +52,6 @@ function renderExpenseList() {
 
   const hidden = balanceHidden;
   const emojiMap = parseCatEmojis();
-  const curMonth = today().slice(0, 7);
-  const budgets = data.budgets || {};
   const statStyle = 'font-size:.7rem;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase';
   const valStyle = 'font-weight:700;color:#fff';
   el.innerHTML = topSummary + Object.entries(byMonth).map(([month, dateGroups]) => {
@@ -74,33 +72,6 @@ function renderExpenseList() {
       headerRight = balanceDivs + spendDiv;
     } else {
       headerRight = spendDiv;
-    }
-
-    let budgetStrip = '';
-    if (month === curMonth) {
-      const catSpend = {};
-      monthExps.forEach(e => {
-        if (e.cat === 'TopUp') return;
-        catSpend[e.cat] = (catSpend[e.cat] || 0) + expSgd(e);
-      });
-      const budgetCats = Object.keys(budgets)
-        .filter(c => budgets[c] > 0)
-        .sort((a, b) => (catSpend[b] || 0) - (catSpend[a] || 0) || a.localeCompare(b));
-      if (budgetCats.length) {
-        budgetStrip = `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:4px 14px;margin:0 0 8px">
-          ${budgetCats.map(cat => {
-            const spent = catSpend[cat] || 0;
-            const bud = budgets[cat];
-            const pct = Math.max(0, Math.min(100, (spent / bud) * 100));
-            const over = spent > bud;
-            return `
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--border);background:linear-gradient(to right, color-mix(in srgb, var(--primary) 16%, transparent) ${pct}%, transparent ${pct}%)">
-              <span style="font-size:.85rem">${esc(cat)}</span>
-              <span class="${over ? 'over-budget' : 'under-budget'}">${hidden ? '••••' : `${fmtDollar(spent)} of ${fmtDollar(bud)}`}</span>
-            </div>`;
-          }).join('')}
-        </div>`;
-      }
     }
 
     const dateRows = Object.entries(dateGroups).sort(([a], [b]) => b.localeCompare(a)).map(([date, exps]) => `
@@ -129,7 +100,6 @@ function renderExpenseList() {
         </div>
         <div style="display:flex;gap:20px;text-align:right">${headerRight}</div>
       </div>
-      ${budgetStrip}
       <div id="month-rows-${month}" style="${isCollapsed ? 'display:none' : ''}">${dateRows}</div>`;
   }).join('');
 }
