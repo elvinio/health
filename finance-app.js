@@ -574,7 +574,7 @@ function renderExpenseAggregation() {
 
   const yearlyChart = `<div id="yearlyChart">${renderYearlyChart()}</div>`;
   const budgetSummary = renderYearBudgetSummary();
-  el.innerHTML = yearPillsHtml + assetMortgageChart + chart + yearlyChart + budgetSummary + cards;
+  el.innerHTML = yearPillsHtml + budgetSummary + assetMortgageChart + chart + yearlyChart + cards;
 }
 
 // ── Render all ────────────────────────────────────────────────────────────────
