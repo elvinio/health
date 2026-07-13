@@ -1,17 +1,44 @@
 // ── Render: Expenses ─────────────────────────────────────────────────────────
+const TOP_CAT_SUMMARY_CATS = ['Grocery', 'Meals', 'Entertainment'];
+
+function renderTopCategorySummary() {
+  const curMonth = today().slice(0, 7);
+  const monthAgg = (data.monthlyAgg && data.monthlyAgg[curMonth]) || {};
+  const budgets = data.budgets || {};
+  const monthLabel = new Date(curMonth + '-01T00:00:00').toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  return `
+    <div style="margin:0 0 14px">
+      <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px">${monthLabel} Spend</div>
+      <table style="width:100%;border-collapse:collapse;background:var(--card);border-radius:var(--radius);overflow:hidden;border:1px solid var(--border)">
+        <tr>${TOP_CAT_SUMMARY_CATS.map(c => `<th style="text-align:center;padding:8px 4px;color:var(--muted);font-weight:700;font-size:.68rem;text-transform:uppercase;border-bottom:1.5px solid var(--border)">${esc(c)}</th>`).join('')}</tr>
+        <tr>${TOP_CAT_SUMMARY_CATS.map(c => {
+          const spent = monthAgg[c] || 0;
+          const bud = budgets[c] || 0;
+          const color = bud > 0 ? (spent > bud ? 'var(--red)' : 'var(--green)') : 'var(--primary)';
+          return `<td style="text-align:center;padding:10px 4px 2px;font-weight:800;font-size:1rem;color:${color}">${balanceHidden ? '••••' : fmtDollar(spent)}</td>`;
+        }).join('')}</tr>
+        <tr>${TOP_CAT_SUMMARY_CATS.map(c => {
+          const bud = budgets[c] || 0;
+          return `<td style="text-align:center;padding:0 4px 10px;font-size:.7rem;color:var(--muted)">${bud > 0 ? `of ${balanceHidden ? '••••' : fmtDollar(bud)}` : 'no budget'}</td>`;
+        }).join('')}</tr>
+      </table>
+    </div>`;
+}
+
 function renderExpenseList() {
   const el = document.getElementById('expenseList');
   if (!allExpenses().length) {
     el.innerHTML = `<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">payments</span></div>No expenses yet.<br>Tap + to add one.</div>`;
     return;
   }
+  const topSummary = renderTopCategorySummary();
   const curYear = String(new Date().getFullYear());
   const source = filterYear === curYear ? data.expenses : historyData.expenses.filter(e => (e.date || '').startsWith(filterYear + '-'));
   let sorted = [...source].sort((a, b) => (b.date || '').localeCompare(a.date || '') || b._ts - a._ts);
   if (filterAccount) sorted = sorted.filter(e => e.ac === filterAccount);
   if (filterSearch) sorted = sorted.filter(e => (e.desc || '').toLowerCase().includes(filterSearch));
   if (!sorted.length) {
-    el.innerHTML = `<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">search</span></div>No matching expenses.</div>`;
+    el.innerHTML = topSummary + `<div class="empty-state"><div class="icon"><span class="material-symbols-outlined">search</span></div>No matching expenses.</div>`;
     return;
   }
 
@@ -29,7 +56,7 @@ function renderExpenseList() {
   const budgets = data.budgets || {};
   const statStyle = 'font-size:.7rem;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase';
   const valStyle = 'font-weight:700;color:#fff';
-  el.innerHTML = Object.entries(byMonth).map(([month, dateGroups]) => {
+  el.innerHTML = topSummary + Object.entries(byMonth).map(([month, dateGroups]) => {
     const monthLabel = new Date(month + '-01T00:00:00').toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
     const monthExps = Object.values(dateGroups).flat();
     const totalSpend = monthExps.filter(e => e.cat !== 'TopUp').reduce((s, e) => s + expSgd(e), 0);
