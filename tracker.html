@@ -699,6 +699,96 @@
     font-size: 0.9rem;
   }
 
+  /* ── History: view switcher ──────────────────────────── */
+  .hist-view-switch {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .hist-view-switch button {
+    flex: 1;
+    padding: 7px 0;
+    border-radius: 10px;
+    border: 1px solid var(--border-h);
+    background: var(--card);
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+  .hist-view-switch button.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  /* ── History: calendar ───────────────────────────────── */
+  .cal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .cal-header .cal-title { font-weight: 700; font-size: 0.95rem; }
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+  .cal-dow {
+    text-align: center;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--muted);
+    padding-bottom: 2px;
+  }
+  .cal-day {
+    aspect-ratio: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    border: 1px solid transparent;
+    background: var(--card);
+  }
+  .cal-day.empty { background: none; }
+  .cal-day.today { border-color: var(--accent); font-weight: 700; }
+  .cal-day.has-session { cursor: pointer; box-shadow: var(--shadow); }
+  .cal-day.selected { background: var(--accent); color: #fff; }
+  .cal-day.selected .cal-dots span { background: #fff !important; }
+  .cal-dots { display: flex; gap: 2px; margin-top: 2px; }
+  .cal-dots span { width: 5px; height: 5px; border-radius: 50%; }
+  .cal-dots .dot-strength { background: var(--accent); }
+  .cal-dots .dot-cardio { background: var(--green); }
+  .cal-legend { display: flex; gap: 14px; font-size: 0.75rem; color: var(--muted); }
+  .cal-legend .cal-legend-item { display: inline-flex; align-items: center; gap: 5px; }
+  .cal-legend .cal-legend-item span { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+
+  /* ── History: trend charts ───────────────────────────── */
+  .trend-picker { margin-bottom: 10px; }
+  .trend-picker select {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--border-h);
+    background: var(--card);
+    color: var(--text);
+    font-size: 0.85rem;
+  }
+  .chart-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 10px;
+    box-shadow: var(--shadow);
+  }
+  .chart-title { font-size: 0.82rem; font-weight: 700; margin-bottom: 6px; color: var(--muted); }
+  .scroll-x { overflow-x: auto; }
+
   /* ── Misc ────────────────────────────────────────────── */
   .pill {
     display: inline-block;
@@ -3572,6 +3662,11 @@ function persistDayState() {
 /* ════════════════════════════════════════════════════════════════
    VIEW: HISTORY
    ════════════════════════════════════════════════════════════════ */
+let _histView = 'list';    // 'list' | 'calendar' | 'trends'
+let _histCalYM = null;     // { y, m } (m = 0-11) currently shown in calendar view
+let _histCalSel = null;    // selected date ISO in calendar view
+let _histTrendKind = null; // 'strength:<exId>' | 'cardio:<day>'
+
 function renderHistory() {
   const pid = Storage.getActiveProfile();
   const profiles = Storage.getProfiles();
@@ -3584,7 +3679,34 @@ function renderHistory() {
     view.innerHTML = `<div class="empty">No sessions logged yet. Complete a workout to see history here.</div>`;
     return;
   }
-  const html = sessions.map(s => {
+
+  const switcher = `
+    <div class="hist-view-switch">
+      <button data-view="list" class="${_histView === 'list' ? 'active' : ''}">List</button>
+      <button data-view="calendar" class="${_histView === 'calendar' ? 'active' : ''}">Calendar</button>
+      <button data-view="trends" class="${_histView === 'trends' ? 'active' : ''}">Trends</button>
+    </div>`;
+
+  const body = _histView === 'calendar' ? renderHistoryCalendar(sessions)
+    : _histView === 'trends' ? renderHistoryTrends(sessions)
+    : renderHistoryList(sessions);
+
+  view.innerHTML = switcher + body;
+
+  view.querySelectorAll('.hist-view-switch button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _histView = btn.dataset.view;
+      renderHistory();
+    });
+  });
+
+  if (_histView === 'calendar') wireHistoryCalendar();
+  else if (_histView === 'trends') wireHistoryTrends();
+  else wireHistoryList();
+}
+
+function renderHistoryList(sessions) {
+  return sessions.map(s => {
     const d = dayDef(s.day);
     const name = d ? d.name : `Day ${s.day}`;
     const isStrength = d && d.type === 'strength';
@@ -3627,9 +3749,10 @@ function renderHistory() {
       </details>
     `;
   }).join('');
-  view.innerHTML = html;
+}
 
-  view.querySelectorAll('.hist-delete-btn').forEach(btn => {
+function wireHistoryList() {
+  document.getElementById('view').querySelectorAll('.hist-delete-btn').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       const date = btn.dataset.date;
@@ -3638,6 +3761,271 @@ function renderHistory() {
       renderHistory();
     });
   });
+}
+
+/* ── History: calendar (adherence at a glance) ─────────────── */
+function renderHistoryCalendar(sessions) {
+  const byDate = {};
+  sessions.forEach(s => { byDate[s.date] = s; });
+
+  if (!_histCalYM) {
+    const t = parseISO(todayISO());
+    _histCalYM = { y: t.getFullYear(), m: t.getMonth() };
+  }
+  const { y, m } = _histCalYM;
+  const first = new Date(y, m, 1);
+  const startOffset = first.getDay();
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const monthLabel = first.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  const today = todayISO();
+
+  const dow = ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => `<div class="cal-dow">${d}</div>`).join('');
+
+  const cells = [];
+  for (let i = 0; i < startOffset; i++) cells.push('<div class="cal-day empty"></div>');
+  for (let day = 1; day <= daysInMonth; day++) {
+    const iso = fmtISO(new Date(y, m, day));
+    const s = byDate[iso];
+    let dots = '';
+    if (s) {
+      const d = dayDef(s.day);
+      const isStrength = d ? d.type === 'strength' : true;
+      const isCardio   = d && d.type === 'cardio';
+      dots = `<div class="cal-dots">${isStrength ? '<span class="dot-strength"></span>' : ''}${isCardio ? '<span class="dot-cardio"></span>' : ''}</div>`;
+    }
+    const cls = ['cal-day', s ? 'has-session' : '', iso === today ? 'today' : '', iso === _histCalSel ? 'selected' : ''].filter(Boolean).join(' ');
+    cells.push(`<div class="${cls}" data-date="${iso}">${day}${dots}</div>`);
+  }
+
+  const detail = _histCalSel && byDate[_histCalSel] ? renderHistoryCalendarDetail(byDate[_histCalSel]) : '';
+
+  return `
+    <div class="cal-header">
+      <button class="btn secondary sm" id="cal-prev">←</button>
+      <span class="cal-title">${monthLabel}</span>
+      <button class="btn secondary sm" id="cal-next">→</button>
+    </div>
+    <div class="cal-grid">${dow}${cells.join('')}</div>
+    <div class="cal-legend">
+      <span class="cal-legend-item"><span style="background:var(--accent)"></span>Strength</span>
+      <span class="cal-legend-item"><span style="background:var(--green)"></span>Cardio</span>
+    </div>
+    <div id="cal-detail">${detail}</div>
+  `;
+}
+
+function renderHistoryCalendarDetail(s) {
+  const d = dayDef(s.day);
+  const name = d ? d.name : `Day ${s.day}`;
+  return `
+    <div class="hist-row" style="margin-top:12px;">
+      <div class="h-date">${escapeHtml(fmtDateShort(s.date))} <span class="h-tag">W${s.week} · D${s.day}</span></div>
+      <div class="h-sub">${escapeHtml(name)}</div>
+      <div class="hist-detail">${renderHistoryDetail(s)}</div>
+      <div class="hist-actions">
+        <button class="btn danger sm hist-delete-btn" data-date="${escapeHtml(s.date)}">Delete record</button>
+      </div>
+    </div>`;
+}
+
+function wireHistoryCalendar() {
+  const view = document.getElementById('view');
+  view.querySelector('#cal-prev').addEventListener('click', () => {
+    _histCalYM.m--;
+    if (_histCalYM.m < 0) { _histCalYM.m = 11; _histCalYM.y--; }
+    renderHistory();
+  });
+  view.querySelector('#cal-next').addEventListener('click', () => {
+    _histCalYM.m++;
+    if (_histCalYM.m > 11) { _histCalYM.m = 0; _histCalYM.y++; }
+    renderHistory();
+  });
+  view.querySelectorAll('.cal-day.has-session').forEach(el => {
+    el.addEventListener('click', () => {
+      _histCalSel = _histCalSel === el.dataset.date ? null : el.dataset.date;
+      renderHistory();
+    });
+  });
+  view.querySelectorAll('.hist-delete-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const date = btn.dataset.date;
+      if (!confirm(`Delete record for ${fmtDateShort(date)}? This cannot be undone.`)) return;
+      Storage.deleteSession(date);
+      _histCalSel = null;
+      renderHistory();
+    });
+  });
+}
+
+/* ── History: trends (is it actually progress?) ─────────────── */
+// Deliberately per-activity, not a single blended "effort" score: strength
+// (weight lifted) and cardio (pace / heart rate) aren't comparable on one
+// axis, and folding them together would hide the signal that matters —
+// e.g. a faster pace at the *same* heart rate is real progress even if
+// "effort" looks flat.
+function renderHistoryTrends(sessions) {
+  const asc = [...sessions].sort((a, b) => a.date.localeCompare(b.date));
+
+  const exIds = [];
+  const exSeen = new Set();
+  const cardioDays = [];
+  const cardioSeen = new Set();
+
+  asc.forEach(s => {
+    Object.entries(s.exercises || {}).forEach(([id, ex]) => {
+      if (ex.actualWeight != null && !exSeen.has(id)) {
+        exSeen.add(id);
+        exIds.push({ id, name: findExerciseName(id) || id });
+      }
+    });
+    if (s.cardio && s.cardio.startedAt && s.cardio.endedAt && !cardioSeen.has(s.day)) {
+      cardioSeen.add(s.day);
+      const d = dayDef(s.day);
+      cardioDays.push({ day: s.day, name: d ? d.name : `Day ${s.day}` });
+    }
+  });
+
+  if (!exIds.length && !cardioDays.length) {
+    return '<div class="empty">Log a few more sessions to see trends here.</div>';
+  }
+
+  const validKinds = new Set([
+    ...exIds.map(e => `strength:${e.id}`),
+    ...cardioDays.map(c => `cardio:${c.day}`),
+  ]);
+  if (!_histTrendKind || !validKinds.has(_histTrendKind)) {
+    _histTrendKind = exIds.length ? `strength:${exIds[0].id}` : `cardio:${cardioDays[0].day}`;
+  }
+
+  const exOptions = exIds.map(e =>
+    `<option value="strength:${escapeHtml(e.id)}"${_histTrendKind === `strength:${e.id}` ? ' selected' : ''}>${escapeHtml(e.name)}</option>`
+  ).join('');
+  const cardioOptions = cardioDays.map(c =>
+    `<option value="cardio:${c.day}"${_histTrendKind === `cardio:${c.day}` ? ' selected' : ''}>${escapeHtml(c.name)}</option>`
+  ).join('');
+
+  const picker = `
+    <div class="trend-picker">
+      <select id="trend-select">
+        ${exOptions ? `<optgroup label="Strength — weight">${exOptions}</optgroup>` : ''}
+        ${cardioOptions ? `<optgroup label="Cardio — pace &amp; heart rate">${cardioOptions}</optgroup>` : ''}
+      </select>
+    </div>`;
+
+  const [kind, keyRaw] = _histTrendKind.split(':');
+  const chart = kind === 'strength'
+    ? renderStrengthTrend(asc, keyRaw)
+    : renderCardioTrend(asc, Number(keyRaw));
+
+  return picker + chart;
+}
+
+function wireHistoryTrends() {
+  const sel = document.getElementById('trend-select');
+  if (sel) sel.addEventListener('change', () => {
+    _histTrendKind = sel.value;
+    renderHistory();
+  });
+}
+
+function renderStrengthTrend(asc, exId) {
+  const pts = asc
+    .filter(s => (s.exercises || {})[exId]?.actualWeight != null)
+    .map(s => ({ date: s.date, weight: s.exercises[exId].actualWeight }));
+  if (pts.length < 2) {
+    return '<div class="empty">Not enough logged sessions for this exercise yet.</div>';
+  }
+  const xLabels = pts.map(p => parseISO(p.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }));
+  const svg = sparkLineChart({
+    xLabels,
+    series: [{ values: pts.map(p => p.weight), color: 'var(--accent)' }],
+    yFmt: v => `${Math.round(v * 10) / 10}kg`,
+  });
+  const delta = pts[pts.length - 1].weight - pts[0].weight;
+  const deltaTxt = delta === 0 ? 'No change' : `${delta > 0 ? '+' : ''}${delta}kg since ${fmtDateShort(pts[0].date)}`;
+  return `<div class="chart-wrap">
+    <div class="chart-title">${escapeHtml(findExerciseName(exId) || exId)} — actual weight</div>
+    <div class="scroll-x">${svg}</div>
+    <div class="text-xs text-muted mt-1">${escapeHtml(deltaTxt)}</div>
+  </div>`;
+}
+
+function renderCardioTrend(asc, day) {
+  const pts = asc
+    .filter(s => s.day === day && s.cardio && s.cardio.startedAt && s.cardio.endedAt && s.cardio.distanceMeters > 10)
+    .map(s => {
+      const durSec = Math.round((s.cardio.endedAt - s.cardio.startedAt) / 1000);
+      const km = s.cardio.distanceMeters / 1000;
+      return { date: s.date, paceSecPerKm: Math.round(durSec / km), hrAvg: s.cardio.hrAvg ?? null };
+    });
+  if (pts.length < 2) {
+    return '<div class="empty">Not enough logged sessions for this activity yet.</div>';
+  }
+  const xLabels = pts.map(p => parseISO(p.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }));
+  const paceSvg = sparkLineChart({
+    xLabels,
+    series: [{ values: pts.map(p => p.paceSecPerKm), color: 'var(--accent)' }],
+    yFmt: v => fmtTime(Math.round(v)),
+  });
+  const paceDelta = pts[pts.length - 1].paceSecPerKm - pts[0].paceSecPerKm;
+  const paceTxt = paceDelta === 0 ? 'No change in pace'
+    : `${paceDelta < 0 ? fmtTime(-paceDelta) + ' faster' : fmtTime(paceDelta) + ' slower'} per km since ${fmtDateShort(pts[0].date)}`;
+
+  const hrPts = pts.filter(p => p.hrAvg != null);
+  const hrChart = hrPts.length >= 2 ? `<div class="chart-wrap">
+    <div class="chart-title">Avg heart rate</div>
+    <div class="scroll-x">${sparkLineChart({
+      xLabels: hrPts.map(p => parseISO(p.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })),
+      series: [{ values: hrPts.map(p => p.hrAvg), color: 'var(--green)' }],
+      yFmt: v => `${Math.round(v)}`,
+    })}</div>
+  </div>` : '';
+
+  return `<div class="chart-wrap">
+    <div class="chart-title">Pace (min/km) — lower is faster</div>
+    <div class="scroll-x">${paceSvg}</div>
+    <div class="text-xs text-muted mt-1">${escapeHtml(paceTxt)}</div>
+  </div>${hrChart}`;
+}
+
+// Minimal SVG line-chart builder — tracker's own; per repo convention no JS
+// is shared with finance.js, which has an equivalent `lineChart()`.
+function sparkLineChart({ xLabels = [], series = [], yFmt = String, colW = 56, height = 120, padL = 40, padB = 22, padT = 10, padR = 10 }) {
+  const n = xLabels.length;
+  const svgW = padL + n * colW + padR;
+  const svgH = height + padT + padB;
+
+  const allVals = series.flatMap(s => s.values);
+  let lo = Math.min(...allVals), hi = Math.max(...allVals);
+  if (lo === hi) { lo -= 1; hi += 1; }
+  const pad = (hi - lo) * 0.15;
+  lo -= pad; hi += pad;
+  const range = hi - lo;
+
+  const xPos = i => padL + colW / 2 + i * colW;
+  const yPos = v => padT + height - ((v - lo) / range) * height;
+
+  const grid = [0, .5, 1].map(f => {
+    const v = lo + range * f, y = yPos(v);
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${(svgW - padR).toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1"/>` +
+           `<text x="${(padL - 6).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--muted)">${yFmt(v)}</text>`;
+  }).join('');
+
+  const xAxis = xLabels.map((lbl, i) =>
+    `<text x="${xPos(i).toFixed(1)}" y="${svgH - 4}" text-anchor="middle" font-size="8" fill="var(--muted)">${lbl}</text>`
+  ).join('');
+
+  const seriesSvg = series.map(({ values, color }) => {
+    const pts = values.map((v, i) => [xPos(i), yPos(v)]);
+    const d = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+    const dots = pts.map(([cx, cy]) =>
+      `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.5" fill="${color}" stroke="var(--card)" stroke-width="1.5"/>`
+    ).join('');
+    return `<path d="${d}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${dots}`;
+  }).join('');
+
+  return `<svg width="${svgW}" height="${svgH}" style="display:block">${grid}${seriesSvg}${xAxis}</svg>`;
 }
 
 function findExerciseName(id) {
