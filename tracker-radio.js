@@ -42,6 +42,8 @@
   const WORDS_PER_SEC = 2.5;        // ~150 wpm spoken pace
   const SEC_PER_SEGMENT = 150;      // target segment length (used to pick count)
   const TTS_CHAR_LIMIT = 9000;      // safety cap (segments are ~2k chars; never hit in practice)
+  const TTS_MAX_ATTEMPTS = 4;       // dropped download → resume via Range (see synthesizeTTS)
+  const TTS_RETRY_MS = 1000;        // backoff base between resume attempts (1s, 2s, 4s)
 
   /* ── Kokoro voice catalog (static) ─────────────────────────────────────── */
   // Kokoro ships a fixed set of voices (no account catalog, no preview URLs).
@@ -265,37 +267,92 @@
   function claudeText(msg) { return (msg.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim(); }
 
   /* ── Kokoro Text-to-Speech ──────────────────────────────────────────────── */
+  function ttsSleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  // Drain an audio response body into `buf` ({ chunks, bytes }), reporting
+  // cumulative bytes. `buf` is mutated as chunks land — crucially including
+  // when the read throws partway, so a resume knows exactly how much of the
+  // body it already holds.
+  async function readAudioStream(res, buf, onProgress) {
+    const reader = res.body.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf.chunks.push(value);
+      buf.bytes += value.length;
+      if (onProgress) onProgress(buf.bytes);
+    }
+  }
+
+  async function ttsError(res) {
+    let detail = '';
+    try { const j = await res.json(); detail = j.detail ? (typeof j.detail === 'string' ? j.detail : (j.detail.message || JSON.stringify(j.detail))) : ''; }
+    catch (e) { detail = (await res.text().catch(() => '')).slice(0, 200); }
+    return new Error('Kokoro ' + res.status + (detail ? ': ' + detail : ''));
+  }
+
   // onProgress(bytesReceived) is called as chunks arrive — use it to update UI.
+  //
+  // The server content-addresses every result (sha256 of text+voice+speed+format)
+  // and finishes the encode even if we hang up, so a dropped download need not
+  // pay for inference twice: keep the X-TTS-Key it hands back, then reconnect to
+  // GET /tts/{key}.opus with a Range header and resume from the bytes already
+  // held. See tts/tts.py.
   async function synthesizeTTS(text, voiceId, onProgress) {
     const key = (localStorage.getItem(KOKORO_KEY) || '').trim();
     if (!key) throw new Error('No Kokoro API key. Add it in Setup → Radio station.');
     const input = text.length > TTS_CHAR_LIMIT ? text.slice(0, TTS_CHAR_LIMIT) : text;
-    const res = await fetch(kokoroUrl() + '/tts', {
-      method: 'POST', headers: { 'X-API-Key': key, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: input, voice: voiceId, format: 'opus' }),
-    });
-    if (!res.ok) {
-      let detail = '';
-      try { const j = await res.json(); detail = j.detail ? (typeof j.detail === 'string' ? j.detail : (j.detail.message || JSON.stringify(j.detail))) : ''; }
-      catch (e) { detail = (await res.text().catch(() => '')).slice(0, 200); }
-      throw new Error('Kokoro ' + res.status + (detail ? ': ' + detail : ''));
+    const auth = { 'X-API-Key': key };
+    const buf = { chunks: [], bytes: 0 };
+    let ttsKey = '', mimeType = 'audio/ogg', lastErr = null;
+    const restart = () => { buf.chunks.length = 0; buf.bytes = 0; };
+
+    for (let attempt = 0; attempt < TTS_MAX_ATTEMPTS; attempt++) {
+      if (attempt) await ttsSleep(TTS_RETRY_MS * Math.pow(2, attempt - 1));
+      try {
+        if (ttsKey && buf.bytes) {
+          // Resume: the encode is cached under ttsKey, so ask for the tail only.
+          const res = await fetch(kokoroUrl() + '/tts/' + ttsKey + '.opus', {
+            headers: Object.assign({ Range: 'bytes=' + buf.bytes + '-' }, auth),
+          });
+          // 404 = the encode hasn't landed on the Volume yet; back off and retry.
+          if (res.status === 404) { lastErr = await ttsError(res); continue; }
+          if (res.status === 416) {
+            // Asked past the end: the drop hit the final read and we already
+            // hold every byte, so fall through and assemble. A length that
+            // disagrees means our buffer isn't the server's blob — start over.
+            const total = Number((res.headers.get('Content-Range') || '').split('/')[1]);
+            if (total !== buf.bytes) { restart(); lastErr = await ttsError(res); continue; }
+          } else {
+            if (!res.ok) throw await ttsError(res);
+            // 200 means the Range was ignored, so this body starts from byte 0.
+            if (res.status === 200) restart();
+            mimeType = res.headers.get('content-type') || mimeType;
+            await readAudioStream(res, buf, onProgress);
+          }
+        } else {
+          restart();                       // nothing to resume against
+          const res = await fetch(kokoroUrl() + '/tts', {
+            method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, auth),
+            body: JSON.stringify({ text: input, voice: voiceId, format: 'opus' }),
+          });
+          if (!res.ok) throw await ttsError(res);
+          ttsKey = res.headers.get('X-TTS-Key') || '';
+          mimeType = res.headers.get('content-type') || mimeType;
+          // Stream the response so the connection stays alive during generation
+          // and the user sees byte progress instead of a frozen UI.
+          await readAudioStream(res, buf, onProgress);
+        }
+        const blob = new Blob(buf.chunks, { type: mimeType });
+        if (!blob.size) throw new Error('Kokoro returned no audio.');
+        return blob;
+      } catch (e) {
+        lastErr = e;
+        // A rejected request (bad key, bad voice) won't fix itself on a retry.
+        if (/^Kokoro [45]\d\d/.test(e.message || '')) throw e;
+      }
     }
-    // Stream the response so the connection stays alive during generation and
-    // the user sees byte progress instead of a frozen UI.
-    const mimeType = res.headers.get('content-type') || 'audio/ogg';
-    const reader = res.body.getReader();
-    const chunks = [];
-    let received = 0;
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-      received += value.length;
-      if (onProgress) onProgress(received);
-    }
-    const blob = new Blob(chunks, { type: mimeType });
-    if (!blob.size) throw new Error('Kokoro returned no audio.');
-    return blob;
+    throw lastErr || new Error('Kokoro synthesis failed.');
   }
 
   /* ── Kokoro voice catalog (static — see KOKORO_VOICES) ──────────────────── */

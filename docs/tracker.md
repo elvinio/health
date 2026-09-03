@@ -114,9 +114,23 @@ On-demand AI "radio station". **Two phases per episode**, with status
    a segmented DJ script per channel/persona → `draft`. The user reads it on the
    **review screen** before synthesis.
 2. **Voice** — self-hosted Kokoro TTS (`POST <health:kokoroUrl>/tts`, auth via
-   `X-API-Key`, MP3 out; server `tts/tts.py` on Modal) voices each segment →
+   `X-API-Key`, Ogg/Opus out; server `tts/tts.py` on Modal) voices each segment →
    `ready`. The endpoint picks `lang_code` from the voice prefix (`bf_`/`bm_` →
    British, else American English).
+
+**Resumable TTS downloads** — `/tts` streams audio as it encodes, so a dropped
+connection used to throw away the whole synthesis. The server now caches every
+result on a Modal Volume, content-addressed by `sha256(text, voice, speed,
+format)`, and runs the encode on a background thread so a client disconnect no
+longer cancels it. Each response carries `X-TTS-Key` (the hash) and
+`X-TTS-Cache: hit|miss|inflight`; identical concurrent requests dedupe onto one
+encode. `synthesizeTTS` keeps that key and, on a mid-stream drop, reconnects to
+`GET /tts/{key}.opus` with `Range: bytes=<received>-` — up to
+`TTS_MAX_ATTEMPTS` tries with exponential backoff — so a retry resumes from the
+byte offset instead of paying for inference twice. A `404` there means the
+encode hasn't landed yet and is retried; a `200` (Range ignored) restarts the
+body cleanly. Bump `CACHE_VERSION` in `tts/tts.py` to invalidate every cached
+blob after changing pronunciations or ffmpeg settings.
 
 **Manual (no-Claude-key) path** — each channel card also has:
 - **📋 Prompt** (`openPromptModal` → `buildCopyPrompt`): one self-contained prompt
